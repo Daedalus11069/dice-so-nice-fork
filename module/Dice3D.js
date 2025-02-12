@@ -841,9 +841,9 @@ export class Dice3D {
 
 
     /**
+     * Add the 3D Dice animation to the Accumulator based on data configuration made by the User.
      *
-     * @param formula
-     * @param results
+     * @param notation 
      * @param dsnConfig
      * @returns {Promise<boolean>}
      * @private
@@ -859,50 +859,83 @@ export class Dice3D {
     }
 
     /**
-     * Start polling and watching the queue for animation requests.
-     * Each request is resolved in sequence.
-     *
+     * Initializes the animation queue system.
+     * Sets up an empty queue array for managing dice roll animations
+     * and initializes a Promise to track the current animation state.
+     * 
      * @private
      */
     _startQueueHandler() {
         this.queue = [];
+        this._currentAnimation = Promise.resolve();
     }
 
-    _processQueue() {
+    
+    /**
+     * Processes the queue of dice animations recursively.
+     * Each animation in the queue is executed one at a time in sequence.
+     * Once an animation is complete, it moves on to the next one if available.
+     *
+     * @private
+     * @returns {Promise<void>} Resolves when all queued animations are complete
+     */
+    async _processQueue() {
+        if (this.queue.length === 0) return;
+
+        const animate = this.queue.shift();
+        await animate();
+
+        // If there are more animations, process the next one
         if (this.queue.length > 0) {
-            let animate = this.queue.shift();
-            animate();
+            await this._processQueue();
         }
     }
 
+    /**
+     * Initializes and handles the animation queue system for dice rolls.
+     * This method sets up an Accumulator to manage multiple dice roll animations,
+     * potentially allowing for simultaneous rolls based on game settings.
+     *
+     * @private
+     * @returns {Promise<void>} A promise that resolves when the animation handler is initialized
+     */
     async _nextAnimationHandler() {
-        let timing = game.settings.get("dice-so-nice", "enabledSimultaneousRolls") ? 400 : 0;
+        const timing = game.settings.get("dice-so-nice", "enabledSimultaneousRolls") ? 400 : 0;
+
         this.nextAnimation = new Accumulator(timing, async (items) => {
-            let commands = DiceNotation.mergeQueuedRollCommands(items);
-            if (this.isEnabled() && this.queue.length < 10) {
-                let count = commands.length;
-                for (const aThrow of commands) {
-                    this.queue.push(async () => {
+            // If dice are disabled or queue is too long, resolve all items as false
+            if (!this.isEnabled() || this.queue.length >= 10) {
+                items.forEach(item => item.resolve(false));
+                return;
+            }
+
+            // Merge multiple roll commands into a single command array
+            const commands = DiceNotation.mergeQueuedRollCommands(items);
+            let remainingAnimations = commands.length;
+
+            // Chain the animations using promises
+            this._currentAnimation = this._currentAnimation.then(async () => {
+                // Process each dice throw command
+                for (const diceThrow of commands) {
+                    this.queue.push(() => new Promise(async (resolve) => {
                         this._beforeShow();
-                        await this.box.start_throw(aThrow, () => {
-                            if (!--count) {
-                                for (let item of items)
-                                    item.resolve(true);
+                        await this.box.start_throw(diceThrow, () => {
+                            remainingAnimations--;
+                            // When all animations are complete, resolve items and cleanup
+                            if (remainingAnimations === 0) {
+                                items.forEach(item => item.resolve(true));
                                 this._afterShow();
                             }
-                            // Immediately process the next animation if there is one
-                            this._processQueue();
+                            resolve();
                         });
-                    });
+                    }));
                 }
-                this._processQueue();
-            } else {
-                for (let item of items)
-                    item.resolve(false);
-            }
+                return this._processQueue();
+            });
+
+            await this._currentAnimation;
         });
     }
-
 
     /**
      *
