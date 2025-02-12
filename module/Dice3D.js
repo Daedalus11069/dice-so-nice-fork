@@ -722,15 +722,20 @@ export class Dice3D {
         }
 
         //If the showForRoll method was called directly from the API, we didn't get the chance to retrieve a roll appearance
-        if(context.roll.options?.appearance) { //this can only exist if the showForRoll method was called directly from the API
-            context.roll.dice.forEach(diceTerm => {
-                if(!diceTerm.options)
-                    diceTerm.options = {};
-                if(!diceTerm.options.appearance)
-                    diceTerm.options.appearance = {};
-                diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, context.roll.options.appearance);
-            });
-        }
+        const applyAppearance = (roll) => {
+            if (roll.rolls) { // Is PoolTerm
+                roll.rolls.forEach(applyAppearance);
+            } else if (roll.options?.appearance) { // Is Roll with appearance
+                roll.dice.forEach(diceTerm => {
+                    if(!diceTerm.options)
+                        diceTerm.options = {};
+                    if(!diceTerm.options.appearance)
+                        diceTerm.options.appearance = {};
+                    diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
+                });
+            }
+        };
+        applyAppearance(context.roll);
 
         if (speaker) { 
             let actor = game.actors.get(speaker.actor);
