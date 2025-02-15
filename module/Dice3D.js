@@ -644,7 +644,11 @@ export class Dice3D {
             orderedDiceList = orderedDiceList.filter(el => el != null);
 
             let rollList = [];
-            const plus = new foundry.dice.terms.OperatorTerm({ operator: "+" }).evaluate();
+            const plus = new foundry.dice.terms.OperatorTerm({ operator: "+" });
+            //_evaluated is false in v12, true in v13+
+            if(!plus._evaluated)
+                plus.evaluate();
+
             orderedDiceList.forEach(dice => {
                 //add a "plus" between each term
                 if (Array.isArray(dice) && dice.length) {
