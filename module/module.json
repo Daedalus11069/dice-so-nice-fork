@@ -125,6 +125,11 @@
             "lang": "tr",
             "name": "Türkçe",
             "path": "./lang/tr.json"
+        },
+        {
+            "lang": "nl",
+            "name": "Nederlands",
+            "path": "./lang/nl.json"
         }
     ],
     "media": [
