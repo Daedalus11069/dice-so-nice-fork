@@ -2,8 +2,6 @@
 
 This module for Foundry VTT adds the ability to show a 3D dice simulation when a roll is made.
 
-[[_TOC_]]
-
 # Disclaimer
 
 This fork is to fix a bug present in the 4.6.10 version of the module; namely, when hooking into events supplied by this module for rolling dice, if one rolls multiple dice and multiple dice have effects added to them, it crashes dice-so-nice.  I have not submitted a pull request because the fix, in my opinion, is a bit hacky.  Its hacky because I do not know why the underlying issue occurs, and at best it is a bandaid instead of a solution that targets the root cause of the bug.
