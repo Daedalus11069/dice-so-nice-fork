@@ -161,8 +161,8 @@
     "url": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice",
     "manifest": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/raw/master/module/module.json",
     "download": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/jobs/artifacts/4.6.10/raw/dist/dice-so-nice.zip?job=build",
-    "bugs": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues",
-    "readme": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/blob/master/README.md",
+    "bugs": "https://github.com/Daedalus11069/dice-so-nice-fork/issues",
+    "readme": "https://github.com/Daedalus11069/dice-so-nice-fork/blob/v11-rendering-fixes/README.md",
     "flags": {
         "allowBugReporter": true
     }
