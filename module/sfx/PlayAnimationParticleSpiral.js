@@ -33,8 +33,8 @@ export class PlayAnimationParticleSpiral extends DiceSFX {
         this.proton = new Proton();
         this.R = 70;
         this.tha = 0;
-        this.emitter1 = this.createEmitter(this.R, this.R, '#4F1500', '#0029FF');
-        this.emitter2 = this.createEmitter(-this.R, -this.R, '#004CFE', '#6600FF');
+        this.emitter1 = await this.createEmitter(this.R, this.R, '#4F1500', '#0029FF');
+        this.emitter2 = await this.createEmitter(-this.R, -this.R, '#004CFE', '#6600FF');
         this.proton.addEmitter(this.emitter1);
         this.proton.addEmitter(this.emitter2);
         this.proton.addRender(new Proton.SpriteRender(this.box.scene));
@@ -48,11 +48,14 @@ export class PlayAnimationParticleSpiral extends DiceSFX {
         //Proton.Debug.drawEmitter(this.proton,this.box.scene,this.emitter);
     }
 
-    createEmitter(x, y, color1, color2) {
+    async createEmitter(x, y, color1, color2) {
         var emitter = new Proton.Emitter();
         emitter.rate = new Proton.Rate(new Proton.Span(5, 7), new Proton.Span(.01, .02));
         emitter.addInitialize(new Proton.Mass(1));
         emitter.addInitialize(new Proton.Life(1));
+        if (PlayAnimationParticleSpiral.sprite === null) {
+            await PlayAnimationParticleSpiral.init();
+        }
         emitter.addInitialize(new Proton.Body(PlayAnimationParticleSpiral.sprite));
         emitter.addInitialize(new Proton.Radius(30));
         emitter.addInitialize(new Proton.V(200, new Proton.Vector3D(0, 0, -1), 0));
