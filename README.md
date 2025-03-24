@@ -1,24 +1,24 @@
 ![Banner](./banner.jpg?raw=true)
-[![Forge Installs](https://img.shields.io/badge/dynamic/json?label=Forge%20Installs&query=package.installs&suffix=%25&url=https%3A%2F%2Fforge-vtt.com%2Fapi%2Fbazaar%2Fpackage%2Fdice-so-nice&colorB=4aa94a)](https://forge-vtt.com/bazaar#package=dice-so-nice)
-[![Foundry Hub Endorsements](https://img.shields.io/endpoint?logoColor=white&url=https%3A%2F%2Fwww.foundryvtt-hub.com%2Fwp-json%2Fhubapi%2Fv1%2Fpackage%2Fdice-so-nice%2Fshield%2Fendorsements)](https://www.foundryvtt-hub.com/package/dice-so-nice/)
-[![Foundry Hub Comments](https://img.shields.io/endpoint?logoColor=white&url=https%3A%2F%2Fwww.foundryvtt-hub.com%2Fwp-json%2Fhubapi%2Fv1%2Fpackage%2Fdice-so-nice%2Fshield%2Fcomments)](https://www.foundryvtt-hub.com/package/dice-so-nice/)
-[![Translation status](https://weblate.foundryvtt-hub.com/widgets/dice-so-nice/-/main/svg-badge.svg)](https://weblate.foundryvtt-hub.com/engage/dice-so-nice/)
 
 This module for Foundry VTT adds the ability to show a 3D dice simulation when a roll is made.
 
 [[_TOC_]]
 
+# Disclaimer
+
+This fork is to fix a bug present in the 4.6.10 version of the module; namely, when hooking into events supplied by this module for rolling dice, if one rolls multiple dice and multiple dice have effects added to them, it crashes dice-so-nice.  I have not submitted a pull request because the fix, in my opinion, is a bit hacky.  Its hacky because I do not know why the underlying issue occurs, and at best it is a bandaid instead of a solution that targets the root cause of the bug.
+
+This fork was secondarily created so I could use my module which hooks into it: https://github.com/Daedalus11069/foundry-dangerously-threatening-dice-module without having to rely on major caveats for usage.
+
 # Installation
 
-To install, search for "Dice so Nice" in your module browser inside Foundry VTT.
-
-Alternatively, you can manually install the module by following these steps:
+To install, follow these steps:
 
 1.  Inside Foundry, select the Game Modules tab in the Configuration and Setup menu.
-2.  Click the Install Module button and enter the following URL: https://gitlab.com/riccisi/foundryvtt-dice-so-nice/raw/master/module/module.json
+2.  Click the Install Module button and enter the following URL: https://github.com/Daedalus11069/dice-so-nice-fork/releases/latest/download/module.json
 3.  Click Install and wait for installation to complete.
 
-Dice So Nice! is also available on [The Forge](https://forge-vtt.com/bazaar#package=dice-so-nice).
+Dice So Nice! is also available on [The Forge](https://forge-vtt.com/bazaar#package=dice-so-nice). (Non-forked version)
 
 # Usage Instructions
 
