@@ -33,6 +33,9 @@ export class PlayAnimationParticleVortex extends DiceSFX {
         this.emitter.rate = new Proton.Rate(new Proton.Span(6, 8), new Proton.Span(.1, .25));
         this.emitter.addInitialize(new Proton.Mass(1));
         this.emitter.addInitialize(new Proton.Life(0.8,2.4));
+        if (PlayAnimationParticleVortex.sprite === null) {
+            await PlayAnimationParticleVortex.init();
+        }
         this.emitter.addInitialize(new Proton.Body(PlayAnimationParticleVortex.sprite));
         this.emitter.addInitialize(new Proton.Velocity(50, new Proton.Vector3D(0,0,1), 0));
         let scale = this.box.dicefactory.baseScale/100;

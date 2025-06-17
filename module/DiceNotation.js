@@ -145,12 +145,28 @@ export class DiceNotation {
 			for(let j=0;j<mergedRollCommands[i].length;j++){
 
 				//Retrieve the sfx list (unfiltered) for this throw. We do not know yet if these sfx should be visible or not
-				let sfxList = mergedRollCommands[i][j].dsnConfig.specialEffects;
+				let sfxList = mergedRollCommands[i][j].dsnConfig.specialEffects.slice(0);
 				/*if(!sfxList || !sfxList["0"])
 					continue;*/
 				//Finally we loop over each dice in this throw
 				for(let k=0;k<mergedRollCommands[i][j].dice.length;k++){
 					const dsnDie = mergedRollCommands[i][j].dice[k];
+					// Loop through effects added by onResultEffects dice options key (nameOfEffect -> resultToTriggerOn)
+					if (dsnDie.options.onResultEffects) {
+						Object.keys(dsnDie.options.onResultEffects).forEach(specialEffect => {
+							const {onResult, options: opts = {}} =  dsnDie.options.onResultEffects[specialEffect];
+							sfxList.push({
+									"diceType": dsnDie.type,
+									"onResult": onResult,
+									"specialEffect": specialEffect,
+									"options": {
+											"isGlobal": false,
+											"muteSound": false,
+											...opts
+									}
+							});
+						});
+					}
 					//attach SFX that should trigger for this roll
 					//For each sfx configured
 					let specialEffects = Object.values(sfxList).filter(sfx => {
@@ -187,6 +203,10 @@ export class DiceNotation {
 						if(dsnDie.options.sfx && dsnDie.options.sfx.id == sfx.diceType && sfx.onResult.includes(dsnDie.options.sfx.result.toString()))
 							return true;
 
+						//if a special effect was manually triggered for this result set, include it
+						if(dsnDie.options.onResult && dsnDie.type == sfx.diceType && sfx.onResult.includes(dsnDie.result.toString()))
+							return true;
+
 						return false;
 					});
 					//Now that we have a filtered list of sfx to play, we make a final list of all sfx for this die and we remove the duplicates
@@ -197,12 +217,20 @@ export class DiceNotation {
 						});
 					if(specialEffects.length){
 						//remove duplicate
-						specialEffects = specialEffects.filter((v, i, a) => a.indexOf(v) === i);
+						specialEffects = specialEffects.filter((v, i, a) => a.findIndex(se => this.deepEqual(se, v)) === i);
 						mergedRollCommands[i][j].dice[k].specialEffects = specialEffects;
 					}
 				}
 			}
 		}
 		return mergedRollCommands;
+	}
+
+	static deepEqual(x, y) {
+		const ok = Object.keys, tx = typeof x, ty = typeof y;
+		return x && y && tx === 'object' && tx === ty ? (
+			ok(x).length === ok(y).length &&
+				ok(x).every(key => this.deepEqual(x[key], y[key]))
+		) : (x === y);
 	}
 }
