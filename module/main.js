@@ -324,7 +324,7 @@ Hooks.on('createChatMessage', (chatMessage) => {
 /**
  * Hide messages which are animating rolls.
  */
-Hooks.on("renderChatMessage", (message, html, data) => {
+Hooks.on("renderChatMessageHTML", (message, html, data) => {
     if (game.dice3d && game.dice3d.messageHookDisabled) {
         return;
     }
@@ -364,11 +364,11 @@ Hooks.on("renderChatMessage", (message, html, data) => {
 
             //In case _dice3dMessageHidden is still true, we hide the message as it means the original rolls are not yet finished
             if(message._dice3dMessageHidden)
-                html.addClass("dsn-hide");
+                html.classList.add("dsn-hide");
         }
         else {
             //first time rendering the message
-            html.addClass("dsn-hide");
+            html.classList.add("dsn-hide");
             message._dice3dMessageHidden = true;
         }
     }

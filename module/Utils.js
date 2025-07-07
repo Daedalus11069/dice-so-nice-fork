@@ -240,7 +240,7 @@ export class Utils {
         let fontList = {
             "auto": game.i18n.localize("DICESONICE.FontAuto")
         };
-        return foundry.utils.mergeObject(fontList, FontConfig.getAvailableFontChoices());
+        return foundry.utils.mergeObject(fontList, foundry.applications.settings.menus.FontConfig.getAvailableFontChoices());
     };
 
     static prepareColorsetList() {
