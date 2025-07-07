@@ -452,8 +452,8 @@ export class DiceFactory {
 
 		this.register(preset);
 
-		if(dice.font && !FontConfig.getAvailableFonts().includes(dice.font)){
-			this.fontLoadingPromises.push(FontConfig.loadFont(dice.font,{editor:false,fonts:[]}));
+		if(dice.font && !foundry.applications.settings.menus.FontConfig.getAvailableFonts().includes(dice.font)){
+			this.fontLoadingPromises.push(foundry.applications.settings.menus.FontConfig.loadFont(dice.font,{editor:false,fonts:[]}));
 		}
 	}
 

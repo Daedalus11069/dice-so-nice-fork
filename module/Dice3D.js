@@ -231,8 +231,8 @@ export class Dice3D {
         COLORSETS[colorset.name] = colorset;
         DiceColors.initColorSets(colorset);
 
-        if (colorset.font && !FontConfig.getAvailableFonts().includes(colorset.font)) {
-            await FontConfig.loadFont(colorset.font, { editor: false, fonts: [] });
+        if (colorset.font && !foundry.applications.settings.menus.FontConfig.getAvailableFonts().includes(colorset.font)) {
+            await foundry.applications.settings.menus.FontConfig.loadFont(colorset.font, { editor: false, fonts: [] });
         }
         if (mode == "preferred")
             this.DiceFactory.preferredColorset = colorset.name;
