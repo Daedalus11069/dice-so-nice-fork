@@ -265,7 +265,7 @@
     "DICESONICE.WelcomeTitle": "Dice So Nice - Seus dados 3D",
     "DICESONICE.sfxOptionsMuteSound": "Silenciar som",
     "DICESONICE.PlayAnimationOutline": "Animação: Contorno",
-    "DICESONICE.onlyShowMyDice": "Mostrar apenas meu dado",
+    "DICESONICE.onlyShowMyDice": "Mostrar Apenas Meu Dado",
     "DICESONICE.SystemOptions": "Configurações do Sistema",
     "DICESONICE.forceCharacterOwnerAppearanceForInitiative": "Use os dados do proprietário para iniciativa",
     "DICESONICE.forceCharacterOwnerAppearanceForInitiativeHint": "Quando ativado, use a aparência dos dados do dono do personagem ao rolar a iniciativa do rastreador de combate, independentemente do autor da rolagem (exemplo: MJ).",
