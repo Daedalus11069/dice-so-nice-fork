@@ -346,14 +346,12 @@ export class Dice3D {
      */
     _buildCanvas() {
         const config = Dice3D.CONFIG();
-        const sidebarWidth = $('#sidebar').width();
-        const sidebarOffset = sidebarWidth > window.innerWidth / 2 ? 0 : sidebarWidth;
-        // Get the body element's top style because of the "Window Controls" plugin that adds a "top" to the body element
         const bodyTop = parseInt(window.getComputedStyle(document.body).top, 10) || 0;
+
         const area = config.rollingArea ? config.rollingArea : {
             left: 0,
             top: 0,
-            width: window.innerWidth - sidebarOffset,
+            width: window.innerWidth,
             height: window.innerHeight - 1 - bodyTop
         };
 
@@ -383,6 +381,18 @@ export class Dice3D {
         this.DiceFactory = new DiceFactory();
         let config = Dice3D.ALL_CONFIG();
         config.boxType = "board";
+
+        config.dimensions = {
+            width: window.innerWidth,
+            height: window.innerHeight - 1,
+            margin: {
+                top: 0,
+                right: ui.sidebar.expanded ? ui.sidebar.element.clientWidth : 0,
+                bottom: 0,
+                left: 0
+            }
+        };
+
         this.box = new DiceBox(this.canvas[0], this.DiceFactory, config);
         this.box.initialize();
     }
@@ -412,18 +422,14 @@ export class Dice3D {
                 this.resizeAndRebuild();
             }
         };
-    
+
         this.resizeAndRebuild = () => {
             this.canvas[0].remove();
             this.box.clearScene();
             this._buildCanvas();
-            let config = Dice3D.ALL_CONFIG();
-            config.boxType = "board";
-            this.box = new DiceBox(this.canvas[0], this.DiceFactory, config);
-            this.box.initialize();
+            this._buildDiceBox();
             this.box.soundManager.preloadSounds();
         };
-
 
         $(document).on("click", ".dice-so-nice-btn-settings", (ev) => {
             ev.preventDefault();
@@ -564,7 +570,7 @@ export class Dice3D {
     update(settings) {
         this.box.update(settings);
     }
-    
+
     /**
      * Parse, sort and add the dice animation to the queue for a chat message and an array of Roll
      * Used internally by the message Hooks. Not meant to be used outside of the module.
@@ -580,27 +586,27 @@ export class Dice3D {
             messageElement.removeClass("dsn-hide");
 
             let messageElementPopout;
-            if(window.ui.sidebar.popouts.chat){
+            if (window.ui.sidebar.popouts.chat) {
                 messageElementPopout = $(window.ui.sidebar.popouts.chat.element).find(`.message[data-message-id="${chatMessage.id}"]`);
                 messageElementPopout.removeClass("dsn-hide");
             }
 
             // compatibility v13 proto2 - TODO clean up consistency jquery
             const notificationElement = document.querySelector(`#chat-notifications .message[data-message-id="${chatMessage.id}"]`);
-            if ( notificationElement ) {
+            if (notificationElement) {
                 notificationElement.classList.remove("dsn-hide");
                 notificationElement._lifeSpan = 0; // Reset lifespan so timeout duration starts from when the message is shown. No public method yet
             }
 
-            if(chatMessage._dice3dMessageHidden){
+            if (chatMessage._dice3dMessageHidden) {
                 //first/initial rolls are done
                 chatMessage._dice3dMessageHidden = false;
-            } else if(chatMessage._dice3dRollsHidden && chatMessage._dice3dRollsHidden.length){ 
+            } else if (chatMessage._dice3dRollsHidden && chatMessage._dice3dRollsHidden.length) {
                 //subsequent rolls. for every 'done' roll we reveal x hidden rolls by shifting the _dice3dRollsHidden array
-                messageElement.find(`.dice-roll.dsn-hide`).slice(0,chatMessage._dice3dRollsHidden.shift()).removeClass("dsn-hide");
+                messageElement.find(`.dice-roll.dsn-hide`).slice(0, chatMessage._dice3dRollsHidden.shift()).removeClass("dsn-hide");
 
-                if(window.ui.sidebar.popouts.chat){
-                    messageElementPopout.find(`.dice-roll.dsn-hide`).slice(0,chatMessage._dice3dRollsHidden.shift()).removeClass("dsn-hide");
+                if (window.ui.sidebar.popouts.chat) {
+                    messageElementPopout.find(`.dice-roll.dsn-hide`).slice(0, chatMessage._dice3dRollsHidden.shift()).removeClass("dsn-hide");
                 }
             }
 
@@ -630,10 +636,10 @@ export class Dice3D {
                     }
 
                     //In order to allow for custom appearance and the roll level, we merge the roll appearance in the dice term
-                    if(roll.options?.appearance) {
-                        if(!diceTerm.options)
+                    if (roll.options?.appearance) {
+                        if (!diceTerm.options)
                             diceTerm.options = {};
-                        if(!diceTerm.options.appearance)
+                        if (!diceTerm.options.appearance)
                             diceTerm.options.appearance = {};
                         diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
                     }
@@ -646,7 +652,7 @@ export class Dice3D {
             let rollList = [];
             const plus = new foundry.dice.terms.OperatorTerm({ operator: "+" });
             //_evaluated is false in v12, true in v13+
-            if(!plus._evaluated)
+            if (!plus._evaluated)
                 plus.evaluate();
 
             orderedDiceList.forEach(dice => {
@@ -661,21 +667,21 @@ export class Dice3D {
             //call each promise one after the other, then call the showMessage function
             const recursShowForRoll = (rollList, index) => {
                 let author = chatMessage.author;
-                if(chatMessage.getFlag("core", "initiativeRoll") && game.settings.get("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative")) {
-                    if(chatMessage.speaker){
+                if (chatMessage.getFlag("core", "initiativeRoll") && game.settings.get("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative")) {
+                    if (chatMessage.speaker) {
                         const actor = game.actors.get(chatMessage.speaker.actor);
-                        if(actor && actor.hasPlayerOwner) {
+                        if (actor && actor.hasPlayerOwner) {
                             //get the user from game.users
                             author = game.users.find(user => !user.isGM && user.character?.id == actor.id);
-                            if(!author) {
+                            if (!author) {
                                 //if we could not find a player user, we try to find a player owner, if and only if the actor only has a single player owner (but can have multiple GMs)
-                                const ownership = {...actor.ownership}; //ie {"default": 0,"Q1Qcc8RRRcvG6QjE": 3}
-                                if(ownership.default != CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) { //Check that the default isn't Owner
+                                const ownership = { ...actor.ownership }; //ie {"default": 0,"Q1Qcc8RRRcvG6QjE": 3}
+                                if (ownership.default != CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) { //Check that the default isn't Owner
                                     //now get all the owners that are not GMs nor the default
                                     delete ownership.default;
                                     const playerOwners = Object.keys(ownership).filter(key => game.users.get(key) && !game.users.get(key).isGM);
                                     //if there is only one player owner
-                                    if(playerOwners.length == 1) {
+                                    if (playerOwners.length == 1) {
                                         author = game.users.get(playerOwners[0]);
                                     }
                                 }
@@ -709,7 +715,7 @@ export class Dice3D {
      * @param options Object with 2 booleans: ghost (default: false) and secret (default: false)
      * @returns {Promise<boolean>} when resolved true if the animation was displayed, false if not.
      */
-    showForRoll(roll, user = game.user, synchronize, users = null, blind, messageID = null, speaker = null, options = {ghost:false, secret:false}) {
+    showForRoll(roll, user = game.user, synchronize, users = null, blind, messageID = null, speaker = null, options = { ghost: false, secret: false }) {
         let context = {
             roll: roll,
             user: user,
@@ -721,7 +727,7 @@ export class Dice3D {
             context.roll.ghost = true;
         }
 
-        if (options.secret) {  
+        if (options.secret) {
             context.roll.secret = true;
         }
 
@@ -731,9 +737,9 @@ export class Dice3D {
                 roll.rolls.forEach(applyAppearance);
             } else if (roll.options?.appearance) { // Is Roll with appearance
                 roll.dice.forEach(diceTerm => {
-                    if(!diceTerm.options)
+                    if (!diceTerm.options)
                         diceTerm.options = {};
-                    if(!diceTerm.options.appearance)
+                    if (!diceTerm.options.appearance)
                         diceTerm.options.appearance = {};
                     diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
                 });
@@ -741,7 +747,7 @@ export class Dice3D {
         };
         applyAppearance(context.roll);
 
-        if (speaker) { 
+        if (speaker) {
             let actor = game.actors.get(speaker.actor);
             const isNpc = actor ? !actor.hasPlayerOwner : false;
             if (isNpc && game.settings.get("dice-so-nice", "hideNpcRolls")) {
@@ -879,7 +885,7 @@ export class Dice3D {
         this._currentAnimation = Promise.resolve();
     }
 
-    
+
     /**
      * Processes the queue of dice animations recursively.
      * Each animation in the queue is executed one at a time in sequence.

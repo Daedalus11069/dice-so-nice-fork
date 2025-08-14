@@ -9,7 +9,7 @@ import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader.js';
-import { SMAAPass } from './libs/SMAAPass.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import Stats from 'stats-gl';
 
@@ -138,6 +138,23 @@ export class DiceBox {
 		this.darkMaterial = new MeshBasicMaterial({ color: 'black' });
 	}
 
+	updateBoundaries(dimensions) {
+		const newDimensions = {
+			width: dimensions.width || this.display.containerWidth,
+			height: dimensions.height || this.display.containerHeight,
+			margin: { 
+				top: dimensions.margin.top || this.display.containerMargin.top,
+				bottom: dimensions.margin.bottom || this.display.containerMargin.bottom,
+				left: dimensions.margin.left || this.display.containerMargin.left,
+				right: dimensions.margin.right || this.display.containerMargin.right
+			}
+		};
+
+		if (this.physicsWorker) {
+			this.physicsWorker.exec('updateBarriers', newDimensions);
+		}
+	}
+
 	initialize() {
 		return new Promise(async resolve => {
 			this.soundManager.update({
@@ -219,6 +236,7 @@ export class DiceBox {
 					muteSoundSecretRolls: this.muteSoundSecretRolls,
 					height: this.display.containerHeight,
 					width: this.display.containerWidth,
+					margin: this.display.containerMargin
 				});
 
 				this.physicsWorker.off('collide');
@@ -284,16 +302,19 @@ export class DiceBox {
 		this.display.currentHeight /= 2;
 
 		if (dimensions) {
-			this.display.containerWidth = dimensions.w;
-			this.display.containerHeight = dimensions.h;
+			this.display.containerWidth = dimensions.width;
+			this.display.containerHeight = dimensions.height;
+			this.display.containerMargin = dimensions.margin;
 
 			if (!this.display.currentWidth || !this.display.currentHeight) {
-				this.display.currentWidth = dimensions.w / 2;
-				this.display.currentHeight = dimensions.h / 2;
+				this.display.currentWidth = dimensions.width / 2;
+				this.display.currentHeight = dimensions.height / 2;
+				this.display.currentMargin = dimensions.margin;
 			}
 		} else {
 			this.display.containerWidth = this.display.currentWidth;
 			this.display.containerHeight = this.display.currentHeight;
+			this.display.containerMargin = this.display.currentMargin;
 		}
 
 		this.display.aspect = Math.min(this.display.currentWidth / this.display.containerWidth, this.display.currentHeight / this.display.containerHeight);
@@ -452,7 +473,7 @@ export class DiceBox {
 
 			//Software Anti-aliasing pass. Should be rendered in a linear space.
 			if (this.dicefactory.aa == "smaa") {
-				this.AAPass = new SMAAPass(size.x, size.y);
+				this.AAPass = new SMAAPass();
 				this.AAPass.renderToScreen = true;
 				this.finalComposer.addPass(this.AAPass);
 			}
