@@ -176,6 +176,9 @@ export class DiceNotation {
 
 						//if the result is in the triggers value, we keep the fx. Special case: double d10 for a d100 roll
 						if(sfx.diceType == "d100"){
+							//if the fx is a macro, only execute it for the actual d100
+							if(sfx.specialEffect == "PlayMacro" && dsnDie.type == "d10")
+								return false;
 							if(dsnDie.d100Result && sfx.onResult.includes(dsnDie.d100Result.toString()))
 								return true;
 						} else {
