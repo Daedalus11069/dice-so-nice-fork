@@ -43,6 +43,10 @@ export const DiceSFXManager = {
     garbageCollector : [],
     GLTFLoader : null,
     TextureLoader: null,
+    // Base delay (ms) before starting any SFX
+    playDelayBase: 100,
+    // Additional randomized jitter (ms) added to the base delay to stagger multiple SFX
+    playDelayJitter: 750,
     init : function(){
         if(!DiceSFXManager.SFX_MODE_LIST){
             DiceSFXManager.SFX_MODE_LIST = {};
@@ -94,9 +98,13 @@ export const DiceSFXManager = {
                     return;
                 }
             }
-                
+            
             let sfxInstance = new DiceSFXManager.SFX_CLASS[id](box, dicemesh, sfx.options);
-            //Add a timeout to prevent a visual glitch in v5 (probably linked to the async worker)
+            // Compute jitter using a simple Math.random based distribution.
+            const maxJitter = DiceSFXManager.playDelayJitter || 0;
+            const jitter = maxJitter > 0 ? Math.floor(Math.random() * (maxJitter + 1)) : 0;
+            const delay = (DiceSFXManager.playDelayBase || 0) + jitter;
+            console.log(`SFX Delay: ${delay}ms`);
             setTimeout(()=>{
                 sfxInstance.play(sfx.options).then(result => {
                     if(result !== false){
@@ -107,7 +115,7 @@ export const DiceSFXManager = {
                     }
                     resolve();
                 });
-            }, 100);
+            }, delay);
         });
     },
     renderSFX : function(){

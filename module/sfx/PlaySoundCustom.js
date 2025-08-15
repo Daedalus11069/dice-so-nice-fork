@@ -6,6 +6,7 @@ import { DiceSFX } from '../DiceSFX.js';
 export class PlaySoundCustom extends DiceSFX {
     static id = "PlaySoundCustom";
     static specialEffectName = "DICESONICE.PlaySoundCustom";
+    static PLAY_ONLY_ONCE_PER_MESH = true;
 
     /**@override play */
     async play(options){

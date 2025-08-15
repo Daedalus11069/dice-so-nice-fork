@@ -438,8 +438,9 @@ Hooks.on("chatCommandsReady", commands => {
 });
 
 Hooks.on("collapseSidebar", (sidebar, collapsed) => {
-    if (game.dice3d) {
-        //let the time for a css repaint
-        setTimeout(() => game.dice3d.resizeAndRebuild(), 300);
-    }
+    document.getElementById("sidebar-content").addEventListener("transitionend", () => {
+        if (game.dice3d && game.dice3d.box) {
+            game.dice3d.resizePlayArea();
+        }
+    }, { once: true });
 });

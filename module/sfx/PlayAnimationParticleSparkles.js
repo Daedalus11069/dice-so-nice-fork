@@ -27,12 +27,13 @@ export class PlayAnimationParticleSparkles extends DiceSFX {
     /**@override play */
     async play() {
         this.proton = new Proton();
+        let scale = this.computeScale();
         this.emitter = new Proton.Emitter();
         this.emitter.rate = new Proton.Rate(new Proton.Span(350, 450), 0.3);
         this.emitter.addInitialize(new Proton.Mass(1,0.3));
         this.emitter.addInitialize(new Proton.Life(1,3));
         this.emitter.addInitialize(new Proton.Body(PlayAnimationParticleSparkles.sprite));
-        this.emitter.addInitialize(new Proton.Radius(100,60));
+        this.emitter.addInitialize(new Proton.Radius(100 * scale, 60 * scale));
         this.emitter.addInitialize(new Proton.Position(new Proton.SphereZone(0,0,0,30)));
         this.emitter.addInitialize(new Proton.Velocity(200, new Proton.Vector3D(0, 0, 0), 0));
 

@@ -6,6 +6,7 @@ import { DiceSFX } from '../DiceSFX.js';
 export class PlayMacro extends DiceSFX {
     static id = "PlayMacro";
     static specialEffectName = "DICESONICE.PlayMacro";
+    static PLAY_ONLY_ONCE_PER_MESH = true;
 
     /**@override play */
     async play(options){

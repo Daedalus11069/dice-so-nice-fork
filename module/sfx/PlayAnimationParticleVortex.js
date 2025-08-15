@@ -35,28 +35,7 @@ export class PlayAnimationParticleVortex extends DiceSFX {
         this.emitter.addInitialize(new Proton.Life(0.8,2.4));
         this.emitter.addInitialize(new Proton.Body(PlayAnimationParticleVortex.sprite));
         this.emitter.addInitialize(new Proton.Velocity(50, new Proton.Vector3D(0,0,1), 0));
-        let scale = this.box.dicefactory.baseScale/100;
-        switch (this.dicemesh.shape) {
-            case "d2":
-                scale *= 1.3;
-                break;
-            case "d4":
-                scale *= 1.2;
-                break;
-            case "d6":
-                break;
-            case "d8":
-                scale *= 1.2;
-                break;
-            case "d10":
-                break;
-            case "d12":
-                scale *= 1.3;
-                break;
-            case "d20":
-                scale *= 1.4;
-                break;
-        }
+        let scale = this.computeScale();
         this.emitter.addInitialize(new Proton.Radius(scale));
 
         this.emitter.addBehaviour(new Proton.Color(['#1f0e26','#462634','#290088'],'#060206'));

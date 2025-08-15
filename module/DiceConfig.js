@@ -103,7 +103,7 @@ export class DiceConfig extends FormApplication {
         this.canvas = $('<div id="dice-configuration-canvas"></div>')[0];
         let config = foundry.utils.mergeObject(
             this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(),
-            { dimensions: { w: 634, h: 245 }, autoscale: false, scale: 60, boxType: "showcase" }
+            { dimensions: { width: 634, height: 245 }, autoscale: false, scale: 60, boxType: "showcase" }
         );
 
         this.box = new DiceBox(this.canvas, game.dice3d.box.dicefactory, config);
@@ -167,7 +167,7 @@ export class DiceConfig extends FormApplication {
                 let dialogContent = sfxClass.getDialogContent(sfx, index);
                 let hdbsTemplate = Handlebars.compile(dialogContent.content);
 
-                specialEffectsPromises.push(renderTemplate("modules/dice-so-nice/templates/partial-sfx.html", {
+                specialEffectsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-sfx.html", {
                     id: index,
                     diceType: sfx.diceType,
                     onResult: sfx.onResult,
@@ -219,7 +219,7 @@ export class DiceConfig extends FormApplication {
         let tabsPromises = [];
         data.navAppearance = {};
         tabsList.forEach((diceType) => {
-            tabsPromises.push(renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
+            tabsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
                 dicetype: diceType,
                 appearance: data.appearance[diceType],
                 systemList: data.systemList,
@@ -398,7 +398,7 @@ export class DiceConfig extends FormApplication {
                 let sfxClass = DiceSFXManager.SFX_MODE_CLASS[firstSFX];
                 let dialogContent = sfxClass.getDialogContent({}, ID);
                 let hdbsTemplate = Handlebars.compile(dialogContent.content);
-                renderTemplate("modules/dice-so-nice/templates/partial-sfx.html", {
+                foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-sfx.html", {
                     id: ID,
                     diceType: "",
                     onResult: [],
@@ -541,7 +541,7 @@ export class DiceConfig extends FormApplication {
                 let dialogSaveAs = new Dialog({
                     title: game.i18n.localize("DICESONICE.SaveAs"),
                     width: 550,
-                    content: await renderTemplate("modules/dice-so-nice/templates/dialog-saveas.html",
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-saveas.html",
                         {
                             saveList: saveList.keys()
                         }),
@@ -601,7 +601,7 @@ export class DiceConfig extends FormApplication {
 
                 new Dialog({
                     title: game.i18n.localize("DICESONICE.Load"),
-                    content: await renderTemplate("modules/dice-so-nice/templates/dialog-load.html",
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-load.html",
                         {
                             saveList: saveList.keys()
                         }),
@@ -638,7 +638,7 @@ export class DiceConfig extends FormApplication {
             $(this.element).on("click", "[data-import]", async (ev) => {
                 new Dialog({
                     title: game.i18n.localize("DICESONICE.Import"),
-                    content: await renderTemplate("modules/dice-so-nice/templates/dialog-import.html"),
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-import.html"),
                     buttons: {
                         import: {
                             icon: '<i class="fas fa-file-import"></i>',
@@ -706,7 +706,7 @@ export class DiceConfig extends FormApplication {
                             }
                         }
                         $(this.element).find(".dsn-appearance-hint").hide();
-                        renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
+                        foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
                             dicetype: diceType,
                             appearance: this.currentGlobalAppearance,
                             systemList: this.initializationData.systemList,
