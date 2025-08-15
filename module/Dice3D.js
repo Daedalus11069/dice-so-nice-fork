@@ -436,24 +436,36 @@ export class Dice3D {
                 setTimeout(resizeEnd.bind(this), 1000);
             } else {
                 this._timeout = false;
-                //resize ended probably, lets remake the canvas
-                this.resizePlayArea();
+                //resize ended probably, lets update the canvas
+                this.resizeAndRebuild();
             }
         };
 
+        // Resize the play area
+        // Only works if the window size hasn't changed
         this.resizePlayArea = () => {
             const config = Dice3D.CONFIG();
             const dimensions = this._computeDimensions(config.rollingArea);
             this.box.updateBoundaries(dimensions);
         };
 
-        /*this.resizeAndRebuild = () => {
+        //Only used after a window resize
+        this.resizeAndRebuild = () => {
             this.canvas[0].remove();
+            this.dice3dRenderers.board.dispose();
+            this.dice3dRenderers.board = null;
+
+            //save previous systems
+            const systemBackup = this.DiceFactory.systems;
+
             this.box.clearScene();
             this._buildCanvas();
             this._buildDiceBox();
             this.box.soundManager.preloadSounds();
-        };*/
+
+            // Restore previous systems
+            this.DiceFactory.systems = systemBackup;
+        };
 
         $(document).on("click", ".dice-so-nice-btn-settings", (ev) => {
             ev.preventDefault();
@@ -615,7 +627,7 @@ export class Dice3D {
                 messageElementPopout.removeClass("dsn-hide");
             }
 
-            // compatibility v13 proto2 - TODO clean up consistency jquery
+            // Manage v13 popup system - TODO clean up consistency jquery
             const notificationElement = document.querySelector(`#chat-notifications .message[data-message-id="${chatMessage.id}"]`);
             if (notificationElement) {
                 notificationElement.classList.remove("dsn-hide");
