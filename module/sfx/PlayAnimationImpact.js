@@ -35,28 +35,7 @@ export class PlayAnimationImpact extends DiceSFX {
         this.plane = PlayAnimationImpact.planeImpact.clone();
         this.plane.receiveShadow = this.box.shadows;
 
-        let scale = this.box.dicefactory.baseScale / 100;
-        switch (this.dicemesh.shape) {
-            case "d2":
-                scale *= 1.3;
-                break;
-            case "d4":
-                scale *= 1.1;
-                break;
-            case "d6":
-                break;
-            case "d8":
-                scale *= 1.1;
-                break;
-            case "d10":
-                break;
-            case "d12":
-                scale *= 1.2;
-                break;
-            case "d20":
-                scale *= 1.3;
-                break;
-        }
+        let scale = this.computeScale();
         this.plane.scale.set(scale, scale, scale);
 
         this.plane.position.x = this.dicemesh.parent.position.x;

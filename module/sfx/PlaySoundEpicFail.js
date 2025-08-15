@@ -4,6 +4,7 @@ export class PlaySoundEpicFail extends DiceSFX {
     static id = "PlaySoundEpicFail";
     static specialEffectName = "DICESONICE.PlaySoundEpicFail";
     static path = 'modules/dice-so-nice/sfx/sounds/epic_fail.mp3';
+    static PLAY_ONLY_ONCE_PER_MESH = true;
     /**@override init */
     static async init(){
         game.audio.pending.push(function(){

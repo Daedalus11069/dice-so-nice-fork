@@ -1,5 +1,7 @@
 "use strict"
 
+import { DiceSFXManager } from './DiceSFXManager.js';
+
 export class DiceNotation {
 
 	/**
@@ -176,9 +178,10 @@ export class DiceNotation {
 
 						//if the result is in the triggers value, we keep the fx. Special case: double d10 for a d100 roll
 						if(sfx.diceType == "d100"){
-							//if the fx is a macro, only execute it for the actual d100
-							if(sfx.specialEffect == "PlayMacro" && dsnDie.type == "d10")
-								return false;
+							// If SFX must only play once per logical die (multi-mesh like d100), skip unit (d10) mesh
+							const sfxClass = DiceSFXManager.SFX_MODE_CLASS?.[sfx.specialEffect];
+							if(sfxClass?.PLAY_ONLY_ONCE_PER_MESH && dsnDie.type === "d10") return false;
+							
 							if(dsnDie.d100Result && sfx.onResult.includes(dsnDie.d100Result.toString()))
 								return true;
 						} else {
