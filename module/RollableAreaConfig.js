@@ -144,7 +144,7 @@ export class RollableAreaConfig extends FormApplication {
             rollingArea: rollingArea
         },{performDeletions:true});
         await game.user.setFlag('dice-so-nice', 'settings', settings);
-        game.dice3d.resizeAndRebuild();
+        game.dice3d.resizePlayArea();
     }
 
     async close(options={}) {

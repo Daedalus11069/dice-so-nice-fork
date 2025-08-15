@@ -70,6 +70,8 @@ export class DiceBox {
 			currentHeight: null,
 			containerWidth: null,
 			containerHeight: null,
+			innerWidth: null,
+			innerHeight: null,
 			aspect: null,
 			scale: null
 		};
@@ -136,23 +138,6 @@ export class DiceBox {
 
 		this.bloomMaterials = {};
 		this.darkMaterial = new MeshBasicMaterial({ color: 'black' });
-	}
-
-	updateBoundaries(dimensions) {
-		const newDimensions = {
-			width: dimensions.width || this.display.containerWidth,
-			height: dimensions.height || this.display.containerHeight,
-			margin: { 
-				top: dimensions.margin.top || this.display.containerMargin.top,
-				bottom: dimensions.margin.bottom || this.display.containerMargin.bottom,
-				left: dimensions.margin.left || this.display.containerMargin.left,
-				right: dimensions.margin.right || this.display.containerMargin.right
-			}
-		};
-
-		if (this.physicsWorker) {
-			this.physicsWorker.exec('updateBarriers', newDimensions);
-		}
 	}
 
 	initialize() {
@@ -298,18 +283,15 @@ export class DiceBox {
 		this.display.currentWidth = this.container.clientWidth > 0 ? this.container.clientWidth : parseInt(this.container.style.width);
 		this.display.currentHeight = this.container.clientHeight > 0 ? this.container.clientHeight : parseInt(this.container.style.height);
 
-		this.display.currentWidth /= 2;
-		this.display.currentHeight /= 2;
-
 		if (dimensions) {
 			this.display.containerWidth = dimensions.width;
 			this.display.containerHeight = dimensions.height;
-			this.display.containerMargin = dimensions.margin;
+			this.display.containerMargin = dimensions.margin || null;
 
 			if (!this.display.currentWidth || !this.display.currentHeight) {
-				this.display.currentWidth = dimensions.width / 2;
-				this.display.currentHeight = dimensions.height / 2;
-				this.display.currentMargin = dimensions.margin;
+				this.display.currentWidth = dimensions.width;
+				this.display.currentHeight = dimensions.height;
+				this.display.currentMargin = dimensions.margin || null;
 			}
 		} else {
 			this.display.containerWidth = this.display.currentWidth;
@@ -317,15 +299,13 @@ export class DiceBox {
 			this.display.containerMargin = this.display.currentMargin;
 		}
 
+		this.updateInnerDimensions();
+
 		this.display.aspect = Math.min(this.display.currentWidth / this.display.containerWidth, this.display.currentHeight / this.display.containerHeight);
 
-		if (this.config.autoscale)
-			this.display.scale = Math.sqrt(this.display.containerWidth * this.display.containerWidth + this.display.containerHeight * this.display.containerHeight) / 13;
-		else
-			this.display.scale = this.config.scale;
-		if (this.config.boxType == "board")
-			this.dicefactory.setScale(this.display.scale);
-		this.renderer.setSize(this.display.currentWidth * 2, this.display.currentHeight * 2);
+		this.updateScale(this.config.scale, this.config.autoscale);
+
+		this.renderer.setSize(this.display.currentWidth, this.display.currentHeight);
 
 		this.cameraHeight.max = this.display.currentHeight / this.display.aspect / Math.tan(10 * Math.PI / 180);
 
@@ -386,9 +366,13 @@ export class DiceBox {
 		const shadowMapSize = this.dicefactory.shadowQuality == "high" ? 2048 : 1024;
 		this.light.shadow.mapSize.width = shadowMapSize;
 		this.light.shadow.mapSize.height = shadowMapSize;
-		const d = 1000;
-		this.light.shadow.camera.left = - d;
-		this.light.shadow.camera.right = d;
+
+		const halfWidth  = this.display.containerWidth  / 2;
+        const halfHeight = this.display.containerHeight / 2;
+        const d = Math.max(halfWidth, halfHeight) * 1.05;
+		
+		this.light.shadow.camera.left = - d * 2;
+		this.light.shadow.camera.right = d * 2;
 		this.light.shadow.camera.top = d;
 		this.light.shadow.camera.bottom = - d;
 		this.scene.add(this.light);
@@ -494,14 +478,8 @@ export class DiceBox {
 			soundsSurface: config.soundsSurface
 		});
 
-		if (this.config.boxType == "board") {
-			if (config.autoscale) {
-				this.display.scale = Math.sqrt(this.display.containerWidth * this.display.containerWidth + this.display.containerHeight * this.display.containerHeight) / 13;
-			} else {
-				this.display.scale = config.scale
-			}
-			this.dicefactory.setScale(this.display.scale);
-		}
+		this.updateScale(config.scale, config.autoscale);
+
 		this.dicefactory.setQualitySettings(config);
 
 		let globalAnimationSpeed = game.settings.get("dice-so-nice", "globalAnimationSpeed");
@@ -524,6 +502,55 @@ export class DiceBox {
 		});
 	}
 
+	updateBoundaries(dimensions) {
+		//Note: we're currently not managing resize of width and height, only margin for physics barriers
+		const newDimensions = {
+			width: dimensions.width ?? this.display.containerWidth,
+			height: dimensions.height ?? this.display.containerHeight,
+			margin: {
+				top: dimensions.margin?.top ?? this.display.containerMargin?.top ?? 0,
+				bottom: dimensions.margin?.bottom ?? this.display.containerMargin?.bottom ?? 0,
+				left: dimensions.margin?.left ?? this.display.containerMargin?.left ?? 0,
+				right: dimensions.margin?.right ?? this.display.containerMargin?.right ?? 0
+			}
+		};
+
+		this.display.containerWidth = newDimensions.width;
+		this.display.containerHeight = newDimensions.height;
+		this.display.containerMargin = newDimensions.margin;
+
+		this.updateInnerDimensions();
+		this.updateScale(this.config.scale, this.config.autoscale);
+
+		if (this.physicsWorker) {
+			this.physicsWorker.exec('updateBarriers', newDimensions);
+		}
+	}
+
+	updateInnerDimensions() {
+        const m = this.display.containerMargin || { top:0,bottom:0,left:0,right:0 };
+        this.display.innerWidth = Math.max(0, this.display.containerWidth - (m.left||0) - (m.right||0));
+        this.display.innerHeight = Math.max(0, this.display.containerHeight - (m.top||0) - (m.bottom||0));
+        if (!this.display.innerWidth) this.display.innerWidth = this.display.containerWidth;
+        if (!this.display.innerHeight) this.display.innerHeight = this.display.containerHeight;
+    }
+
+	updateScale(scale = 100, autoscale = false) {
+		if (autoscale) {
+			this.display.scale = this.computeAutoScale();
+		} else {
+			this.display.scale = scale;
+		}
+		if (this.config.boxType == "board") {
+			this.dicefactory.setScale(this.display.scale);
+		}
+	}
+
+	computeAutoScale() {
+		const w = this.display.innerWidth || this.display.containerWidth;
+        const h = this.display.innerHeight || this.display.containerHeight;
+        return Math.sqrt(w * w + h * h) / 13;
+	}
 
 	vectorRand({ x, y }) {
 		let angle = Math.random() * Math.PI / 5 - Math.PI / 5 / 2;
@@ -548,11 +575,13 @@ export class DiceBox {
 			vec.x /= dist;
 			vec.y /= dist;
 
-			let pos = {
-				x: this.display.containerWidth * (vec.x > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
-				y: this.display.containerHeight * (vec.y > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
-				z: Math.random() * 200 + 200
-			};
+			let W = this.display.innerWidth;
+            let H = this.display.innerHeight;
+            let pos = {
+                x: W * (vec.x > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
+                y: H * (vec.y > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
+                z: Math.random() * 200 + 200
+            };
 
 			let projector = Math.abs(vec.x / vec.y);
 			if (projector > 1.0) pos.y /= projector; else pos.x *= projector;
@@ -948,8 +977,11 @@ export class DiceBox {
 		this.callback = null;
 		let countNewDice = 0;
 		throws.forEach(notation => {
-			let vector = { x: (Math.random() * 2 - 0.5) * this.display.currentWidth, y: -(Math.random() * 2 - 0.5) * this.display.currentHeight };
-			let dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+			let vector = {
+                x: (Math.random() * 2 - 0.5) * this.display.innerWidth,
+                y: -(Math.random() * 2 - 0.5) * this.display.innerHeight
+            };
+            let dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
 			let throwingForceModifier = 0.8;
 			switch (this.throwingForce) {
 				case "weak":

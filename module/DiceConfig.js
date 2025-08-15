@@ -103,7 +103,7 @@ export class DiceConfig extends FormApplication {
         this.canvas = $('<div id="dice-configuration-canvas"></div>')[0];
         let config = foundry.utils.mergeObject(
             this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(),
-            { dimensions: { w: 634, h: 245 }, autoscale: false, scale: 60, boxType: "showcase" }
+            { dimensions: { width: 634, height: 245 }, autoscale: false, scale: 60, boxType: "showcase" }
         );
 
         this.box = new DiceBox(this.canvas, game.dice3d.box.dicefactory, config);

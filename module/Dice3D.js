@@ -348,7 +348,7 @@ export class Dice3D {
         const config = Dice3D.CONFIG();
         const bodyTop = parseInt(window.getComputedStyle(document.body).top, 10) || 0;
 
-        const area = config.rollingArea ? config.rollingArea : {
+        const area = {
             left: 0,
             top: 0,
             width: window.innerWidth,
@@ -382,19 +382,37 @@ export class Dice3D {
         let config = Dice3D.ALL_CONFIG();
         config.boxType = "board";
 
-        config.dimensions = {
+        config.dimensions = this._computeDimensions(config.rollingArea);
+
+        this.box = new DiceBox(this.canvas[0], this.DiceFactory, config);
+        this.box.initialize();
+    }
+
+    _computeDimensions(rollingArea) {
+        const dimensions = {
             width: window.innerWidth,
             height: window.innerHeight - 1,
             margin: {
                 top: 0,
-                right: ui.sidebar.expanded ? ui.sidebar.element.clientWidth : 0,
+                right: 0,
                 bottom: 0,
                 left: 0
             }
         };
 
-        this.box = new DiceBox(this.canvas[0], this.DiceFactory, config);
-        this.box.initialize();
+        if(!rollingArea) {
+            if (ui.sidebar.expanded) {
+                dimensions.margin.right = ui.sidebar.element.clientWidth;
+            }
+        } else {
+            //based on the rollingArea width and height, we calculate the margin needed
+            dimensions.margin.top = rollingArea.top;
+            dimensions.margin.left = rollingArea.left;
+            dimensions.margin.right = dimensions.width - (rollingArea.left + rollingArea.width);
+            dimensions.margin.bottom = dimensions.height - (rollingArea.top + rollingArea.height);
+        }
+
+        return dimensions;
     }
 
     /**
@@ -419,17 +437,23 @@ export class Dice3D {
             } else {
                 this._timeout = false;
                 //resize ended probably, lets remake the canvas
-                this.resizeAndRebuild();
+                this.resizePlayArea();
             }
         };
 
-        this.resizeAndRebuild = () => {
+        this.resizePlayArea = () => {
+            const config = Dice3D.CONFIG();
+            const dimensions = this._computeDimensions(config.rollingArea);
+            this.box.updateBoundaries(dimensions);
+        };
+
+        /*this.resizeAndRebuild = () => {
             this.canvas[0].remove();
             this.box.clearScene();
             this._buildCanvas();
             this._buildDiceBox();
             this.box.soundManager.preloadSounds();
-        };
+        };*/
 
         $(document).on("click", ".dice-so-nice-btn-settings", (ev) => {
             ev.preventDefault();
