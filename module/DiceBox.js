@@ -388,7 +388,7 @@ export class DiceBox {
 		this.scene.add(this.desk);
 		if (this.dicefactory.realisticLighting) {
 			let renderScene = new RenderPass(this.scene, this.camera);
-			const canvasSize = new Vector2(this.display.currentWidth * 2, this.display.currentHeight * 2);
+			const canvasSize = new Vector2(this.display.currentWidth, this.display.currentHeight);
 			this.bloomPass = new UnrealBloomPass(canvasSize, game.dice3d.uniforms.bloomStrength.value, game.dice3d.uniforms.bloomRadius.value, game.dice3d.uniforms.bloomThreshold.value);
 			this.bloomLayer = new Layers();
 			this.bloomLayer.set(this.layers.bloom);
