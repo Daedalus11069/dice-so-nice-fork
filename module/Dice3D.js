@@ -634,6 +634,10 @@ export class Dice3D {
                 notificationElement._lifeSpan = 0; // Reset lifespan so timeout duration starts from when the message is shown. No public method yet
             }
 
+            if(!ui.sidebar.expanded) {
+                ui.chat.notify(chatMessage, { newMessage: true, existing: ui.chat.element.querySelector(`[data-message-id="${chatMessage.id}"]`) });
+            }
+
             if (chatMessage._dice3dMessageHidden) {
                 //first/initial rolls are done
                 chatMessage._dice3dMessageHidden = false;
