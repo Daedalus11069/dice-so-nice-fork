@@ -477,7 +477,7 @@ export class DiceBox {
 			volume: config.volume,
 			soundsSurface: config.soundsSurface
 		});
-
+		
 		this.updateScale(config.scale, config.autoscale);
 
 		this.dicefactory.setQualitySettings(config);
@@ -536,10 +536,16 @@ export class DiceBox {
     }
 
 	updateScale(scale = 100, autoscale = false) {
+		this.config.autoscale = autoscale;
+		this.config.scale = scale;
 		if (autoscale) {
 			this.display.scale = this.computeAutoScale();
 		} else {
-			this.display.scale = scale;
+			const autoScaleReference = this.computeAutoScale();
+			const BASE = 75; // base autoscale number
+			const pct = Math.min(100, Math.max(0, scale));
+			const normalizedScale = autoScaleReference * (pct / BASE) || 1;
+			this.display.scale = normalizedScale;
 		}
 		if (this.config.boxType == "board") {
 			this.dicefactory.setScale(this.display.scale);
