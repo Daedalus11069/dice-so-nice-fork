@@ -126,12 +126,12 @@ export class RollableAreaConfig extends FormApplication {
     }
 
     async _onRestore() {
-        await this.saveSettingsAndRebuild(false);
+        await this.saveSettingsAndReload(false);
         await this.close();
     }
 
     async _updateObject() {
-        await this.saveSettingsAndRebuild({
+        await this.saveSettingsAndReload({
             top: this.area.position().top,
             left: this.area.position().left,
             width: this.area.width(),
@@ -139,12 +139,12 @@ export class RollableAreaConfig extends FormApplication {
         });
     }
 
-    async saveSettingsAndRebuild(rollingArea) {
+    async saveSettingsAndReload(rollingArea) {
         let settings = foundry.utils.mergeObject(Dice3D.CONFIG(), {
             rollingArea: rollingArea
         },{performDeletions:true});
         await game.user.setFlag('dice-so-nice', 'settings', settings);
-        game.dice3d.resizePlayArea();
+        foundry.applications.settings.SettingsConfig.reloadConfirm();
     }
 
     async close(options={}) {

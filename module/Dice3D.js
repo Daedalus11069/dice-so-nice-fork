@@ -355,6 +355,13 @@ export class Dice3D {
             height: window.innerHeight - 1 - bodyTop
         };
 
+        if(config.rollingArea) {
+            area.width = config.rollingArea.width;
+            area.height = config.rollingArea.height;
+            area.left = config.rollingArea.left;
+            area.top = config.rollingArea.top;
+        }
+
         if (!config.enabled) {
             area.width = 1;
             area.height = 1;
@@ -405,11 +412,8 @@ export class Dice3D {
                 dimensions.margin.right = ui.sidebar.element.clientWidth;
             }
         } else {
-            //based on the rollingArea width and height, we calculate the margin needed
-            dimensions.margin.top = rollingArea.top;
-            dimensions.margin.left = rollingArea.left;
-            dimensions.margin.right = dimensions.width - (rollingArea.left + rollingArea.width);
-            dimensions.margin.bottom = dimensions.height - (rollingArea.top + rollingArea.height);
+            dimensions.width = rollingArea.width;
+            dimensions.height = rollingArea.height;
         }
 
         return dimensions;
@@ -632,6 +636,10 @@ export class Dice3D {
             if (notificationElement) {
                 notificationElement.classList.remove("dsn-hide");
                 notificationElement._lifeSpan = 0; // Reset lifespan so timeout duration starts from when the message is shown. No public method yet
+            }
+
+            if(!ui.sidebar.expanded) {
+                ui.chat.notify(chatMessage, { newMessage: true, existing: ui.chat.element.querySelector(`[data-message-id="${chatMessage.id}"]`) });
             }
 
             if (chatMessage._dice3dMessageHidden) {
