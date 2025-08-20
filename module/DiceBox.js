@@ -1255,8 +1255,6 @@ export class DiceBox {
 			this.scene.add(this.pane);
 		}
 
-		game.dice3d.showcase = this;
-
 		let z = 0;
 		let count = 0;
 		for (let y = 0; y < rows; y++) {
