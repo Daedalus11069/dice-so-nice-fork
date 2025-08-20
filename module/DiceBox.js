@@ -326,7 +326,7 @@ export class DiceBox {
 		this.camera.near = 10;
 		this.camera.lookAt(new Vector3(0, 0, 0));
 
-		const maxwidth = Math.max(this.display.containerWidth, this.display.containerHeight);
+		const maxwidth = Math.max(this.display.containerWidth / 2, this.display.containerHeight / 2);
 
 		if (this.light) this.scene.remove(this.light);
 		if (this.light_amb) this.scene.remove(this.light_amb);
@@ -353,9 +353,9 @@ export class DiceBox {
 
 		this.light = new DirectionalLight(this.colors.spotlight, intensity);
 		if (this.config.boxType == "board")
-			this.light.position.set(-this.display.containerWidth / 10, this.display.containerHeight / 10, maxwidth / 2);
+			this.light.position.set(-this.display.containerWidth / 20, this.display.containerHeight / 20, maxwidth / 2);
 		else
-			this.light.position.set(0, this.display.containerHeight / 10, maxwidth / 2);
+			this.light.position.set(0, this.display.containerHeight / 20, maxwidth / 2);
 		this.light.target.position.set(0, 0, 0);
 		this.light.distance = 0;
 		this.light.castShadow = this.dicefactory.shadows;
@@ -382,7 +382,7 @@ export class DiceBox {
 
 		let shadowplane = new ShadowMaterial();
 		shadowplane.opacity = 0.5;
-		this.desk = new Mesh(new PlaneGeometry(this.display.containerWidth * 6, this.display.containerHeight * 6, 1, 1), shadowplane);
+		this.desk = new Mesh(new PlaneGeometry(this.display.containerWidth * 3, this.display.containerHeight * 3, 1, 1), shadowplane);
 		this.desk.receiveShadow = this.dicefactory.shadows;
 		this.desk.position.set(0, 0, -1);
 		this.scene.add(this.desk);
@@ -1254,6 +1254,8 @@ export class DiceBox {
 			this.pane.position.set(0, 0, -70);
 			this.scene.add(this.pane);
 		}
+
+		game.dice3d.showcase = this;
 
 		let z = 0;
 		let count = 0;
