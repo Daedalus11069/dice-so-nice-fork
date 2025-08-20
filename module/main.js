@@ -216,8 +216,6 @@ Hooks.once('init', () => {
 
 });
 
-const chatMessagesCurrentlyBeingAnimated = new Set();
-
 /**
  * Foundry is ready, let's create a new Dice3D!
  */

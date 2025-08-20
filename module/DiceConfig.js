@@ -1282,7 +1282,7 @@ export class DiceConfig extends FormApplication {
         let reloadRequired = Utils.RELOAD_REQUIRED_IF_MODIFIED.some(setting => settings[setting] != currentSettings[setting]);
 
         if (reloadRequired) {
-            window.location.reload();
+            foundry.applications.settings.SettingsConfig.reloadConfirm();
         } else {
             game.dice3d.update(settings);
         }
