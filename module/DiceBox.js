@@ -170,7 +170,13 @@ export class DiceBox {
 			}
 			else {
 				const preserveDrawingBuffer = game.user.getFlag("dice-so-nice", "preserveDrawingBuffer") || false;
-				this.renderer = new WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: preserveDrawingBuffer });
+				this.renderer = new WebGLRenderer({
+					antialias: false,
+					alpha: true,
+					powerPreference: "high-performance",
+					preserveDrawingBuffer: preserveDrawingBuffer,
+					logarithmicDepthBuffer: true
+				});
 				if (this.dicefactory.useHighDPI)
 					this.renderer.setPixelRatio(window.devicePixelRatio);
 				if (this.dicefactory.realisticLighting) {
