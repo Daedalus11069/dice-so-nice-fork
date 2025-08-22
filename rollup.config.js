@@ -99,7 +99,8 @@ const config = {
     }),
     webWorkerLoader({
       targetPlatform: 'browser',
-      preserveSource: true
+      preserveSource: !isProduction,
+      sourcemap: !isProduction
     })
   ].filter(Boolean),
   onwarn(warning, warn) {
