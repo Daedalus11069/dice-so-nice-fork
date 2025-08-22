@@ -2,7 +2,7 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
-import { del } from '@kineticcafe/rollup-plugin-delete';
+import del from 'rollup-plugin-delete';
 import copy from 'rollup-plugin-copy';
 import webWorkerLoader from 'rollup-plugin-web-worker-loader';
 import { readFileSync, writeFileSync } from 'fs';
