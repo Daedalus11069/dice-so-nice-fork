@@ -217,9 +217,17 @@ Hooks.once('init', () => {
 });
 
 /**
- * Foundry is ready, let's create a new Dice3D!
+ * Core Foundry is ready, wait for the sidebar then let's create a new Dice3D!
  */
 Hooks.once('ready', () => {
+    if (ui.sidebar.rendered) {
+        setupDiceSoNice();
+    } else {
+        ui.sidebar.addEventListener("render", setupDiceSoNice, {once: true})
+    }
+});
+
+const setupDiceSoNice = () => {
     Utils.migrateOldSettings().then((updated) => {
         if (updated) {
             if (!game.settings.get("core", "noCanvas")){
@@ -230,7 +238,7 @@ Hooks.once('ready', () => {
                 logger.warn("Dice So Nice! is disabled because the user has activated the 'No-Canvas' mode");
         }
     });
-});
+};
 
 const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, dsnIndexAddedRoll: 0}) => {
     const hasInlineRoll = game.settings.get("dice-so-nice", "animateInlineRoll") && chatMessage.content.includes('inline-roll');
