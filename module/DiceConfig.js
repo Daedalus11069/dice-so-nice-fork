@@ -5,27 +5,86 @@ import { Utils } from './Utils.js';
 import { DiceNotation } from './DiceNotation.js';
 import { DiceColors, DICE_SCALE } from './DiceColors.js';
 import { DiceSystem } from './DiceSystem.js';
+
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
 /**
  * Form application to configure settings of the 3D Dice.
  */
-export class DiceConfig extends FormApplication {
+export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
-    static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
-            title: game.i18n.localize("DICESONICE.configTitle"),
-            id: "dice-config",
-            template: "modules/dice-so-nice/templates/dice-config.html",
-            width: 650,
-            height: "auto",
-            closeOnSubmit: true,
+    static DEFAULT_OPTIONS = {
+        tag: "form",
+        classes: ["dice-so-nice"],
+        form: {
+            handler: DiceConfig._onSubmit,
+            submitOnChange: false,
+            closeOnSubmit: true
+        },
+        window: {
+            title: "DICESONICE.configTitle",
+            contentClasses: ["standard-form"]
+        },
+        id: "dice-config",
+        position: {
+            width: 680,
+            height: "auto"
+        }
+    };
+
+    static TABS = {
+        "dsn-main": {
             tabs: [
-                { navSelector: ".tabs", contentSelector: "#config-tabs", initial: "general" },
-                { navSelector: ".dsn-appearance-tabs", contentSelector: "#dsn-appearance-content", initial: "global" }
-            ]
-        })
+                { id: "general", icon: "fa-solid fa-dice-d20", label: "DICESONICE.settingsAppearance" },
+                { id: "preferences", icon: "fa-solid fa-cog", label: "DICESONICE.settingsPreferences" },
+                { id: "sfx", icon: "fa-solid fa-meteor", label: "DICESONICE.settingsSpecialEffects" },
+                { id: "performance", icon: "fa-solid fa-tachometer-alt", label: "DICESONICE.settingsPerformance" },
+                { id: "backup", icon: "fa-solid fa-upload", label: "DICESONICE.settingsBackup" }
+            ],
+            initial: "general"
+        },
+        "dsn-dice": {
+            tabs: [{ id: "global", label: "Global" }],
+            initial: "global"
+        }
+    };
+
+    static PARTS = {
+        tabs: {
+            template: "templates/generic/tab-navigation.hbs",
+        },
+        general: {
+            template: "modules/dice-so-nice/templates/dice-config-general.hbs",
+            scrollable: [""]
+        },
+        preferences: {
+            template: "modules/dice-so-nice/templates/dice-config-preferences.hbs",
+            scrollable: [""]
+        },
+        sfx: {
+            template: "modules/dice-so-nice/templates/dice-config-sfx.hbs",
+            scrollable: [""]
+        },
+        performance: {
+            template: "modules/dice-so-nice/templates/dice-config-performance.hbs",
+            scrollable: [""]
+        },
+        backup: {
+            template: "modules/dice-so-nice/templates/dice-config-backup.hbs",
+            scrollable: [""]
+        },
+        footer: {
+            template: "templates/generic/form-footer.hbs"
+        }
+    };
+
+    async _preparePartContext(partId, context, options) {
+        context = await super._preparePartContext(partId, context, options);
+        context.tab = context.tabs[partId];
+        return context;
     }
 
-    async getData(options) {
+    async _prepareContext(options) {
         let data = foundry.utils.mergeObject({
             fxList: Utils.localize({
                 "none": "DICESONICE.None",
@@ -277,6 +336,15 @@ export class DiceConfig extends FormApplication {
             width: "306px"
         }
 
+        data.tabs = this._prepareTabs("dsn-main");
+        data.appearanceTabs = this._prepareTabs("dsn-dice");
+
+        data.buttons = [
+            { type: "submit", icon: "fa-solid fa-save", label: "DICESONICE.Save" },
+            { type: "button", action: "test", icon: "fa-solid fa-dice", label: "DICESONICE.TestRoll" },
+            { type: "button", action: "close", icon: "fa-solid fa-ban", label: "DICESONICE.Cancel" }
+        ];
+
         return data;
     }
 
@@ -301,8 +369,10 @@ export class DiceConfig extends FormApplication {
         return doc.documentElement.outerHTML;
     }
 
-    activateListeners(html) {
-        super.activateListeners(html);
+    _onRender(context, options) {
+        this.changeTab(this.tabGroups["dsn-dice"], "dsn-dice", { force: true });
+
+        const html = $(this.element);
 
         $(html).find("#dice-configuration-canvas-container").append(this.canvas);
 
@@ -374,7 +444,7 @@ export class DiceConfig extends FormApplication {
                 this.closeAppearanceTab(diceType);
             });
 
-            $(this.element).on("click", "[data-test]", (ev) => {
+            $(this.element).on("click", "[data-action=test]", (ev) => {
                 let config = this.getShowcaseAppearance();
                 let denominationList = [];
                 this.box.diceList.forEach((el) => {
@@ -431,26 +501,30 @@ export class DiceConfig extends FormApplication {
                 if (sfxLineOptions.length < 1)
                     return;
 
-                let d = new Dialog({
-                    title: game.i18n.localize("DICESONICE.Options"),
+                foundry.applications.api.DialogV2.wait({
+                    classes: ["dice-so-nice"],
+                    window: {
+                        title: "DICESONICE.Options"
+                    },
+                    position: {
+                        width: 400
+                    },
                     content: `<form autocomplete="off" onsubmit="event.preventDefault();"></form>`,
-                    buttons: {
-                        ok: {
-                            icon: '<i class="fas fa-check-circle"></i>',
-                            label: 'OK'
-                        }
+                    buttons: [{
+                        action: "ok",
+                        icon: "fa-solid fa-check-circle",
+                        label: "OK",
+                        default: true
+                    }],
+                    render: (event, dialog) => {
+                        sfxLineOptions.detach().appendTo($(dialog.element).find(".dialog-content"));
+                        this.sfxDialogList.push(dialog);
                     },
-                    default: "ok",
-                    render: (html) => {
-                        sfxLineOptions.detach().appendTo($(html).find("form"));
-                    },
-                    close: (html) => {
-                        $(html).find("[data-sfx-hidden-options]").detach().appendTo($(ev.target).parents(".sfx-line").find(".sfx-hidden"));
-                        this.sfxDialogList = this.sfxDialogList.filter(dialog => dialog.appId != d.appId);
+                    close: (event, dialog) => {
+                        $(dialog.element).find("[data-sfx-hidden-options]").detach().appendTo($(ev.target).parents(".sfx-line").find(".sfx-hidden"));
+                        this.sfxDialogList = this.sfxDialogList.filter(d => dialog.appId != d.appId);
                     }
                 });
-                d.render(true);
-                this.sfxDialogList.push(d);
             });
 
             $(this.element).on("change", "[data-sfx-dicetype]", (ev) => {
@@ -501,32 +575,35 @@ export class DiceConfig extends FormApplication {
                 const systemSelected = $(ev.target).parents(".tabAppearance").find("[data-system]").val();
                 const systemName = this.box.dicefactory.systems.get(systemSelected).name;
 
-                let d = new Dialog({
-                    title: `${game.i18n.localize("DICESONICE.SystemOptions")} - ${this.lastActiveAppearanceTab.charAt(0).toUpperCase()}${this.lastActiveAppearanceTab.slice(1)} - ${systemName}`,
-                    content: `<form autocomplete="off" onsubmit="event.preventDefault();"></form>`,
-                    buttons: {
-                        ok: {
-                            icon: '<i class="fas fa-check-circle"></i>',
-                            label: 'OK'
-                        }
+                foundry.applications.api.DialogV2.wait({
+                    window: {
+                        title: `${game.i18n.localize("DICESONICE.SystemOptions")} - ${this.lastActiveAppearanceTab.charAt(0).toUpperCase()}${this.lastActiveAppearanceTab.slice(1)} - ${systemName}`,
                     },
-                    default: "ok",
-                    render: (html) => {
+                    position: {
+                        width: 550
+                    },
+                    content: `<form autocomplete="off" onsubmit="event.preventDefault();"></form>`,
+                    buttons: [{
+                        action: 'ok',
+                        icon: 'fa-solid fa-check',
+                        label: 'OK',
+                        default: true,
+                    }],
+                    render: (event, dialog) => {
+                        this.systemSettingsDialogList.push(dialog);
+                        const html = dialog.element;
                         systemSettingsElement.detach().appendTo($(html).find("form"));
                         this.activateDialogListeners(html);
                     },
-                    close: (html) => {
+                    close: (event, dialog) => {
+                        const html = dialog.element;
                         $(html).find("[data-systemSettings]").detach().appendTo(systemSettingsContainer);
-                        this.systemSettingsDialogList = this.systemSettingsDialogList.filter(dialog => dialog.appId != d.appId);
+                        this.systemSettingsDialogList = this.systemSettingsDialogList.filter(d => dialog.appId != d.appId);
 
                         //apply changes
                         this.onApply();
                     }
-                }, {
-                    width: 550
                 });
-                d.render(true);
-                this.systemSettingsDialogList.push(d);
             });
 
             /**
@@ -538,20 +615,31 @@ export class DiceConfig extends FormApplication {
                 if (saves)
                     saveList = new Map(Object.entries(saves));
 
-                let dialogSaveAs = new Dialog({
-                    title: game.i18n.localize("DICESONICE.SaveAs"),
-                    width: 550,
+                foundry.applications.api.DialogV2.wait({
+                    classes: ["dice-so-nice"],
+                    window: {
+                        title: "DICESONICE.SaveAs"
+                    },
+                    position: {
+                        width: 550
+                    },
                     content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-saveas.html",
                         {
                             saveList: saveList.keys()
                         }),
-                    buttons: {},
-                    render: html => {
+                    buttons: [{
+                        action: 'cancel',
+                        icon: 'fa-solid fa-ban',
+                        label: 'Cancel',
+                        default: true,
+                    }],
+                    render: (event, dialog) => {
+                        const html = dialog.element;
                         if (saveList.size) {
                             $(html).on("click", "[data-overwrite]", (ev) => {
                                 let name = $(html).find("[data-save-list]").val();
                                 this.actionSaveAs(name);
-                                dialogSaveAs.close();
+                                dialog.close();
                             });
 
                             $(html).on("click", "[data-delete]", async (ev) => {
@@ -577,17 +665,14 @@ export class DiceConfig extends FormApplication {
                                     ui.notifications.error(game.i18n.localize("DICESONICE.SaveAsErrorAlreadyExist"));
                                 } else {
                                     this.actionSaveAs(name);
-                                    dialogSaveAs.close();
+                                    dialog.close();
                                 }
                             }
                             else
                                 ui.notifications.error(game.i18n.localize("DICESONICE.SaveAsErrorName"));
                         });
-                    }
-                }, {
-                    width: 450,
-                    classes: ["dice-so-nice"]
-                }).render(true);
+                    },
+                });
             });
 
             /**
@@ -599,36 +684,38 @@ export class DiceConfig extends FormApplication {
                 if (saves)
                     saveList = new Map(Object.entries(saves));
 
-                new Dialog({
-                    title: game.i18n.localize("DICESONICE.Load"),
+                foundry.applications.api.DialogV2.wait({
+                    window: {
+                        title: "DICESONICE.Load"
+                    },
+                    position: {
+                        width: 550
+                    },
                     content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-load.html",
                         {
                             saveList: saveList.keys()
                         }),
-                    buttons: {
-                        load: {
-                            icon: '<i class="fas fa-box-open"></i>',
-                            label: game.i18n.localize("DICESONICE.Load"),
-                            callback: async html => {
-                                let name = $(html).find("[data-save-list]").val();
-                                await this.actionLoadSave(name);
-                                //Close Dice Settings
-                                this.close();
-                            }
-                        },
-                        no: {
-                            icon: '<i class="fas fa-ban"></i>',
-                            label: game.i18n.localize("DICESONICE.Cancel")
+                    buttons: [{
+                        action: "load",
+                        icon: "fa-solid fa-box-open",
+                        label: "DICESONICE.Load",
+                        callback: async (event, button, dialog) => {
+                            let name = $(dialog.element).find("[data-save-list]").val();
+                            await this.actionLoadSave(name);
+                            //Close Dice Settings
+                            this.close();
                         }
-                    },
-                    render: html => {
+                    },{
+                        action: "no",
+                        icon: "fa-solid fa-ban",
+                        label: "DICESONICE.Cancel",
+                        default: true,
+                    }],
+                    render: (event, dialog) => {
                         if (!saveList.size)
-                            $(html).find('[data-button="load"]').prop("disabled", true);
+                            $(dialog.element).find('[data-button="load"]').prop("disabled", true);
                     },
-                    default: "no"
-                }, {
-                    width: 550
-                }).render(true);
+                });
             });
 
 
@@ -636,44 +723,47 @@ export class DiceConfig extends FormApplication {
              * Import
              */
             $(this.element).on("click", "[data-import]", async (ev) => {
-                new Dialog({
-                    title: game.i18n.localize("DICESONICE.Import"),
-                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-import.html"),
-                    buttons: {
-                        import: {
-                            icon: '<i class="fas fa-file-import"></i>',
-                            label: game.i18n.localize("DICESONICE.Import"),
-                            callback: html => {
-                                const form = html.find("form")[0];
-                                if (!form.data.files.length) return ui.notifications.error(game.i18n.localize("DICESONICE.ImportNoFile"));
-                                readTextFromFile(form.data.files[0]).then(async json => {
-                                    await this.actionImportFromJSON(json);
-                                    this.close();
-                                });
-                            }
-                        },
-                        no: {
-                            icon: '<i class="fas fa-ban"></i>',
-                            label: "Cancel"
-                        }
+
+                foundry.applications.api.DialogV2.wait({
+                    window: {
+                        title: "DICESONICE.Import"
                     },
-                    default: "import"
-                }, {
-                    width: 400
-                }).render(true);
+                    position: {
+                        width: 400
+                    },
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-import.html"),
+                    buttons: [{
+                        action: "import",
+                        icon: "fa-solid fa-file-import",
+                        label: "DICESONICE.Import",
+                        callback: async (event, button, dialog) => {
+                            const form = $(dialog.element).find("form")[0];
+                            if (!form.data.files.length) return ui.notifications.error(game.i18n.localize("DICESONICE.ImportNoFile"));
+                            foundry.utils.readTextFromFile(form.data.files[0]).then(async json => {
+                                await this.actionImportFromJSON(json);
+                                this.close();
+                            });
+                        },
+                        default: true
+                    },{
+                        action: "no",
+                        icon: "fa-solid fa-ban",
+                        label: "DICESONICE.Cancel"
+                    }]
+                });
             });
 
             $(this.element).on("click", "[data-export]", async (ev) => {
                 const filename = `fvtt-dicesonice-${Date.now()}.json`;
                 this.actionExportToJSON().then((json) => {
-                    saveDataToFile(json, "text/json", filename);
+                    foundry.utils.saveDataToFile(json, "text/json", filename);
                 });
             });
 
             $(this.element).on("click", "[data-exportSFX]", async (ev) => {
                 const filename = `fvtt-dicesonice-SFX-${Date.now()}.json`;
                 this.actionExportSFXToJSON().then((json) => {
-                    saveDataToFile(json, "text/json", filename);
+                    foundry.utils.saveDataToFile(json, "text/json", filename);
                 });
             });
 
@@ -730,7 +820,7 @@ export class DiceConfig extends FormApplication {
                                     return false;
                                 }
                             });
-                            let htmlNavString = `<span class="item" data-group="dsn-dice" data-tab="${diceType}">${tabName} <i class="fas fa-times" data-close-tab></i></span>`;
+                            let htmlNavString = `<span class="item" data-action="tab" data-group="dsn-dice" data-tab="${diceType}">${tabName} <i class="fa-solid fa-times" data-close-tab></i></span>`;
                             if (insertBefore) {
                                 $(html).insertBefore($(this.element).find(`.tabAppearance[data-tab="${insertBefore}"]`));
                                 $(htmlNavString).insertBefore($(this.element).find(`.dsn-appearance-tabs .item[data-tab="${insertBefore}"]`));
@@ -886,17 +976,15 @@ export class DiceConfig extends FormApplication {
     }
 
     activateAppearanceTab(diceType) {
-        let tabs = this._tabs[1];
-        if (tabs.active != diceType)
-            tabs.activate(diceType, { triggerCallback: true });
+        this.changeTab(diceType, "dsn-dice");
     }
 
     closeAppearanceTab(diceType) {
         if (diceType == "global")
             return;
-        let tabs = this._tabs[1];
-        if (this._tabs[1].active == diceType)
-            tabs.activate("global", { triggerCallback: true });
+
+        if (this.tabGroups["dsn-dice"] == diceType)
+            this.changeTab("global", "dsn-dice");
 
         $(this.element).find(`.tabAppearance[data-tab="${diceType}"]`).remove();
         $(this.element).find(`.dsn-appearance-tabs [data-tab="${diceType}"]`).remove();
@@ -904,9 +992,9 @@ export class DiceConfig extends FormApplication {
         this.onApply();
     }
 
-    _onChangeTab(event, tabs, active) {
-        super._onChangeTab(event, tabs, active);
-        if (tabs._contentSelector == "#dsn-appearance-content") {
+    changeTab(tab, group, { force=false } = {}) {
+        super.changeTab(tab, group, { force });
+        if (group == "dsn-dice") {
             if (this.lastActiveAppearanceTab != "global") {
                 let appearanceArray = [];
                 let systemSettingsElement = null;
@@ -960,7 +1048,7 @@ export class DiceConfig extends FormApplication {
                     }
                 }
             }
-            this.lastActiveAppearanceTab = active;
+            this.lastActiveAppearanceTab = tab;
         }
     }
 
@@ -1171,7 +1259,7 @@ export class DiceConfig extends FormApplication {
     onReset() {
         this.reset = true;
         this.render();
-        this._tabs[0].activate("general");
+        this.changeTab("general", "dsn-main", { force: true });
     }
 
     parseInputs(data) {
@@ -1203,7 +1291,7 @@ export class DiceConfig extends FormApplication {
 
     async _updateObject(event, formData) {
         //Remove custom settings if custom isn't selected to prevent losing them in the user save
-        formData = this.parseInputs(formData);
+        formData = this.parseInputs(formData.object);
         let sfxLine = formData.sfxLine;
         if (sfxLine) {
             sfxLine = Object.values(sfxLine);
@@ -1294,7 +1382,7 @@ export class DiceConfig extends FormApplication {
         this.box.dicefactory.disposeCachedMaterials("showcase");
     }
 
-    async _onSubmit(event, options) {
+    static async _onSubmit(event, form, formData) {
         this.sfxDialogList.forEach((dialog) => {
             dialog.close();
         });
@@ -1303,6 +1391,7 @@ export class DiceConfig extends FormApplication {
             dialog.close();
         });
 
-        await super._onSubmit(event, options);
+        //await super._onSubmit(event, options);
+        this._updateObject(event, formData);
     }
 }
