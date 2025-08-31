@@ -876,6 +876,14 @@ export class Dice3D {
     }
 
     /**
+     * enableDebugMode
+     */
+    enableDebugMode() {
+        if(this.box)
+            this.box.debugMode = true;
+    }
+
+    /**
      * Helper function to detect the end of a 3D animation for a message
      * @param {ChatMessage.ID} targetMessageId 
      * @returns Promise<boolean>

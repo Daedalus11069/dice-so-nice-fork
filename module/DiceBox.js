@@ -50,10 +50,7 @@ import {
 export class DiceBox {
 
 	constructor(element_container, dice_factory, config) {
-		//private variables
-		this.known_types = ['d4', 'd6', 'd8', 'd10', 'd12', 'd14', 'd16', 'd20', 'd24', 'd30', 'd100'];
 		this.container = element_container;
-		this.dimensions = config.dimensions;
 		this.dicefactory = dice_factory;
 		this.config = config;
 		this.speed = 1;
@@ -95,16 +92,13 @@ export class DiceBox {
 
 		this.iteration;
 		this.renderer;
-		this.barrier;
 		this.camera;
 		this.light;
 		this.light_amb;
 		this.desk;
 		this.pane;
 
-		//public variables
-		this.public_interface = {};
-		this.diceList = []; //'private' variable
+		this.diceList = [];
 		this.deadDiceList = [];
 		this.framerate = (1 / 60);
 
@@ -126,9 +120,6 @@ export class DiceBox {
 			ground: 0x080820
 		};
 
-		this.rethrowFunctions = {};
-		this.afterThrowFunctions = {};
-
 		this.soundManager = new SoundManager();
 
 		this.layers = {
@@ -138,6 +129,8 @@ export class DiceBox {
 
 		this.bloomMaterials = {};
 		this.darkMaterial = new MeshBasicMaterial({ color: 'black' });
+
+		this.debugMode = false;
 	}
 
 	initialize() {
@@ -170,7 +163,13 @@ export class DiceBox {
 			}
 			else {
 				const preserveDrawingBuffer = game.user.getFlag("dice-so-nice", "preserveDrawingBuffer") || false;
-				this.renderer = new WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: preserveDrawingBuffer });
+				this.renderer = new WebGLRenderer({
+					antialias: false,
+					alpha: true,
+					powerPreference: "high-performance",
+					preserveDrawingBuffer: preserveDrawingBuffer,
+					logarithmicDepthBuffer: true
+				});
 				if (this.dicefactory.useHighDPI)
 					this.renderer.setPixelRatio(window.devicePixelRatio);
 				if (this.dicefactory.realisticLighting) {
@@ -185,7 +184,7 @@ export class DiceBox {
 			}
 
 			this.stats = null;
-			if (false && this.config.boxType == "board") {
+			if (this.debugMode && this.config.boxType == "board") {
 				this.stats = new Stats({
 					trackGPU: true,
 					trackHz: true,
@@ -569,7 +568,6 @@ export class DiceBox {
 		return vec;
 	}
 
-	//returns an array of vectordata objects
 	getVectors(notationVectors, vector, boost, dist) {
 
 		for (let i = 0; i < notationVectors.dice.length; i++) {

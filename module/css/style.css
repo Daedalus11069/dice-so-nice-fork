@@ -145,6 +145,7 @@ dialog.dice-so-nice .form-group label {
 
 .dice-so-nice .tab.active {
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .dice-so-nice .tab .range-value {
