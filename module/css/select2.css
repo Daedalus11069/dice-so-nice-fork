@@ -428,7 +428,7 @@
 }
 
 .dice-so-nice .select2-container--default .select2-results__option--selected {
-  background-color: var(--table-row-color-even);
+  background-color: var(--table-row-color-highlight);
 }
 
 .dice-so-nice .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
