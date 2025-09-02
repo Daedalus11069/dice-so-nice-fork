@@ -878,6 +878,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 $(this.element).find("[data-imageQuality]").val("custom");
             });
         }
+
+        this.activateDialogListeners(this.element);
     }
 
     activateDialogListeners(html) {
