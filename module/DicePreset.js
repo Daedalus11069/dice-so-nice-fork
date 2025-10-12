@@ -224,6 +224,7 @@ export class DicePreset {
 		this.modelLoaded = false;
 	}
 
+	//loader is a GLTFLoader instance
 	loadModel(loader = null) {
 		// Load a glTF resource
 		if (!this.modelLoaded && this.modelLoading === false) {
