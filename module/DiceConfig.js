@@ -518,10 +518,11 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     }],
                     render: (event, dialog) => {
                         sfxLineOptions.detach().appendTo($(dialog.element).find(".dialog-content"));
+                        this.activateDialogFilePicker(sfxLineOptions);
                         this.sfxDialogList.push(dialog);
                     },
                     close: (event, dialog) => {
-                        $(dialog.element).find("[data-sfx-hidden-options]").detach().appendTo($(ev.target).parents(".sfx-line").find(".sfx-hidden"));
+                        sfxLineOptions.appendTo($(ev.target).parents(".sfx-line").find(".sfx-hidden"));
                         this.sfxDialogList = this.sfxDialogList.filter(d => dialog.appId != d.appId);
                     }
                 });
@@ -560,9 +561,6 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 let hdbsTemplate = Handlebars.compile(dialogContent.content);
 
                 sfxLine.find(".sfx-hidden [data-sfx-hidden-options]").html(hdbsTemplate(dialogContent.data));
-                for (let fp of sfxLine.find(".sfx-hidden [data-sfx-hidden-options] button.file-picker")) {
-                    fp.onclick = this._activateFilePicker.bind(this);
-                }
             });
 
 
@@ -596,8 +594,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         this.activateDialogListeners(html);
                     },
                     close: (event, dialog) => {
-                        const html = dialog.element;
-                        $(html).find("[data-systemSettings]").detach().appendTo(systemSettingsContainer);
+                        systemSettingsElement.appendTo(systemSettingsContainer);
                         this.systemSettingsDialogList = this.systemSettingsDialogList.filter(d => dialog.appId != d.appId);
 
                         //apply changes
@@ -880,6 +877,13 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         }
 
         this.activateDialogListeners(this.element);
+    }
+
+    activateDialogFilePicker(html) {
+        $(html).on("click", "button.file-picker", (event) => {
+            const filePicker = foundry.applications.apps.FilePicker.fromButton(event.currentTarget);
+            filePicker.render(true);
+        });
     }
 
     activateDialogListeners(html) {
