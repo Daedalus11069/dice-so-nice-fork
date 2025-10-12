@@ -148,6 +148,10 @@ dialog.dice-so-nice .form-group label {
     overflow-x: hidden;
 }
 
+.dice-so-nice .tab.active[data-group="dsn-main"] {
+    padding: 0 6px;
+}
+
 .dice-so-nice .tab .range-value {
     flex: 0;
 }
@@ -224,7 +228,7 @@ dialog.dice-so-nice .form-group label {
 }
 
 .dice-so-nice .tabAppearance {
-    gap: 0.5rem;
+    gap: 0.3rem;
 }
 
 .dice-so-nice .tabAppearance a.system-control {
