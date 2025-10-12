@@ -3,7 +3,7 @@ import { DiceSFXManager } from './DiceSFXManager.js';
 import { DiceSystem } from './DiceSystem.js';
 import { SoundManager } from './SoundManager.js';
 //import {GLTFExporter} from 'three/examples/jsm/loaders/exporters/GLTFExporter.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -251,7 +251,7 @@ export class DiceBox {
 				this.pmremGenerator = new PMREMGenerator(this.renderer);
 				this.pmremGenerator.compileEquirectangularShader();
 
-				new RGBELoader()
+				new HDRLoader()
 					.setDataType(HalfFloatType)
 					.setPath('modules/dice-so-nice/textures/equirectangular/')
 					.load('blouberg_sunrise_2_1k.hdr', function (texture) {
@@ -381,6 +381,7 @@ export class DiceBox {
 
 		let shadowplane = new ShadowMaterial();
 		shadowplane.opacity = 0.5;
+		shadowplane.depthWrite = false;
 		this.desk = new Mesh(new PlaneGeometry(this.display.containerWidth * 3, this.display.containerHeight * 3, 1, 1), shadowplane);
 		this.desk.receiveShadow = this.dicefactory.shadows;
 		this.desk.position.set(0, 0, -1);
@@ -1246,6 +1247,7 @@ export class DiceBox {
 
 			let shadowplane = new ShadowMaterial();
 			shadowplane.opacity = 0.5;
+			shadowplane.depthWrite = false;
 
 			this.pane = new Mesh(new PlaneGeometry(this.display.containerWidth * 2, this.display.containerHeight * 2, 1, 1), shadowplane);
 			this.pane.receiveShadow = this.dicefactory.shadows;
