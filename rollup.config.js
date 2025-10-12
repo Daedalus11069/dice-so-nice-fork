@@ -83,6 +83,17 @@ const config = {
         dest: `dist/libs`
       }]
     }),
+    //add a copy of Draco decoder to the draco folder for three.js
+    !isWatch && copy({
+      targets: [{
+        src: `node_modules/three/examples/jsm/libs/draco/draco_decoder.wasm`,
+        dest: `dist/libs/`
+      },
+      {
+        src: `node_modules/three/examples/jsm/libs/draco/draco_wasm_wrapper.js`,
+        dest: `dist/libs/`
+      }]
+    }),
     nodeResolve({
       browser: true,
       preferBuiltins: false
