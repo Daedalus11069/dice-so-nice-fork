@@ -366,7 +366,7 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
 
             //use this sum to hide the last rolls
             //which should be the most recent rolls
-            [html.querySelectorAll(`.dice-roll`)].slice(-sumOfAllHiddenRolls).forEach(el => el.classList.add("dsn-hide"));
+            [...html.querySelectorAll(`.dice-roll`)].slice(-sumOfAllHiddenRolls).forEach(el => el.classList.add("dsn-hide"));
 
             //In case _dice3dMessageHidden is still true, we hide the message as it means the original rolls are not yet finished
             if(message._dice3dMessageHidden)
