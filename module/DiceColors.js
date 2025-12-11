@@ -144,21 +144,21 @@ export const TEXTURELIST = {
 		material: 'wood'
 	},
 	'dragon': {
-		name: 'Dragon',
+		name: 'DICESONICE.TextureDragon',
 		composite: 'multiply',
 		atlas: "modules/dice-so-nice/textures/standard.json",
 		source: 'dragon.webp',
 		bump: 'dragon_bump.webp'
 	},
 	'lizard': {
-		name: 'Lizard',
+		name: 'DICESONICE.TextureLizard',
 		composite: 'multiply',
 		atlas: "modules/dice-so-nice/textures/standard.json",
 		source: 'lizard.webp',
 		bump: 'lizard_bump.webp'
 	},
 	'bird': {
-		name: 'Bird',
+		name: 'DICESONICE.TextureBird',
 		composite: 'multiply',
 		atlas: "modules/dice-so-nice/textures/standard.json",
 		source: 'feather.webp',
@@ -487,7 +487,6 @@ export const COLORSETS = {
 		background: ['#B80000', '#4D5A5A', '#5BB8FF', '#7E934E', '#FFFFFF', '#F6ED7C', '#7797A3', '#A78437', '#862C1A', '#FFDF8A'],
 		outline: 'black',
 		texture: ['dragon', 'lizard'],
-		description: 'Here be Dragons'
 	},
 	'birdup': {
 		name: 'birdup',
@@ -497,7 +496,6 @@ export const COLORSETS = {
 		background: ['#F11602', '#FFC000', '#6EC832', '#0094BC', '#05608D', '#FEABB3', '#F75680', '#F3F0DF', '#C7A57F'],
 		outline: 'black',
 		texture: 'bird',
-		description: 'Bird Up!'
 	},
 	'tigerking': {
 		name: 'tigerking',
