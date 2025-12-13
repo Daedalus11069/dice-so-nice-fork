@@ -2,9 +2,9 @@
     "id": "dice-so-nice",
     "title": "Dice So Nice!",
     "description": "Adds customizable 3D dice to Foundry VTT with lots of options to fit your playstyle.",
-    "version": "5.1.9",
+    "version": "5.1.10",
     "compatibility": {
-        "minimum": 12,
+        "minimum": "12",
         "verified": "13.336"
     },
     "authors": [
