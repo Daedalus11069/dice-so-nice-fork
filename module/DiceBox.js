@@ -3,13 +3,13 @@ import { DiceSFXManager } from './DiceSFXManager.js';
 import { DiceSystem } from './DiceSystem.js';
 import { SoundManager } from './SoundManager.js';
 //import {GLTFExporter} from 'three/examples/jsm/loaders/exporters/GLTFExporter.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader.js';
-import { SMAAPass } from './libs/SMAAPass.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import Stats from 'stats-gl';
 
@@ -50,10 +50,7 @@ import {
 export class DiceBox {
 
 	constructor(element_container, dice_factory, config) {
-		//private variables
-		this.known_types = ['d4', 'd6', 'd8', 'd10', 'd12', 'd14', 'd16', 'd20', 'd24', 'd30', 'd100'];
 		this.container = element_container;
-		this.dimensions = config.dimensions;
 		this.dicefactory = dice_factory;
 		this.config = config;
 		this.speed = 1;
@@ -70,6 +67,8 @@ export class DiceBox {
 			currentHeight: null,
 			containerWidth: null,
 			containerHeight: null,
+			innerWidth: null,
+			innerHeight: null,
 			aspect: null,
 			scale: null
 		};
@@ -93,16 +92,13 @@ export class DiceBox {
 
 		this.iteration;
 		this.renderer;
-		this.barrier;
 		this.camera;
 		this.light;
 		this.light_amb;
 		this.desk;
 		this.pane;
 
-		//public variables
-		this.public_interface = {};
-		this.diceList = []; //'private' variable
+		this.diceList = [];
 		this.deadDiceList = [];
 		this.framerate = (1 / 60);
 
@@ -124,9 +120,6 @@ export class DiceBox {
 			ground: 0x080820
 		};
 
-		this.rethrowFunctions = {};
-		this.afterThrowFunctions = {};
-
 		this.soundManager = new SoundManager();
 
 		this.layers = {
@@ -136,6 +129,8 @@ export class DiceBox {
 
 		this.bloomMaterials = {};
 		this.darkMaterial = new MeshBasicMaterial({ color: 'black' });
+
+		this.debugMode = false;
 	}
 
 	initialize() {
@@ -168,7 +163,13 @@ export class DiceBox {
 			}
 			else {
 				const preserveDrawingBuffer = game.user.getFlag("dice-so-nice", "preserveDrawingBuffer") || false;
-				this.renderer = new WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: preserveDrawingBuffer });
+				this.renderer = new WebGLRenderer({
+					antialias: false,
+					alpha: true,
+					powerPreference: "high-performance",
+					preserveDrawingBuffer: preserveDrawingBuffer,
+					logarithmicDepthBuffer: true
+				});
 				if (this.dicefactory.useHighDPI)
 					this.renderer.setPixelRatio(window.devicePixelRatio);
 				if (this.dicefactory.realisticLighting) {
@@ -183,7 +184,7 @@ export class DiceBox {
 			}
 
 			this.stats = null;
-			if (false && this.config.boxType == "board") {
+			if (this.debugMode && this.config.boxType == "board") {
 				this.stats = new Stats({
 					trackGPU: true,
 					trackHz: true,
@@ -219,6 +220,7 @@ export class DiceBox {
 					muteSoundSecretRolls: this.muteSoundSecretRolls,
 					height: this.display.containerHeight,
 					width: this.display.containerWidth,
+					margin: this.display.containerMargin
 				});
 
 				this.physicsWorker.off('collide');
@@ -249,7 +251,7 @@ export class DiceBox {
 				this.pmremGenerator = new PMREMGenerator(this.renderer);
 				this.pmremGenerator.compileEquirectangularShader();
 
-				new RGBELoader()
+				new HDRLoader()
 					.setDataType(HalfFloatType)
 					.setPath('modules/dice-so-nice/textures/equirectangular/')
 					.load('blouberg_sunrise_2_1k.hdr', function (texture) {
@@ -280,31 +282,29 @@ export class DiceBox {
 		this.display.currentWidth = this.container.clientWidth > 0 ? this.container.clientWidth : parseInt(this.container.style.width);
 		this.display.currentHeight = this.container.clientHeight > 0 ? this.container.clientHeight : parseInt(this.container.style.height);
 
-		this.display.currentWidth /= 2;
-		this.display.currentHeight /= 2;
-
 		if (dimensions) {
-			this.display.containerWidth = dimensions.w;
-			this.display.containerHeight = dimensions.h;
+			this.display.containerWidth = dimensions.width;
+			this.display.containerHeight = dimensions.height;
+			this.display.containerMargin = dimensions.margin || null;
 
 			if (!this.display.currentWidth || !this.display.currentHeight) {
-				this.display.currentWidth = dimensions.w / 2;
-				this.display.currentHeight = dimensions.h / 2;
+				this.display.currentWidth = dimensions.width;
+				this.display.currentHeight = dimensions.height;
+				this.display.currentMargin = dimensions.margin || null;
 			}
 		} else {
 			this.display.containerWidth = this.display.currentWidth;
 			this.display.containerHeight = this.display.currentHeight;
+			this.display.containerMargin = this.display.currentMargin;
 		}
+
+		this.updateInnerDimensions();
 
 		this.display.aspect = Math.min(this.display.currentWidth / this.display.containerWidth, this.display.currentHeight / this.display.containerHeight);
 
-		if (this.config.autoscale)
-			this.display.scale = Math.sqrt(this.display.containerWidth * this.display.containerWidth + this.display.containerHeight * this.display.containerHeight) / 13;
-		else
-			this.display.scale = this.config.scale;
-		if (this.config.boxType == "board")
-			this.dicefactory.setScale(this.display.scale);
-		this.renderer.setSize(this.display.currentWidth * 2, this.display.currentHeight * 2);
+		this.updateScale(this.config.scale, this.config.autoscale);
+
+		this.renderer.setSize(this.display.currentWidth, this.display.currentHeight);
 
 		this.cameraHeight.max = this.display.currentHeight / this.display.aspect / Math.tan(10 * Math.PI / 180);
 
@@ -325,7 +325,7 @@ export class DiceBox {
 		this.camera.near = 10;
 		this.camera.lookAt(new Vector3(0, 0, 0));
 
-		const maxwidth = Math.max(this.display.containerWidth, this.display.containerHeight);
+		const maxwidth = Math.max(this.display.containerWidth / 2, this.display.containerHeight / 2);
 
 		if (this.light) this.scene.remove(this.light);
 		if (this.light_amb) this.scene.remove(this.light_amb);
@@ -352,9 +352,9 @@ export class DiceBox {
 
 		this.light = new DirectionalLight(this.colors.spotlight, intensity);
 		if (this.config.boxType == "board")
-			this.light.position.set(-this.display.containerWidth / 10, this.display.containerHeight / 10, maxwidth / 2);
+			this.light.position.set(-this.display.containerWidth / 20, this.display.containerHeight / 20, maxwidth / 2);
 		else
-			this.light.position.set(0, this.display.containerHeight / 10, maxwidth / 2);
+			this.light.position.set(0, this.display.containerHeight / 20, maxwidth / 2);
 		this.light.target.position.set(0, 0, 0);
 		this.light.distance = 0;
 		this.light.castShadow = this.dicefactory.shadows;
@@ -365,9 +365,13 @@ export class DiceBox {
 		const shadowMapSize = this.dicefactory.shadowQuality == "high" ? 2048 : 1024;
 		this.light.shadow.mapSize.width = shadowMapSize;
 		this.light.shadow.mapSize.height = shadowMapSize;
-		const d = 1000;
-		this.light.shadow.camera.left = - d;
-		this.light.shadow.camera.right = d;
+
+		const halfWidth  = this.display.containerWidth  / 2;
+        const halfHeight = this.display.containerHeight / 2;
+        const d = Math.max(halfWidth, halfHeight) * 1.05;
+		
+		this.light.shadow.camera.left = - d * 2;
+		this.light.shadow.camera.right = d * 2;
 		this.light.shadow.camera.top = d;
 		this.light.shadow.camera.bottom = - d;
 		this.scene.add(this.light);
@@ -377,13 +381,14 @@ export class DiceBox {
 
 		let shadowplane = new ShadowMaterial();
 		shadowplane.opacity = 0.5;
-		this.desk = new Mesh(new PlaneGeometry(this.display.containerWidth * 6, this.display.containerHeight * 6, 1, 1), shadowplane);
+		shadowplane.depthWrite = false;
+		this.desk = new Mesh(new PlaneGeometry(this.display.containerWidth * 3, this.display.containerHeight * 3, 1, 1), shadowplane);
 		this.desk.receiveShadow = this.dicefactory.shadows;
 		this.desk.position.set(0, 0, -1);
 		this.scene.add(this.desk);
 		if (this.dicefactory.realisticLighting) {
 			let renderScene = new RenderPass(this.scene, this.camera);
-			const canvasSize = new Vector2(this.display.currentWidth * 2, this.display.currentHeight * 2);
+			const canvasSize = new Vector2(this.display.currentWidth, this.display.currentHeight);
 			this.bloomPass = new UnrealBloomPass(canvasSize, game.dice3d.uniforms.bloomStrength.value, game.dice3d.uniforms.bloomRadius.value, game.dice3d.uniforms.bloomThreshold.value);
 			this.bloomLayer = new Layers();
 			this.bloomLayer.set(this.layers.bloom);
@@ -452,7 +457,7 @@ export class DiceBox {
 
 			//Software Anti-aliasing pass. Should be rendered in a linear space.
 			if (this.dicefactory.aa == "smaa") {
-				this.AAPass = new SMAAPass(size.x, size.y);
+				this.AAPass = new SMAAPass();
 				this.AAPass.renderToScreen = true;
 				this.finalComposer.addPass(this.AAPass);
 			}
@@ -472,15 +477,9 @@ export class DiceBox {
 			volume: config.volume,
 			soundsSurface: config.soundsSurface
 		});
+		
+		this.updateScale(config.scale, config.autoscale);
 
-		if (this.config.boxType == "board") {
-			if (config.autoscale) {
-				this.display.scale = Math.sqrt(this.display.containerWidth * this.display.containerWidth + this.display.containerHeight * this.display.containerHeight) / 13;
-			} else {
-				this.display.scale = config.scale
-			}
-			this.dicefactory.setScale(this.display.scale);
-		}
 		this.dicefactory.setQualitySettings(config);
 
 		let globalAnimationSpeed = game.settings.get("dice-so-nice", "globalAnimationSpeed");
@@ -503,6 +502,61 @@ export class DiceBox {
 		});
 	}
 
+	updateBoundaries(dimensions) {
+		//Note: we're currently not managing resize of width and height, only margin for physics barriers
+		const newDimensions = {
+			width: dimensions.width ?? this.display.containerWidth,
+			height: dimensions.height ?? this.display.containerHeight,
+			margin: {
+				top: dimensions.margin?.top ?? this.display.containerMargin?.top ?? 0,
+				bottom: dimensions.margin?.bottom ?? this.display.containerMargin?.bottom ?? 0,
+				left: dimensions.margin?.left ?? this.display.containerMargin?.left ?? 0,
+				right: dimensions.margin?.right ?? this.display.containerMargin?.right ?? 0
+			}
+		};
+
+		this.display.containerWidth = newDimensions.width;
+		this.display.containerHeight = newDimensions.height;
+		this.display.containerMargin = newDimensions.margin;
+
+		this.updateInnerDimensions();
+		this.updateScale(this.config.scale, this.config.autoscale);
+
+		if (this.physicsWorker) {
+			this.physicsWorker.exec('updateBarriers', newDimensions);
+		}
+	}
+
+	updateInnerDimensions() {
+        const m = this.display.containerMargin || { top:0,bottom:0,left:0,right:0 };
+        this.display.innerWidth = Math.max(0, this.display.containerWidth - (m.left||0) - (m.right||0));
+        this.display.innerHeight = Math.max(0, this.display.containerHeight - (m.top||0) - (m.bottom||0));
+        if (!this.display.innerWidth) this.display.innerWidth = this.display.containerWidth;
+        if (!this.display.innerHeight) this.display.innerHeight = this.display.containerHeight;
+    }
+
+	updateScale(scale = 100, autoscale = false) {
+		this.config.autoscale = autoscale;
+		this.config.scale = scale;
+		if (autoscale) {
+			this.display.scale = this.computeAutoScale();
+		} else {
+			const autoScaleReference = this.computeAutoScale();
+			const BASE = 75; // base autoscale number
+			const pct = Math.min(100, Math.max(0, scale));
+			const normalizedScale = autoScaleReference * (pct / BASE) || 1;
+			this.display.scale = normalizedScale;
+		}
+		if (this.config.boxType == "board") {
+			this.dicefactory.setScale(this.display.scale);
+		}
+	}
+
+	computeAutoScale() {
+		const w = this.display.innerWidth || this.display.containerWidth;
+        const h = this.display.innerHeight || this.display.containerHeight;
+        return Math.sqrt(w * w + h * h) / 13;
+	}
 
 	vectorRand({ x, y }) {
 		let angle = Math.random() * Math.PI / 5 - Math.PI / 5 / 2;
@@ -515,7 +569,6 @@ export class DiceBox {
 		return vec;
 	}
 
-	//returns an array of vectordata objects
 	getVectors(notationVectors, vector, boost, dist) {
 
 		for (let i = 0; i < notationVectors.dice.length; i++) {
@@ -527,11 +580,13 @@ export class DiceBox {
 			vec.x /= dist;
 			vec.y /= dist;
 
-			let pos = {
-				x: this.display.containerWidth * (vec.x > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
-				y: this.display.containerHeight * (vec.y > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
-				z: Math.random() * 200 + 200
-			};
+			let W = this.display.innerWidth;
+            let H = this.display.innerHeight;
+            let pos = {
+                x: W * (vec.x > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
+                y: H * (vec.y > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
+                z: Math.random() * 200 + 200
+            };
 
 			let projector = Math.abs(vec.x / vec.y);
 			if (projector > 1.0) pos.y /= projector; else pos.x *= projector;
@@ -927,8 +982,11 @@ export class DiceBox {
 		this.callback = null;
 		let countNewDice = 0;
 		throws.forEach(notation => {
-			let vector = { x: (Math.random() * 2 - 0.5) * this.display.currentWidth, y: -(Math.random() * 2 - 0.5) * this.display.currentHeight };
-			let dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+			let vector = {
+                x: (Math.random() * 2 - 0.5) * this.display.innerWidth,
+                y: -(Math.random() * 2 - 0.5) * this.display.innerHeight
+            };
+            let dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
 			let throwingForceModifier = 0.8;
 			switch (this.throwingForce) {
 				case "weak":
@@ -1189,6 +1247,7 @@ export class DiceBox {
 
 			let shadowplane = new ShadowMaterial();
 			shadowplane.opacity = 0.5;
+			shadowplane.depthWrite = false;
 
 			this.pane = new Mesh(new PlaneGeometry(this.display.containerWidth * 2, this.display.containerHeight * 2, 1, 1), shadowplane);
 			this.pane.receiveShadow = this.dicefactory.shadows;

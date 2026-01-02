@@ -45,7 +45,7 @@ publish:
       
       RESPONSE=$(curl -s -H "Authorization: ${FOUNDRY_RELEASE_TOKEN}" \
         -H "Content-Type: application/json" \
-        -X POST https://api.foundryvtt.com/_api/packages/release_version/ \
+        -X POST https://foundryvtt.com/_api/packages/release_version/ \
         -d '{
           "id": "'"${PACKAGE_ID}"'",
           "release": {

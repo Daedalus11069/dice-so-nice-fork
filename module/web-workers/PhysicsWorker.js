@@ -18,6 +18,7 @@ class PhysicsWorker {
             .operation('addDice', this.addDice.bind(this))
             .operation('playStep', this.playStep.bind(this))
             .operation('simulateThrow', this.simulateThrow.bind(this))
+            .operation('updateBarriers', this.updateBarriers.bind(this))
             .operation('getWorldInfo', this.getWorldInfo.bind(this));
     }
 
@@ -46,7 +47,7 @@ class PhysicsWorker {
 
         this.addContactMaterials();
         this.addDesk();
-        this.addBarriers(data.height, data.width);
+        this.addBarriers(data.height, data.width, data.margin);
         this.addJointBody();
         this.reset();
     }
@@ -78,13 +79,22 @@ class PhysicsWorker {
 
     /**
      * Adds barriers around the world simulation to keep dice within bounds.
+     * @param {number} height - The height of the world.
+     * @param {number} width - The width of the world.
+     * @param {object} margin - The margin to apply to the barriers.
+     * @param {number} margin.top - The top margin.
+     * @param {number} margin.bottom - The bottom margin.
+     * @param {number} margin.left - The left margin.
+     * @param {number} margin.right - The right margin.
      */
-    addBarriers(height, width) {
+    addBarriers(height, width, margin) {
+        this.barriers = [];
+        this.barriersScale = 0.97;
         const barriersConfig = [
-            { axis: new Vec3(1, 0, 0), angle: Math.PI / 2, position: new Vec3(0, height * 0.93, 0) },
-            { axis: new Vec3(1, 0, 0), angle: -Math.PI / 2, position: new Vec3(0, -height * 0.93, 0) },
-            { axis: new Vec3(0, 1, 0), angle: -Math.PI / 2, position: new Vec3(width * 0.93, 0, 0) },
-            { axis: new Vec3(0, 1, 0), angle: Math.PI / 2, position: new Vec3(-width * 0.93, 0, 0) }
+            { axis: new Vec3(1, 0, 0), angle: Math.PI / 2, position: new Vec3(0, (height - margin.top * 2) * this.barriersScale, 0) }, // top
+            { axis: new Vec3(1, 0, 0), angle: -Math.PI / 2, position: new Vec3(0, (-height + margin.bottom * 2) * this.barriersScale, 0) }, // bottom
+            { axis: new Vec3(0, 1, 0), angle: -Math.PI / 2, position: new Vec3((width - margin.right * 2) * this.barriersScale, 0, 0) }, // right
+            { axis: new Vec3(0, 1, 0), angle: Math.PI / 2, position: new Vec3((-width + margin.left * 2) * this.barriersScale, 0, 0) } // left
         ];
 
         for (const { axis, angle, position } of barriersConfig) {
@@ -92,7 +102,27 @@ class PhysicsWorker {
             barrier.quaternion.setFromAxisAngle(axis, angle);
             barrier.position.copy(position);
             this.world.addBody(barrier);
+            this.barriers.push(barrier);
         }
+    }
+
+    /**
+     * Updates the positions of the barriers based on new world dimensions.
+     * Currently only called when the sidebar is collapsed or expanded.
+     * @param {Object} param0 - The new world dimensions.
+     * @param {number} param0.height - The height of the world.
+     * @param {number} param0.width - The width of the world.
+     * @param {Object} param0.margin - The margin to apply to the barriers.
+     * @param {number} param0.margin.top - The top margin.
+     * @param {number} param0.margin.bottom - The bottom margin.
+     * @param {number} param0.margin.left - The left margin.
+     * @param {number} param0.margin.right - The right margin.
+     */
+    updateBarriers({height, width, margin}) {
+        this.barriers[0].position.set(0, (height - margin.top * 2) * this.barriersScale, 0);
+        this.barriers[1].position.set(0, (-height + margin.bottom * 2) * this.barriersScale, 0);
+        this.barriers[2].position.set((width - margin.right * 2) * this.barriersScale, 0, 0);
+        this.barriers[3].position.set((-width + margin.left * 2) * this.barriersScale, 0, 0);
     }
 
     /**

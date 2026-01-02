@@ -29,6 +29,18 @@ export class DiceSystem {
         DESPAWN: 4 //not implemented. need a use-case. "result" seems to be the enough for despawning animations
     }
 
+    static generateHash = (str) => {
+        let hash = 0,
+            i, chr;
+        if (str.length === 0) return hash;
+        for (i = 0; i < str.length; i++) {
+            chr = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + chr;
+            hash |= 0;
+        }
+        return hash;
+    }
+
     /**
      * Creates a new instance of the DiceSystem class.
      *
@@ -137,14 +149,16 @@ export class DiceSystem {
     beforeShaderCompile(shader, material) {
         let fragmentShader = shader.fragmentShader;
         let vertexShader = shader.vertexShader;
-        //this.onBeforeShaderCompile(shader, material, material.userData.diceType, material.userData.appearance);
+ 
         for(const callback of this._registeredBeforeShaderCompileCallbacks) {
             callback(shader, material, material.userData.diceType, material.userData.appearance);
         }
 
+        material.userData.shaderCacheKey = DiceSystem.generateHash(shader.fragmentShader+shader.vertexShader);
+
         if(fragmentShader != shader.fragmentShader || vertexShader != shader.vertexShader) {
             material.customProgramCacheKey = () => {
-                return shader.fragmentShader+shader.vertexShader;
+                return material.userData.shaderCacheKey;
             }
             material.needsUpdate = true;
         }

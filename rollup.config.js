@@ -2,7 +2,7 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
-import { del } from '@kineticcafe/rollup-plugin-delete';
+import del from 'rollup-plugin-delete';
 import copy from 'rollup-plugin-copy';
 import webWorkerLoader from 'rollup-plugin-web-worker-loader';
 import { readFileSync, writeFileSync } from 'fs';
@@ -83,6 +83,17 @@ const config = {
         dest: `dist/libs`
       }]
     }),
+    //add a copy of Draco decoder to the draco folder for three.js
+    !isWatch && copy({
+      targets: [{
+        src: `node_modules/three/examples/jsm/libs/draco/draco_decoder.wasm`,
+        dest: `dist/libs/`
+      },
+      {
+        src: `node_modules/three/examples/jsm/libs/draco/draco_wasm_wrapper.js`,
+        dest: `dist/libs/`
+      }]
+    }),
     nodeResolve({
       browser: true,
       preferBuiltins: false
@@ -99,7 +110,8 @@ const config = {
     }),
     webWorkerLoader({
       targetPlatform: 'browser',
-      preserveSource: true
+      preserveSource: !isWatch,
+      sourcemap: !isProduction
     })
   ].filter(Boolean),
   onwarn(warning, warn) {

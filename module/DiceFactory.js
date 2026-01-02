@@ -4,6 +4,7 @@ import {DiceColors, DICE_SCALE, COLORSETS} from './DiceColors.js';
 import {DICE_MODELS} from './DiceModels.js';
 import {DiceSystem} from './DiceSystem.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { ShaderUtils } from './ShaderUtils';
 import PhysicsWorker from 'web-worker:./web-workers/PhysicsWorker.js';
 import WebworkerPromise from 'webworker-promise';
@@ -42,6 +43,10 @@ export class DiceFactory {
 		this.realisticLighting = true;
 
 		this.loaderGLTF = new GLTFLoader();
+		this.loaderDRACO = new DRACOLoader();
+		this.loaderDRACO.setDecoderPath('modules/dice-so-nice/libs/');
+		this.loaderDRACO.setDecoderConfig({type: 'wasm'});
+		this.loaderGLTF.setDRACOLoader(this.loaderDRACO);
 		this.fontLoadingPromises = [];
 
 		this.baseMaterialCache = {};
@@ -452,8 +457,8 @@ export class DiceFactory {
 
 		this.register(preset);
 
-		if(dice.font && !FontConfig.getAvailableFonts().includes(dice.font)){
-			this.fontLoadingPromises.push(FontConfig.loadFont(dice.font,{editor:false,fonts:[]}));
+		if(dice.font && !foundry.applications.settings.menus.FontConfig.getAvailableFonts().includes(dice.font)){
+			this.fontLoadingPromises.push(foundry.applications.settings.menus.FontConfig.loadFont(dice.font,{editor:false,fonts:[]}));
 		}
 	}
 

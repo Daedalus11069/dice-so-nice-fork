@@ -1,18 +1,47 @@
 import {Dice3D} from "./Dice3D.js";
 
-export class RollableAreaConfig extends FormApplication {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-    static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
-            title: game.i18n.localize("DICESONICE.RollableAreaConfigTitle"),
-            template: "modules/dice-so-nice/templates/rollable-area-config.html",
+export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2) {
+    
+    static DEFAULT_OPTIONS = {
+        tag: "form",
+        form: {
+            handler: RollableAreaConfig._onSubmit,
+        },
+        window: {
+            title: "DICESONICE.RollableAreaConfigTitle",
+            contentClasses: ["standard-form"]
+        },
+        position: {
             width: 280,
             top: 70,
             left: window.innerWidth - 290
-        });
+        },
+        actions: {
+            restore: RollableAreaConfig._onRestore
+        }
+    };
+
+    static PARTS = {
+        form: {
+            template: "modules/dice-so-nice/templates/rollable-area-config.html"
+        },
+        footer: {
+            template: "templates/generic/form-footer.hbs"
+        }        
+    };
+
+    async _prepareContext(options) {
+        const context = await super._prepareContext(options);
+        context.buttons = [
+            { type: "submit", name: "apply", icon: "fa-solid fa-save", label: "DICESONICE.Apply" },
+            { type: "button", name: "restore", action: "restore", icon: "fa-solid fa-undo", label: "DICESONICE.Restore" }
+        ];
+        return context;
     }
 
-    render(force, context={}) {
+    render(options) {
         this.area = $(`
             <div class='dice-so-nice rollable-area'>
                 <div class='resizers'>
@@ -37,16 +66,15 @@ export class RollableAreaConfig extends FormApplication {
         }
         this.area.appendTo($('body'));
         this.area.css(rollingArea);
+        
+        this.activateListeners();
 
-        return super.render(force, context);
+        return super.render(options);
     }
 
-    activateListeners(html) {
-        super.activateListeners(html);
+    activateListeners() {
         // Get the body element's top style because of the "Window Controls" plugin that adds a "top" to the body element
         const bodyTop = parseInt(window.getComputedStyle(document.body).top, 10) || 0;
-
-        html.find('button[name="restore"]').click(this._onRestore.bind(this));
 
         let el = $(this.area).get(0);
         let resizing = false;
@@ -125,13 +153,13 @@ export class RollableAreaConfig extends FormApplication {
         }
     }
 
-    async _onRestore() {
-        await this.saveSettingsAndRebuild(false);
+    static async _onRestore() {
+        await this.saveSettingsAndReload(false);
         await this.close();
     }
 
     async _updateObject() {
-        await this.saveSettingsAndRebuild({
+        await this.saveSettingsAndReload({
             top: this.area.position().top,
             left: this.area.position().left,
             width: this.area.width(),
@@ -139,16 +167,20 @@ export class RollableAreaConfig extends FormApplication {
         });
     }
 
-    async saveSettingsAndRebuild(rollingArea) {
+    async saveSettingsAndReload(rollingArea) {
         let settings = foundry.utils.mergeObject(Dice3D.CONFIG(), {
             rollingArea: rollingArea
         },{performDeletions:true});
         await game.user.setFlag('dice-so-nice', 'settings', settings);
-        game.dice3d.resizeAndRebuild();
+        foundry.applications.settings.SettingsConfig.reloadConfirm();
     }
 
     async close(options={}) {
         this.area.remove();
         return super.close(options);
+    }
+
+    static async _onSubmit(event, form, formData) {
+        this._updateObject(event, formData);
     }
 }

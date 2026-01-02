@@ -216,12 +216,18 @@ Hooks.once('init', () => {
 
 });
 
-const chatMessagesCurrentlyBeingAnimated = new Set();
-
 /**
- * Foundry is ready, let's create a new Dice3D!
+ * Core Foundry is ready, wait for the sidebar then let's create a new Dice3D!
  */
 Hooks.once('ready', () => {
+    if (ui.sidebar.rendered) {
+        setupDiceSoNice();
+    } else {
+        ui.sidebar.addEventListener("render", setupDiceSoNice, {once: true})
+    }
+});
+
+const setupDiceSoNice = () => {
     Utils.migrateOldSettings().then((updated) => {
         if (updated) {
             if (!game.settings.get("core", "noCanvas")){
@@ -232,7 +238,7 @@ Hooks.once('ready', () => {
                 logger.warn("Dice So Nice! is disabled because the user has activated the 'No-Canvas' mode");
         }
     });
-});
+};
 
 const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, dsnIndexAddedRoll: 0}) => {
     const hasInlineRoll = game.settings.get("dice-so-nice", "animateInlineRoll") && chatMessage.content.includes('inline-roll');
@@ -324,7 +330,7 @@ Hooks.on('createChatMessage', (chatMessage) => {
 /**
  * Hide messages which are animating rolls.
  */
-Hooks.on("renderChatMessage", (message, html, data) => {
+Hooks.on("renderChatMessageHTML", (message, html, data) => {
     if (game.dice3d && game.dice3d.messageHookDisabled) {
         return;
     }
@@ -360,15 +366,15 @@ Hooks.on("renderChatMessage", (message, html, data) => {
 
             //use this sum to hide the last rolls
             //which should be the most recent rolls
-            html.find(`.dice-roll`).slice(-sumOfAllHiddenRolls).addClass("dsn-hide");
+            [html.querySelectorAll(`.dice-roll`)].slice(-sumOfAllHiddenRolls).forEach(el => el.classList.add("dsn-hide"));
 
             //In case _dice3dMessageHidden is still true, we hide the message as it means the original rolls are not yet finished
             if(message._dice3dMessageHidden)
-                html.addClass("dsn-hide");
+                html.classList.add("dsn-hide");
         }
         else {
             //first time rendering the message
-            html.addClass("dsn-hide");
+            html.classList.add("dsn-hide");
             message._dice3dMessageHidden = true;
         }
     }
@@ -438,8 +444,9 @@ Hooks.on("chatCommandsReady", commands => {
 });
 
 Hooks.on("collapseSidebar", (sidebar, collapsed) => {
-    if (game.dice3d) {
-        //let the time for a css repaint
-        setTimeout(() => game.dice3d.resizeAndRebuild(), 300);
-    }
+    document.getElementById("sidebar-content").addEventListener("transitionend", () => {
+        if (game.dice3d && game.dice3d.box) {
+            game.dice3d.resizePlayArea();
+        }
+    }, { once: true });
 });

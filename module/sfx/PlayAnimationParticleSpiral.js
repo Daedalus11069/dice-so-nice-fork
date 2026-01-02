@@ -31,7 +31,8 @@ export class PlayAnimationParticleSpiral extends DiceSFX {
     /**@override play */
     async play() {
         this.proton = new Proton();
-        this.R = 70;
+        this.scale = this.computeScale();
+        this.R = 70 * this.scale;
         this.tha = 0;
         this.emitter1 = await this.createEmitter(this.R, this.R, '#4F1500', '#0029FF');
         this.emitter2 = await this.createEmitter(-this.R, -this.R, '#004CFE', '#6600FF');
@@ -57,7 +58,7 @@ export class PlayAnimationParticleSpiral extends DiceSFX {
             await PlayAnimationParticleSpiral.init();
         }
         emitter.addInitialize(new Proton.Body(PlayAnimationParticleSpiral.sprite));
-        emitter.addInitialize(new Proton.Radius(30));
+        emitter.addInitialize(new Proton.Radius(30 * this.scale));
         emitter.addInitialize(new Proton.V(200, new Proton.Vector3D(0, 0, -1), 0));
 
 

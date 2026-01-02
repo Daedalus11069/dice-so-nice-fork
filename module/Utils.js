@@ -5,7 +5,7 @@ import { TEXTURELIST, COLORSETS } from './DiceColors.js';
 export class Utils {
 
     static DATA_FORMAT_VERSION = "4.2";
-    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "enabled"];
+    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "enabled", "rollingArea"];
 
     /**
      * Check if the user's version is less than a specific target version.
@@ -240,7 +240,7 @@ export class Utils {
         let fontList = {
             "auto": game.i18n.localize("DICESONICE.FontAuto")
         };
-        return foundry.utils.mergeObject(fontList, FontConfig.getAvailableFontChoices());
+        return foundry.utils.mergeObject(fontList, foundry.applications.settings.menus.FontConfig.getAvailableFontChoices());
     };
 
     static prepareColorsetList() {

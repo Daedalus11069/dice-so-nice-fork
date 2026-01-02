@@ -224,6 +224,7 @@ export class DicePreset {
 		this.modelLoaded = false;
 	}
 
+	//loader is a GLTFLoader instance
 	loadModel(loader = null) {
 		// Load a glTF resource
 		if (!this.modelLoaded && this.modelLoading === false) {
@@ -231,7 +232,10 @@ export class DicePreset {
 				loader.load(this.modelFile, gltf => {
 					gltf.scene.traverse(function (node) {
 						if (node.isMesh) {
-							node.castShadow = true;
+							if (node.userData && node.userData.hasOwnProperty('castShadow'))
+								node.castShadow = node.userData.castShadow;
+							else
+								node.castShadow = true;
 							node.material.onBeforeCompile = ShaderUtils.applyDiceSoNiceShader;
 							const anisotropy = game.dice3d.box.anisotropy;
 							if (node.material.map !== null)

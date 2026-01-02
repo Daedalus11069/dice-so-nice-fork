@@ -1,4 +1,6 @@
 export class DiceSFX {
+    // Whether this SFX should only be played once per logical dice (even if represented by multiple meshes, e.g., percentile dice)
+    static PLAY_ONLY_ONCE_PER_MESH = false;
     get nameLocalized(){
         return game.i18n.localize(this._name);
     }
@@ -21,6 +23,32 @@ export class DiceSFX {
 
     static async init(){
         return true;
+    }
+
+    computeScale(){
+        let scale = this.box.dicefactory.baseScale / 100;
+        switch (this.dicemesh.shape) {
+            case "d2":
+                scale *= 1.3;
+                break;
+            case "d4":
+                scale *= 1.1;
+                break;
+            case "d6":
+                break;
+            case "d8":
+                scale *= 1.1;
+                break;
+            case "d10":
+                break;
+            case "d12":
+                scale *= 1.2;
+                break;
+            case "d20":
+                scale *= 1.3;
+                break;
+        }
+        return scale;
     }
 
     async play(){
