@@ -1176,7 +1176,7 @@ export class DiceFactory {
 				colorset = dicenotation.options.colorset;
 			else if (dicenotation.options.flavor && COLORSETS[dicenotation.options.flavor]) {
 				colorset = dicenotation.options.flavor;
-			} else if(dicenotation.options.appearance && dicenotation.options.appearance.colorset){
+			} else if(dicenotation.options.appearance?.colorset && COLORSETS[dicenotation.options.appearance.colorset]) {
 				colorset = dicenotation.options.appearance.colorset;
 			}
 
