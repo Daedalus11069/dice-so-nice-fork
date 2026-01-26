@@ -446,6 +446,10 @@ export class DiceFactory {
 		if(dice.emissiveMaps && dice.emissiveMaps.length)
 			preset.setEmissiveMaps(dice.emissiveMaps);
 
+		if (dice.type === "d4" && dice.baseTextures) {
+			preset.setBaseTextures(dice.baseTextures);
+		}
+
 		if(dice.emissive)
 			preset.emissive = dice.emissive;
 
@@ -844,6 +848,9 @@ export class DiceFactory {
 		
 		let text = labels[index];
 		let bump = diceobj.bumps[index];
+		if (diceobj.shape == 'd4') {
+			bump = diceobj.bumps?.[0]?.[index];
+		}
 		let emissive = diceobj.emissiveMaps[index];
 		let isTexture = false;
 		let margin = 1.0;
@@ -883,10 +890,12 @@ export class DiceFactory {
 
 		contextBump.textAlign = "center";
 		contextBump.textBaseline = "middle";
-		contextBump.shadowColor = "#000000";
-		contextBump.shadowOffsetX = 1;
-		contextBump.shadowOffsetY = 1;
-		contextBump.shadowBlur = 3;
+		if (diceobj.shape != 'd4') { // Avoid shadows on the bump map for d4s since the images are combined
+			contextBump.shadowColor = "#000000";
+			contextBump.shadowOffsetX = 1;
+			contextBump.shadowOffsetY = 1;
+			contextBump.shadowBlur = 3;
+		}
 
 		contextEmissive.textAlign = "center";
 		contextEmissive.textBaseline = "middle";
@@ -1025,76 +1034,88 @@ export class DiceFactory {
 			contextBump.font =  fontsize+'pt '+font.type;
 			contextEmissive.font =  fontsize+'pt '+font.type;
 
+			const baseBump = diceobj.bumps[0]?.[0]?.[0];
+			const baseText = labels[0]?.[0];
+			if (baseBump && baseBump.source instanceof HTMLImageElement) { // base bump texture override for d4s
+				contextBump.drawImage(baseBump.source, baseBump.frame.x, baseBump.frame.y, baseBump.frame.w, baseBump.frame.h,x,y,ts,ts);
+			}
+			if (baseText && baseText.source instanceof HTMLImageElement) { // base texture override for d4s
+				context.drawImage(baseText.source, baseText.frame.x, baseText.frame.y, baseText.frame.w, baseText.frame.h,x,y,ts,ts);
+			}
+
 			//draw the numbers
 			let wShift = 1;
 			let hShift = 1;
-			for (let i=0;i<text.length;i++) {
-				if(materialData.isGhost)
-					text[i] = "?";
-				switch(i){
-					case 0:
-						hShift = 1.13;
-						break;
-					case 1:
-						hShift=0.87;
-						wShift=1.13;
-						break;
-					case 2:
-						wShift = 0.87;
-				}
-				let destX = hw*wShift+x;
-				let destY = (hh - ts * 0.3)*hShift+y;
-				//custom texture face
-				if(text[i].source instanceof HTMLImageElement){
-					isTexture = true;
-					let textureSize = 60 / (text[i].frame.w / ts);
-					context.drawImage(text[i].source,text[i].frame.x, text[i].frame.y, text[i].frame.w, text[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
-					//There's an issue with bump texture because they are smaller than the dice face so it causes visual glitches
-					/*if(bump)
-						contextBump.drawImage(text[i],0,0,text[i].width,text[i].height,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);*/
-					if(emissive)
-						contextEmissive.drawImage(text[i].source,text[i].frame.x, text[i].frame.y, text[i].frame.w, text[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
-				}
-				else{
-					// attempt to outline the text with a meaningful color
-					if (outlinecolor != 'none' && outlinecolor != backcolor) {
-						context.strokeStyle = outlinecolor;
-						
-						context.lineWidth = 5;
-						context.strokeText(text[i], destX, destY);
-
-						contextBump.strokeStyle = "#555555";
-						contextBump.lineWidth = 5;
-						contextBump.strokeText(text[i], destX, destY);
-
-						contextEmissive.strokeStyle = "#999999";
-						contextEmissive.lineWidth = 5;
-						contextEmissive.strokeText(text[i], destX, destY);
+			if (index > 0) {
+				for (let i=0;i<text.length;i++) {
+					if(materialData.isGhost)
+						text[i] = "?";
+					switch(i){
+						case 0:
+							hShift = 1.13;
+							break;
+						case 1:
+							hShift=0.87;
+							wShift=1.13;
+							break;
+						case 2:
+							wShift = 0.87;
+					}
+					let destX = hw*wShift+x;
+					let destY = (hh - ts * 0.3)*hShift+y;
+					//custom texture face
+					if(text[i].source instanceof HTMLImageElement){
+						isTexture = true;
+						let textureSize = 60 / (text[i].frame.w / ts);
+						context.drawImage(text[i].source,text[i].frame.x, text[i].frame.y, text[i].frame.w, text[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
+						if(bump) {
+							contextBump.drawImage(bump[i].source,0,0,bump[i].frame.w,bump[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
+						}
+						if(emissive)
+							contextEmissive.drawImage(text[i].source,text[i].frame.x, text[i].frame.y, text[i].frame.w, text[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
 					}
 
-					//draw label in top middle section
-					context.fillStyle = forecolor;
-					context.fillText(text[i], destX, destY);
-					contextBump.fillStyle = "#555555";
-					contextBump.fillText(text[i], destX, destY);
-					contextEmissive.fillStyle = "#999999";
-					contextEmissive.fillText(text[i], destX, destY);
-					//var img    = canvas.toDataURL("image/png");
-					//document.write('<img src="'+img+'"/>');
+					else{
+						// attempt to outline the text with a meaningful color
+						if (outlinecolor != 'none' && outlinecolor != backcolor) {
+							context.strokeStyle = outlinecolor;
+							
+							context.lineWidth = 5;
+							context.strokeText(text[i], destX, destY);
+
+							contextBump.strokeStyle = "#555555";
+							contextBump.lineWidth = 5;
+							contextBump.strokeText(text[i], destX, destY);
+
+							contextEmissive.strokeStyle = "#999999";
+							contextEmissive.lineWidth = 5;
+							contextEmissive.strokeText(text[i], destX, destY);
+						}
+
+						//draw label in top middle section
+						context.fillStyle = forecolor;
+						context.fillText(text[i], destX, destY);
+						contextBump.fillStyle = "#555555";
+						contextBump.fillText(text[i], destX, destY);
+						contextEmissive.fillStyle = "#999999";
+						contextEmissive.fillText(text[i], destX, destY);
+						//var img    = canvas.toDataURL("image/png");
+						//document.write('<img src="'+img+'"/>');
+					}
+
+					//rotate 1/3 for next label
+					context.translate(hw+x, hh+y);
+					context.rotate(Math.PI * 2 / 3);
+					context.translate(-hw-x, -hh-y);
+
+					contextBump.translate(hw+x, hh+y);
+					contextBump.rotate(Math.PI * 2 / 3);
+					contextBump.translate(-hw-x, -hh-y);
+
+					contextEmissive.translate(hw+x, hh+y);
+					contextEmissive.rotate(Math.PI * 2 / 3);
+					contextEmissive.translate(-hw-x, -hh-y);
 				}
-
-				//rotate 1/3 for next label
-				context.translate(hw+x, hh+y);
-				context.rotate(Math.PI * 2 / 3);
-				context.translate(-hw-x, -hh-y);
-
-				contextBump.translate(hw+x, hh+y);
-				contextBump.rotate(Math.PI * 2 / 3);
-				contextBump.translate(-hw-x, -hh-y);
-
-				contextEmissive.translate(hw+x, hh+y);
-				contextEmissive.rotate(Math.PI * 2 / 3);
-				contextEmissive.translate(-hw-x, -hh-y);
 			}
 		}
 	}

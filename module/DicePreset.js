@@ -87,12 +87,16 @@ export class DicePreset {
 					let b = textures[1];
 					let c = textures[2];
 					let d = textures[3];
+					let baseText = [];
+					if (faces.baseTextures?.[type]) {
+						baseText.push(faces.baseTextures[type]);
+					}
 	
 					tab = [
-						[[], [0, 0, 0], [b, d, c], [a, c, d], [b, a, d], [a, b, c]],
-						[[], [0, 0, 0], [b, c, d], [c, a, d], [b, d, a], [c, b, a]],
-						[[], [0, 0, 0], [d, c, b], [c, d, a], [d, b, a], [c, a, b]],
-						[[], [0, 0, 0], [d, b, c], [a, d, c], [d, a, b], [a, c, b]]
+						[baseText, [0, 0, 0], [b, d, c], [a, c, d], [b, a, d], [a, b, c]],
+						[baseText, [0, 0, 0], [b, c, d], [c, a, d], [b, d, a], [c, b, a]],
+						[baseText, [0, 0, 0], [d, c, b], [c, d, a], [d, b, a], [c, a, b]],
+						[baseText, [0, 0, 0], [d, b, c], [a, d, c], [d, a, b], [a, c, b]]
 					];
 				} else {
 					// For other shapes, just flatten the object values into an array
@@ -131,6 +135,11 @@ export class DicePreset {
 		this.unloadModel();
 	}
 
+	setBaseTextures(baseTextures) {
+		this.baseTextures = baseTextures;
+		this.unloadModel();
+	}
+
 	setAtlas(atlas) {
 		this.atlas = atlas;
 		this.unloadModel();
@@ -161,6 +170,15 @@ export class DicePreset {
                         if (this.emissiveMaps) {
                             allTextures['emissiveMaps'] = await this.loadTextureType(this.emissiveMaps, loadedAtlasTextures, assetsLoader);
                         }
+						if (this.baseTextures) {
+							allTextures['baseTextures'] = {};
+							if (this.baseTextures.labels) {
+								allTextures.baseTextures.labels = (await this.loadTextureType([this.baseTextures.labels], loadedAtlasTextures, assetsLoader))[0];
+							}
+							if (this.baseTextures.bumpMaps) {
+								allTextures.baseTextures.bumps = (await this.loadTextureType([this.baseTextures.bumpMaps], loadedAtlasTextures, assetsLoader))[0];
+							}
+                        }
                     } else {
                         // Load each texture type from URLs as no atlas is specified.
                         allTextures['labels'] = await this.loadTextureType(this.labels, {}, assetsLoader);
@@ -169,6 +187,15 @@ export class DicePreset {
                         }
                         if (this.emissiveMaps) {
                             allTextures['emissiveMaps'] = await this.loadTextureType(this.emissiveMaps, {}, assetsLoader);
+                        }
+						if (this.baseTextures) {
+							allTextures['baseTextures'] = {};
+							if (this.baseTextures.labels) {
+								allTextures.baseTextures.labels = (await this.loadTextureType([this.baseTextures.labels], {}, assetsLoader))[0];
+							}
+							if (this.baseTextures.bumpMaps) {
+								allTextures.baseTextures.bumps = (await this.loadTextureType([this.baseTextures.bumpMaps], {}, assetsLoader))[0];
+							}
                         }
                     }
 
