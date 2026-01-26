@@ -449,6 +449,9 @@ export class DiceFactory {
 		if (dice.type === "d4" && dice.baseTextures) {
 			preset.setBaseTextures(dice.baseTextures);
 		}
+		if (dice.type === "d4" && dice.textureScale) {
+			preset.textureScale = dice.textureScale;
+		}
 
 		if(dice.emissive)
 			preset.emissive = dice.emissive;
@@ -1067,6 +1070,9 @@ export class DiceFactory {
 					if(text[i].source instanceof HTMLImageElement){
 						isTexture = true;
 						let textureSize = 60 / (text[i].frame.w / ts);
+						if (diceobj.textureScale) {
+							textureSize = 120 * diceobj.textureScale;
+						}
 						context.drawImage(text[i].source,text[i].frame.x, text[i].frame.y, text[i].frame.w, text[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
 						if(bump) {
 							contextBump.drawImage(bump[i].source,0,0,bump[i].frame.w,bump[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
