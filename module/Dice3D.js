@@ -440,23 +440,13 @@ export class Dice3D {
     _initListeners() {
         this._rtime;
         this._timeout = false;
-        $(window).resize(() => {
-            this._rtime = new Date();
-            if (this._timeout === false) {
-                this._timeout = true;
-                setTimeout(resizeEnd.bind(this), 1000);
-            }
-        });
 
-        const resizeEnd = () => {
-            if (new Date() - this._rtime < 1000) {
-                setTimeout(resizeEnd.bind(this), 1000);
-            } else {
-                this._timeout = false;
-                //resize ended probably, lets update the canvas
-                this.resizeAndRebuild();
-            }
-        };
+        const resizeHandler = () => {
+            //resize ended probably, lets update the canvas once the current animation is complete
+            this._currentAnimation.then(() => this.resizeAndRebuild());
+        }
+        const debouncedResizeHandler = foundry.utils.debounce(resizeHandler.bind(this), 1000);
+        $(window).resize(debouncedResizeHandler);
 
         // Resize the play area
         // Only works if the window size hasn't changed
