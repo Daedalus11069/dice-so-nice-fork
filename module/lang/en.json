@@ -94,7 +94,7 @@
     "DICESONICE.allowInteractivity": "Allow interaction with rolled dice",
     "DICESONICE.allowInteractivityHint": "Let players grab and throw 3D dice after they've been rolled on the table (this has no effect on the results)",
     "DICESONICE.hide3dDiceOnSecretRolls": "Hide 3D dice on GM/Blind rolls",
-    "DICESONICE.hide3dDiceOnSecretRollsHint": "Do not display 3D dice to other players on GM/Blind rolls.",
+    "DICESONICE.hide3dDiceOnSecretRollsHint": "Do not display 3D dice to other players on GM/Blind rolls unless it is a ghost dice",
     "DICESONICE.showGhostDice": "Show Ghost dice for hidden rolls",
     "DICESONICE.showGhostDiceHint": "When possible, show a dice without numbers to players when rolling a GM or Blind roll.",
     "DICESONICE.ghostDiceDisabled": "Disable Ghost dice",

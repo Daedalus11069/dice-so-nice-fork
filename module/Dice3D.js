@@ -266,6 +266,19 @@ export class Dice3D {
     }
 
     /**
+     * Get available SFX modes by id -> localized name.
+     * @returns {Object<string, string>}
+     */
+    getSFXModes() {
+        const modes = DiceSFXManager.SFX_MODE_LIST || {};
+        const localized = {};
+        Object.entries(modes).forEach(([id, key]) => {
+            localized[id] = game.i18n.localize(key);
+        });
+        return localized;
+    }
+
+    /**
      * Load a save file by its name
      * @param {String} name 
      * @returns {Promise}
