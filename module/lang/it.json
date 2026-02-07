@@ -277,7 +277,10 @@
     "DICESONICE.forceCharacterOwnerAppearanceForInitiative": "Usa i dadi del proprietario per l'iniziativa",
     "DICESONICE.forceCharacterOwnerAppearanceForInitiativeHint": "Quando abilitato, usa l'aspetto del dado del proprietario del personaggio quando lancia l'iniziativa dal combat tracker, indipendentemente dall'autore del tiro (es: DM).",
     "DICESONICE.hide3dDiceOnSecretRolls": "Nascondi dadi 3D nei tiri del DM o alla cieca",
-    "DICESONICE.hide3dDiceOnSecretRollsHint": "Non mostrare dadi 3D agli altri giocatori nei tiri del DM o alla cieca.",
+    "DICESONICE.hide3dDiceOnSecretRollsHint": "Non mostrare dadi 3D agli altri giocatori nei tiri del DM o alla cieca a meno che non sia un dado fantasma",
     "DICESONICE.ChatCommandDescription": "Lancia dadi 3D senza creare un messaggio in chat",
-    "DICESONICE.ChatCommandCompletionDescription": "Inserisci una formula di lancio."
+    "DICESONICE.ChatCommandCompletionDescription": "Inserisci una formula di lancio.",
+    "DICESONICE.TextureDragon": "Drago",
+    "DICESONICE.TextureBird": "Uccello",
+    "DICESONICE.TextureLizard": "Lucertola"
 }
