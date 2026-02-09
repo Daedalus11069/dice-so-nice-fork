@@ -446,7 +446,7 @@ export class DiceFactory {
 		if(dice.emissiveMaps && dice.emissiveMaps.length)
 			preset.setEmissiveMaps(dice.emissiveMaps);
 
-		if (dice.type === "d4" && dice.baseTextures) {
+		if (dice.shape === "d4" && dice.baseTextures) {
 			preset.setBaseTextures(dice.baseTextures);
 		}
 		if (dice.type === "d4" && dice.textureScale) {
