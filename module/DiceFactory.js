@@ -449,7 +449,7 @@ export class DiceFactory {
 		if (dice.shape === "d4" && dice.baseTextures) {
 			preset.setBaseTextures(dice.baseTextures);
 		}
-		if (dice.type === "d4" && dice.textureScale) {
+		if (dice.shape === "d4" && dice.textureScale) {
 			preset.textureScale = dice.textureScale;
 		}
 
