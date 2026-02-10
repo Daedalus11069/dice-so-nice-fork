@@ -77,9 +77,6 @@ export class DicePreset {
 			if (faces[type] && Object.keys(faces[type]).length > 0) {
 				let tab = [];
 	
-				tab.push(''); //No one knows anymore why we need an empty line
-				if (!["d2", "d10"].includes(this.shape)) tab.push(''); //But even less people know why we need two empty lines except for d2 and d10
-	
 				if (this.shape == 'd4') {
 					// For d4, specific layout is needed
 					const textures = Object.values(faces[type]); // Convert object to array of textures
@@ -87,22 +84,32 @@ export class DicePreset {
 					let b = textures[1];
 					let c = textures[2];
 					let d = textures[3];
-					let baseText = [];
-					if (faces.baseTextures?.[type]) {
-						baseText.push(faces.baseTextures[type]);
+					let background = [];
+					if (faces.backgrounds?.[type]) {
+						for (let i=0; i<4; i++) {
+							if (faces.backgrounds[type][i])
+								background.push(faces.backgrounds[type][i]);
+						}
 					}
 	
 					tab = [
-						[baseText, [0, 0, 0], [b, d, c], [a, c, d], [b, a, d], [a, b, c]],
-						[baseText, [0, 0, 0], [b, c, d], [c, a, d], [b, d, a], [c, b, a]],
-						[baseText, [0, 0, 0], [d, c, b], [c, d, a], [d, b, a], [c, a, b]],
-						[baseText, [0, 0, 0], [d, b, c], [a, d, c], [d, a, b], [a, c, b]]
+						[background, [0, 0, 0], [b, d, c], [a, c, d], [b, a, d], [a, b, c]],
+						[background, [0, 0, 0], [b, c, d], [c, a, d], [b, d, a], [c, b, a]],
+						[background, [0, 0, 0], [d, c, b], [c, d, a], [d, b, a], [c, a, b]],
+						[background, [0, 0, 0], [d, b, c], [a, d, c], [d, a, b], [a, c, b]]
 					];
 				} else {
+					if (faces.backgrounds?.[type]) {
+						tab.push(faces.backgrounds[type]);
+					} else {
+						tab.push(''); //No one knows anymore why we need an empty line
+					}
+					if (!["d2", "d10"].includes(this.shape)) tab.push(''); //But even less people know why we need two empty lines except for d2 and d10
+
 					// For other shapes, just flatten the object values into an array
-					Array.prototype.push.apply(tab, Object.values(faces[type]));
+					tab.push(...Object.values(faces[type]));
 				}
-	
+
 				// Assign the prepared tab array to the corresponding property of the object
 				switch (type) {
 					case "labels":
@@ -135,8 +142,8 @@ export class DicePreset {
 		this.unloadModel();
 	}
 
-	setBaseTextures(baseTextures) {
-		this.baseTextures = baseTextures;
+	setBackgrounds(backgrounds) {
+		this.backgrounds = backgrounds;
 		this.unloadModel();
 	}
 
@@ -170,13 +177,13 @@ export class DicePreset {
                         if (this.emissiveMaps) {
                             allTextures['emissiveMaps'] = await this.loadTextureType(this.emissiveMaps, loadedAtlasTextures, assetsLoader);
                         }
-						if (this.baseTextures) {
-							allTextures['baseTextures'] = {};
-							if (this.baseTextures.labels) {
-								allTextures.baseTextures.labels = (await this.loadTextureType([this.baseTextures.labels], loadedAtlasTextures, assetsLoader))[0];
+						if (this.backgrounds) {
+							allTextures['backgrounds'] = {};
+							if (this.backgrounds.labels) {
+								allTextures.backgrounds.labels = await this.loadTextureType(this.backgrounds.labels, loadedAtlasTextures, assetsLoader);
 							}
-							if (this.baseTextures.bumpMaps) {
-								allTextures.baseTextures.bumps = (await this.loadTextureType([this.baseTextures.bumpMaps], loadedAtlasTextures, assetsLoader))[0];
+							if (this.backgrounds.bumpMaps) {
+								allTextures.backgrounds.bumps = await this.loadTextureType(this.backgrounds.bumpMaps, loadedAtlasTextures, assetsLoader);
 							}
                         }
                     } else {
@@ -188,13 +195,13 @@ export class DicePreset {
                         if (this.emissiveMaps) {
                             allTextures['emissiveMaps'] = await this.loadTextureType(this.emissiveMaps, {}, assetsLoader);
                         }
-						if (this.baseTextures) {
-							allTextures['baseTextures'] = {};
-							if (this.baseTextures.labels) {
-								allTextures.baseTextures.labels = (await this.loadTextureType([this.baseTextures.labels], {}, assetsLoader))[0];
+						if (this.backgrounds) {
+							allTextures['backgrounds'] = {};
+							if (this.backgrounds.labels) {
+								allTextures.backgrounds.labels = await this.loadTextureType(this.backgrounds.labels, {}, assetsLoader);
 							}
-							if (this.baseTextures.bumpMaps) {
-								allTextures.baseTextures.bumps = (await this.loadTextureType([this.baseTextures.bumpMaps], {}, assetsLoader))[0];
+							if (this.backgrounds.bumpMaps) {
+								allTextures.backgrounds.bumps = await this.loadTextureType(this.backgrounds.bumpMaps, {}, assetsLoader);
 							}
                         }
                     }

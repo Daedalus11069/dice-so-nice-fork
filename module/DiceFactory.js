@@ -446,11 +446,11 @@ export class DiceFactory {
 		if(dice.emissiveMaps && dice.emissiveMaps.length)
 			preset.setEmissiveMaps(dice.emissiveMaps);
 
-		if (dice.shape === "d4" && dice.baseTextures) {
-			preset.setBaseTextures(dice.baseTextures);
+		if (dice.backgrounds) {
+			preset.setBackgrounds(dice.backgrounds);
 		}
-		if (dice.shape === "d4" && dice.textureScale) {
-			preset.textureScale = dice.textureScale;
+		if (dice.labelScale) {
+			preset.labelScale = dice.labelScale;
 		}
 
 		if(dice.emissive)
@@ -893,7 +893,7 @@ export class DiceFactory {
 
 		contextBump.textAlign = "center";
 		contextBump.textBaseline = "middle";
-		if (diceobj.shape != 'd4') { // Avoid shadows on the bump map for d4s since the images are combined
+		if (diceobj.shape !== 'd4' && (diceobj.labelScale ?? 1) === 1) { // Avoid shadows on the bump map for d4s (since the images are combined) and scaled labels
 			contextBump.shadowColor = "#000000";
 			contextBump.shadowOffsetX = 1;
 			contextBump.shadowOffsetY = 1;
@@ -903,17 +903,34 @@ export class DiceFactory {
 		contextEmissive.textAlign = "center";
 		contextEmissive.textBaseline = "middle";
 		
-		if (diceobj.shape != 'd4') {
+		if (diceobj.shape !== 'd4') {
 			if(materialData.isGhost && labels[index] != "")
 				text = "?";
+			
+			if (index > 1) {
+				// Apply background textures
+				const bkgBump = diceobj.bumps[0]?.[index-2];
+				const bkgLabel = diceobj.labels[0]?.[index-2];
+				if (bkgBump && bkgBump.source instanceof HTMLImageElement) {
+					contextBump.drawImage(bkgBump.source, bkgBump.frame.x, bkgBump.frame.y, bkgBump.frame.w, bkgBump.frame.h, x, y, ts, ts);
+				}
+				if (bkgLabel && bkgLabel.source instanceof HTMLImageElement) {
+					context.drawImage(bkgLabel.source, bkgLabel.frame.x, bkgLabel.frame.y, bkgLabel.frame.w, bkgLabel.frame.h, x, y, ts, ts);
+				}
+			}
+
 			//custom texture face
 			if(text.source instanceof HTMLImageElement){
 				isTexture = true;
-				context.drawImage(text.source, text.frame.x, text.frame.y, text.frame.w, text.frame.h, x, y, ts, ts);
+				let textureSize = ts;
+				if (diceobj.labelScale) {
+					textureSize = ts * diceobj.labelScale;
+				}
+				context.drawImage(text.source, text.frame.x, text.frame.y, text.frame.w, text.frame.h, x + ts/2 - textureSize/2, y + ts/2 - textureSize/2, textureSize, textureSize);
 				if(bump)
-					contextBump.drawImage(bump.source, bump.frame.x, bump.frame.y, bump.frame.w, bump.frame.h,x,y,ts,ts);
+					contextBump.drawImage(bump.source, bump.frame.x, bump.frame.y, bump.frame.w, bump.frame.h, x + ts/2 - textureSize/2, y + ts/2 - textureSize/2, textureSize, textureSize);
 				if(emissive)
-					contextEmissive.drawImage(emissive.source, emissive.frame.x, emissive.frame.y, emissive.frame.w, emissive.frame.h,x,y,ts,ts);
+					contextEmissive.drawImage(emissive.source, emissive.frame.x, emissive.frame.y, emissive.frame.w, emissive.frame.h, x + ts/2 - textureSize/2, y + ts/2 - textureSize/2, textureSize, textureSize);
 			}
 			else{
 				let fontsize = ts / (1 + 2 * margin);
@@ -954,7 +971,7 @@ export class DiceFactory {
 
 				var lineHeight = fontsize;
 				
-				let textlines = text.split("\n");
+				let textlines = text.split?.("\n") ?? [];
 
 				if (textlines.length > 1) {
 					fontsize = fontsize / textlines.length;
@@ -1037,13 +1054,16 @@ export class DiceFactory {
 			contextBump.font =  fontsize+'pt '+font.type;
 			contextEmissive.font =  fontsize+'pt '+font.type;
 
-			const baseBump = diceobj.bumps[0]?.[0]?.[0];
-			const baseText = labels[0]?.[0];
-			if (baseBump && baseBump.source instanceof HTMLImageElement) { // base bump texture override for d4s
-				contextBump.drawImage(baseBump.source, baseBump.frame.x, baseBump.frame.y, baseBump.frame.w, baseBump.frame.h,x,y,ts,ts);
-			}
-			if (baseText && baseText.source instanceof HTMLImageElement) { // base texture override for d4s
-				context.drawImage(baseText.source, baseText.frame.x, baseText.frame.y, baseText.frame.w, baseText.frame.h,x,y,ts,ts);
+			if (index > 1) {
+				// Apply background textures
+				const bkgBump = diceobj.bumps[0]?.[0]?.[index-2];
+				const bkgLabel = diceobj.labels[0]?.[0]?.[index-2];
+				if (bkgBump && bkgBump.source instanceof HTMLImageElement) {
+					contextBump.drawImage(bkgBump.source, bkgBump.frame.x, bkgBump.frame.y, bkgBump.frame.w, bkgBump.frame.h,x,y,ts,ts);
+				}
+				if (bkgLabel && bkgLabel.source instanceof HTMLImageElement) {
+					context.drawImage(bkgLabel.source, bkgLabel.frame.x, bkgLabel.frame.y, bkgLabel.frame.w, bkgLabel.frame.h,x,y,ts,ts);
+				}
 			}
 
 			//draw the numbers
@@ -1070,8 +1090,8 @@ export class DiceFactory {
 					if(text[i].source instanceof HTMLImageElement){
 						isTexture = true;
 						let textureSize = 60 / (text[i].frame.w / ts);
-						if (diceobj.textureScale) {
-							textureSize = 120 * diceobj.textureScale;
+						if (diceobj.labelScale) {
+							textureSize = 120 * diceobj.labelScale;
 						}
 						context.drawImage(text[i].source,text[i].frame.x, text[i].frame.y, text[i].frame.w, text[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
 						if(bump) {
