@@ -104,7 +104,6 @@ export const DiceSFXManager = {
             const maxJitter = DiceSFXManager.playDelayJitter || 0;
             const jitter = maxJitter > 0 ? Math.floor(Math.random() * (maxJitter + 1)) : 0;
             const delay = (DiceSFXManager.playDelayBase || 0) + jitter;
-            console.log(`SFX Delay: ${delay}ms`);
             setTimeout(()=>{
                 sfxInstance.play(sfx.options).then(result => {
                     if(result !== false){
