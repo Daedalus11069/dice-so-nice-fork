@@ -16,7 +16,7 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
         },
         id: "dice-library-dialog",
         position: {
-            width: 460,
+            width: 540,
             height: 400
         }
     };

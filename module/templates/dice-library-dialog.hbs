@@ -1,6 +1,9 @@
 <div class="dice-library-dialog">
     <div class="dice-library-header">
-        <h3>{{localize "DICESONICE.diceLibrary"}} — {{dieType}}</h3>
+        <div class="dice-library-title">
+            <span class="die-type-badge">{{dieType}}</span>
+            <span>{{localize "DICESONICE.diceLibrary"}}</span>
+        </div>
         <div class="dice-library-actions">
             <button type="button" data-action="createNew" class="dialog-button"><i class="fas fa-plus"></i> {{localize "DICESONICE.editorCreateNew"}}</button>
             <button type="button" data-action="importDie" class="dialog-button"><i class="fas fa-file-import"></i> {{localize "DICESONICE.Import"}}</button>
@@ -23,7 +26,10 @@
             {{/each}}
         </ol>
         {{else}}
-        <p class="hint">{{localize "DICESONICE.editorNoCustomDice"}}</p>
+        <div class="dice-library-empty">
+            <i class="fas fa-dice-d20"></i>
+            <p>{{localize "DICESONICE.editorNoCustomDice"}}</p>
+        </div>
         {{/if}}
     </div>
     <input type="file" class="dsn-hidden" data-import-file accept=".json" />
