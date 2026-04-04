@@ -8,7 +8,6 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import Stats from 'stats-gl';
@@ -392,7 +391,35 @@ export class DiceBox {
 			this.bloomPass = new UnrealBloomPass(canvasSize, game.dice3d.uniforms.bloomStrength.value, game.dice3d.uniforms.bloomRadius.value, game.dice3d.uniforms.bloomThreshold.value);
 			this.bloomLayer = new Layers();
 			this.bloomLayer.set(this.layers.bloom);
-			this.gammaPass = new ShaderPass(GammaCorrectionShader);
+
+			// Combined gamma correction + premultiplied alpha fix.
+			// After bloom blending, the gamma correction (linear -> sRGB) boosts RGB values
+			// but leaves alpha in linear space. This goes against the logic of the premultiplied alpha
+			// system (RGB must be <= alpha) which causes visible bloom halos on
+			// compositors that strictly enforce it (e.g. Chromium on Linux Wayland).
+			// We fix this by ensuring alpha >= max(R, G, B) after gamma correction.
+			this.gammaPass = new ShaderPass(
+				new ShaderMaterial({
+					name: 'GammaCorrectionWithAlphaFixShader',
+					uniforms: {
+						tDiffuse: { value: null }
+					},
+					vertexShader: /* glsl */`
+						varying vec2 vUv;
+						void main() {
+							vUv = uv;
+							gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+						}`,
+					fragmentShader: /* glsl */`
+						uniform sampler2D tDiffuse;
+						varying vec2 vUv;
+						void main() {
+							vec4 tex = texture2D( tDiffuse, vUv );
+							gl_FragColor = sRGBTransferOETF( tex );
+							gl_FragColor.a = max( gl_FragColor.a, max( gl_FragColor.r, max( gl_FragColor.g, gl_FragColor.b ) ) );
+						}`
+				})
+			);
 
 			// Add an outline pass for the outline sfx
 			this.outlinePass = new OutlinePass(canvasSize, this.scene, this.camera);
@@ -424,14 +451,14 @@ export class DiceBox {
 						baseTexture: { value: null },
 						bloomTexture: { value: this.bloomComposer.renderTarget2.texture },
 					},
-					vertexShader: `
+					vertexShader: /* glsl */`
 						varying vec2 vUv;
 						void main() {
 							vUv = uv;
 							gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 						}
 					`,
-					fragmentShader: `
+					fragmentShader: /* glsl */`
 						uniform sampler2D baseTexture;
 						uniform sampler2D bloomTexture;
 						varying vec2 vUv;
@@ -462,7 +489,7 @@ export class DiceBox {
 				this.finalComposer.addPass(this.AAPass);
 			}
 
-			//Gamma correction pass. Convert the image to a gamma space.
+			//Convert the image to gamma space
 			this.finalComposer.addPass(this.gammaPass);
 		}
 		this.renderScene();

@@ -3,6 +3,8 @@ import { DICE_SHAPE } from '../DiceModels.js';
 import { Vector3 } from 'three';
 import RegisterPromise from 'webworker-promise/lib/register';
 
+const DEBUG_SIMULATION_PERF = false;
+
 class PhysicsWorker {
     constructor() {
         this.shapeList = new Map();
@@ -400,6 +402,7 @@ class PhysicsWorker {
     }
 
     simulateThrow({minIterations, nbIterationsBetweenRolls, framerate, canBeFlipped}) {
+        const simulationStartTime = DEBUG_SIMULATION_PERF ? performance.now() : 0;
         this.reset();
 
         this.minIterations = minIterations;
@@ -427,6 +430,15 @@ class PhysicsWorker {
         const positionsBuffers = positions.map(pos => pos.buffer);
 
         this.animstate = 'throw';
+
+        if (DEBUG_SIMULATION_PERF) {
+            const simulationDurationMs = performance.now() - simulationStartTime;
+            console.info('[Dice So Nice] Physics simulation completed', {
+                durationMs: simulationDurationMs,
+                iterations: this.iterationsNeeded,
+                diceCount: this.diceList.size
+            });
+        }
 
         this.cleanAfterThrow();
 
