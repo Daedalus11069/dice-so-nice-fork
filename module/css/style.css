@@ -385,8 +385,8 @@
 }
 
 .dice-editor-app .dice-editor-preview canvas {
-    width: 100% !important;
-    height: 100% !important;
+    display: block;
+    margin: 0 auto;
 }
 
 .dice-editor-app .dice-editor-preview .hint {

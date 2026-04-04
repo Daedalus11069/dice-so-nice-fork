@@ -308,7 +308,8 @@ export class Dice3D {
         Hooks.call("diceSoNiceInit", this);
         this.dice3dRenderers = {
             "board": null,
-            "showcase": null
+            "showcase": null,
+            "editor": null
         };
 
         this.exports = {

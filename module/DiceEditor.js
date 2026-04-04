@@ -53,7 +53,18 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie = foundry.utils.deepClone(libraryDie);
             this.isNew = false;
         } else {
+            // Initialize new die from the user's current appearance for this die type
+            const factory = game.dice3d.box.dicefactory;
+            const appearances = game.user.getFlag("dice-so-nice", "appearance") || {};
+            const resolved = factory.getAppearanceForDice(appearances, dieType);
             this.libraryDie = DiceLibrary.createEmptyDie(dieType, `Custom ${dieType.toUpperCase()}`);
+            this.libraryDie.baseAppearance.diceColor = resolved.background || "#000000";
+            this.libraryDie.baseAppearance.labelColor = resolved.foreground || "#FFFFFF";
+            this.libraryDie.baseAppearance.outlineColor = resolved.outline || "";
+            this.libraryDie.baseAppearance.edgeColor = resolved.edge || "";
+            this.libraryDie.baseAppearance.texture = resolved.texture || "none";
+            this.libraryDie.baseAppearance.material = resolved.material || "plastic";
+            this.libraryDie.baseAppearance.font = resolved.font || "auto";
             this.isNew = true;
         }
 
@@ -116,7 +127,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         if (previewContainer && !this.preview) {
             this.preview = new DiceEditorPreview(previewContainer, game.dice3d.box.dicefactory);
             this.preview.onFaceSelect = (faces) => this._onFaceSelect(faces);
-            this._refreshPreview();
+            this.preview.init().then(() => this._refreshPreview());
         }
 
         // Global property change handlers
