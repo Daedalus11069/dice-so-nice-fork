@@ -10,6 +10,7 @@ import { TextureLoader } from 'three';
 import { DiceTourMain } from './tours/DiceTourMain.js';
 import { DiceSFX } from './DiceSFX.js';
 import { DiceSystem } from './DiceSystem.js';
+import { DiceLibrary } from './DiceLibrary.js';
 /**
  * Main class to handle 3D Dice animations.
  */
@@ -155,6 +156,7 @@ export class Dice3D {
             if (dicefactory.preferredColorset != "custom")
                 config.appearance.global.colorset = dicefactory.preferredColorset;
         }
+        config.diceLibrary = DiceLibrary.getLibraryForUser(user);
         return config;
     }
 
@@ -335,6 +337,8 @@ export class Dice3D {
         this._buildCanvas();
         this._initListeners();
         this._buildDiceBox();
+        this.diceLibrary = new DiceLibrary();
+        this.diceLibrary.load();
         DiceColors.loadTextures(TEXTURELIST, async (images) => {
             DiceColors.initColorSets();
 

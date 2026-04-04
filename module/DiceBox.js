@@ -765,12 +765,12 @@ export class DiceBox {
 	*/
 
 	//spawns one dicemesh object from a single vectordata object
-	async spawnDice(dicedata, appearance) {
+	async spawnDice(dicedata, appearance, diceLibrary = null) {
 		let vectordata = dicedata.vectors;
 		const diceobj = this.dicefactory.get(vectordata.type);
 		if (!diceobj) return;
 
-		let dicemesh = await this.dicefactory.create(this.renderer.scopedTextureCache, diceobj.type, appearance);
+		let dicemesh = await this.dicefactory.create(this.renderer.scopedTextureCache, diceobj.type, appearance, diceLibrary);
 		if (!dicemesh) return;
 
 		let mass = diceobj.mass;
@@ -1199,7 +1199,7 @@ export class DiceBox {
 			for (let i = 0, len = notationVectors.dice.length; i < len; ++i) {
 				notationVectors.dice[i].startAtIteration = j * this.nbIterationsBetweenRolls;
 				let appearance = this.dicefactory.getAppearanceForDice(notationVectors.dsnConfig.appearance, notationVectors.dice[i].type, notationVectors.dice[i]);
-				await this.spawnDice(notationVectors.dice[i], appearance);
+				await this.spawnDice(notationVectors.dice[i], appearance, notationVectors.dsnConfig.diceLibrary);
 			}
 		}
 
@@ -1289,7 +1289,7 @@ export class DiceBox {
 				if (count >= selectordice.length)
 					break;
 				let appearance = this.dicefactory.getAppearanceForDice(config.appearance, selectordice[count]);
-				let dicemesh = await this.dicefactory.create(this.renderer.scopedTextureCache, selectordice[count], appearance);
+				let dicemesh = await this.dicefactory.create(this.renderer.scopedTextureCache, selectordice[count], appearance, config.diceLibrary || null);
 				dicemesh.scale.set(
 					Math.min(dicemesh.scale.x * 5 / columns, dicemesh.scale.x * 2 / rows),
 					Math.min(dicemesh.scale.y * 5 / columns, dicemesh.scale.y * 2 / rows),

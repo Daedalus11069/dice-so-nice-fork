@@ -340,3 +340,150 @@ dialog.dice-so-nice .form-group label {
 .dice-so-nice .dsn-dice-editor-button {
     flex: 1;
 }
+
+/* Library Die selector in appearance tab */
+.dice-so-nice [data-library-group] .form-fields {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dice-so-nice [data-library-group] select {
+    flex: 1;
+}
+
+.dice-so-nice .library-control {
+    cursor: pointer;
+    font-size: 1.1em;
+}
+
+.dice-so-nice .library-control:hover {
+    color: var(--color-text-hyperlink);
+}
+
+/* Dice Editor App */
+.dice-editor-app .dice-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dice-editor-app .dice-editor-header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.dice-editor-app .dice-editor-header .form-group {
+    flex: 1;
+    margin: 0;
+}
+
+.dice-editor-app .die-type-label {
+    font-weight: bold;
+    font-size: 1.2em;
+    text-transform: uppercase;
+}
+
+.dice-editor-app .dice-editor-preview {
+    width: 100%;
+    height: 250px;
+    border: 1px solid var(--color-border-light-2);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    background: #1a1a2e;
+}
+
+.dice-editor-app .dice-editor-preview canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.dice-editor-app .dice-editor-preview .hint {
+    position: absolute;
+    bottom: 4px;
+    left: 8px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85em;
+    pointer-events: none;
+}
+
+.dice-editor-app .dice-editor-face-indicator {
+    text-align: center;
+    font-weight: bold;
+    padding: 4px;
+    background: var(--color-cool-5);
+    border-radius: 3px;
+}
+
+.dice-editor-app .dice-editor-properties fieldset {
+    border: 1px solid var(--color-border-light-2);
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.dice-editor-app .dice-editor-properties legend {
+    font-weight: bold;
+    padding: 0 4px;
+}
+
+/* Dice Library Dialog */
+.dice-library-dialog-app .dice-library-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.dice-library-dialog-app .dice-library-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.dice-library-dialog-app .dice-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.dice-library-dialog-app .dice-list-entry {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--color-border-light-2);
+}
+
+.dice-library-dialog-app .dice-list-entry:hover {
+    background: var(--color-cool-5);
+}
+
+.dice-library-dialog-app .die-name {
+    flex: 1;
+    font-weight: bold;
+}
+
+.dice-library-dialog-app .die-type {
+    margin-right: 12px;
+    color: var(--color-text-dark-secondary);
+    text-transform: uppercase;
+    font-size: 0.85em;
+}
+
+.dice-library-dialog-app .die-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.dice-library-dialog-app .die-actions a {
+    cursor: pointer;
+}
+
+.dice-library-dialog-app .die-actions a:hover {
+    color: var(--color-text-hyperlink);
+}
+
+.dice-library-dialog-app .die-actions [data-action=deleteDie]:hover {
+    color: var(--color-level-error);
+}

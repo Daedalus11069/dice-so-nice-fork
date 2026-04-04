@@ -5,6 +5,9 @@ import { Utils } from './Utils.js';
 import { DiceNotation } from './DiceNotation.js';
 import { DiceColors, DICE_SCALE } from './DiceColors.js';
 import { DiceSystem } from './DiceSystem.js';
+import { DiceLibrary } from './DiceLibrary.js';
+import { DiceLibraryDialog } from './DiceLibraryDialog.js';
+import { DiceEditor } from './DiceEditor.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -173,6 +176,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             if (this.box.dicefactory.preferredColorset != "standard")
                 config.appearance.global.colorset = this.box.dicefactory.preferredColorset;
         }
+        config.diceLibrary = DiceLibrary.getLibraryForUser(game.user);
         await this.box.showcase(config);
 
         this.navOrder = {};
@@ -277,7 +281,20 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         let tabsAppearance = [];
         let tabsPromises = [];
         data.navAppearance = {};
+        const allLibraryDice = game.dice3d.diceLibrary ? game.dice3d.diceLibrary.getAll() : [];
         tabsList.forEach((diceType) => {
+            // Build library dice list for this die type (not for global)
+            const isPerDie = diceType !== "global";
+            let libraryDiceList = [];
+            if(isPerDie) {
+                const typeDice = allLibraryDice.filter(d => d.dieType === diceType);
+                const selectedId = data.appearance[diceType]?.libraryDieId || "";
+                libraryDiceList = typeDice.map(d => ({
+                    id: d.id,
+                    name: d.name,
+                    selected: d.id === selectedId
+                }));
+            }
             tabsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
                 dicetype: diceType,
                 appearance: data.appearance[diceType],
@@ -286,6 +303,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 textureList: data.textureList,
                 materialList: data.materialList,
                 fontList: data.fontList,
+                showLibrary: isPerDie,
+                libraryDiceList: libraryDiceList,
                 systemSettings: systemSettingsScoped.hasOwnProperty(diceType) ? systemSettingsScoped[diceType] : '',
                 systemSettingsVisible: systemSettingsScoped.hasOwnProperty(diceType) ? '' : 'dsn-hidden'
             }).then((html) => {
@@ -444,6 +463,12 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 this.closeAppearanceTab(diceType);
             });
 
+            $(this.element).on("click", "[data-library-manage]", (ev) => {
+                ev.preventDefault();
+                const diceType = $(ev.currentTarget).data("dicetype");
+                new DiceLibraryDialog({ diceType, diceConfig: this }).render(true);
+            });
+
             $(this.element).on("click", "[data-action=test]", (ev) => {
                 let config = this.getShowcaseAppearance();
                 let denominationList = [];
@@ -457,6 +482,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
                     let specialEffects = this.getShowcaseSFX();
                     let customization = foundry.utils.mergeObject({ appearance: config.appearance }, { specialEffects: specialEffects }, { performDeletions: true });
+                    customization.diceLibrary = config.diceLibrary;
 
                     game.dice3d._showAnimation(data, customization);
                 });
@@ -1193,9 +1219,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 texture: $(element).find('[data-texture]').val(),
                 material: $(element).find('[data-material]').val(),
                 font: $(element).find('[data-font]').val(),
-                system: $(element).find('[data-system]').val()
+                system: $(element).find('[data-system]').val(),
+                libraryDieId: $(element).find('[data-libraryDie]').val() || undefined
             };
-            
+
             const systemSettingsRaw = {};
             const systemSettingsFields = $(element).find('[data-systemsettings]').find('input, select');
             systemSettingsFields.each((index, element) => {
@@ -1221,6 +1248,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             }
         });
 
+        config.diceLibrary = DiceLibrary.getLibraryForUser(game.user);
         this.currentGlobalAppearance = config.appearance.global;
         return config;
     }

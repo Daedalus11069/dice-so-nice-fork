@@ -1,0 +1,30 @@
+<div class="dice-library-dialog">
+    <div class="dice-library-header">
+        <h3>{{localize "DICESONICE.diceLibrary"}} — {{dieType}}</h3>
+        <div class="dice-library-actions">
+            <button type="button" data-action="createNew" class="dialog-button"><i class="fas fa-plus"></i> {{localize "DICESONICE.editorCreateNew"}}</button>
+            <button type="button" data-action="importDie" class="dialog-button"><i class="fas fa-file-import"></i> {{localize "DICESONICE.Import"}}</button>
+        </div>
+    </div>
+    <div class="dice-library-list">
+        {{#if dice.length}}
+        <ol class="dice-list">
+            {{#each dice}}
+            <li class="dice-list-entry" data-die-id="{{this.id}}">
+                <span class="die-name">{{this.name}}</span>
+                <span class="die-type">{{this.dieType}}</span>
+                <div class="die-actions">
+                    <a data-action="editDie" data-die-id="{{this.id}}" title="{{localize 'DICESONICE.editorEdit'}}"><i class="fas fa-edit"></i></a>
+                    <a data-action="duplicateDie" data-die-id="{{this.id}}" title="{{localize 'DICESONICE.editorDuplicate'}}"><i class="fas fa-copy"></i></a>
+                    <a data-action="exportDie" data-die-id="{{this.id}}" title="{{localize 'DICESONICE.Export'}}"><i class="fas fa-file-export"></i></a>
+                    <a data-action="deleteDie" data-die-id="{{this.id}}" title="{{localize 'DICESONICE.Delete'}}"><i class="fas fa-trash"></i></a>
+                </div>
+            </li>
+            {{/each}}
+        </ol>
+        {{else}}
+        <p class="hint">{{localize "DICESONICE.editorNoCustomDice"}}</p>
+        {{/if}}
+    </div>
+    <input type="file" class="dsn-hidden" data-import-file accept=".json" />
+</div>

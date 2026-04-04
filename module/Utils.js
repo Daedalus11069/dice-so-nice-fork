@@ -376,6 +376,14 @@ export class Utils {
             if (settings.material && settings.material !== "auto" && !dicefactory.material_options[settings.material]) {
                 settings.material = "auto";
             }
+
+            // Validate libraryDieId references
+            if (settings.libraryDieId) {
+                const library = game.dice3d?.diceLibrary;
+                if (library && !library.get(settings.libraryDieId)) {
+                    delete settings.libraryDieId;
+                }
+            }
         }
         return appearance;
     }

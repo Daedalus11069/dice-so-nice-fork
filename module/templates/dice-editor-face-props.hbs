@@ -1,0 +1,55 @@
+<div class="face-props-inner">
+    <div class="form-group">
+        <label>{{localize "DICESONICE.editorLabelText"}}</label>
+        <input type="text" name="faceLabelText" value="{{faceLabelText}}" placeholder="{{localize 'DICESONICE.editorDefaultLabel'}}" />
+    </div>
+    <div class="form-group">
+        <label>{{localize "DICESONICE.font"}}</label>
+        <select name="faceFont">
+            <option value="">{{localize "DICESONICE.editorInheritBase"}}</option>
+            {{selectOptions fontList selected=faceFont}}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>{{localize "DICESONICE.labelColor"}}</label>
+        <div class="form-fields">
+            <input type="text" name="faceForeground" value="{{faceForeground}}" data-dtype="String" placeholder="{{localize 'DICESONICE.editorInheritBase'}}" />
+            <input type="color" name="faceForegroundSelector" value="{{#if faceForeground}}{{faceForeground}}{{else}}#FFFFFF{{/if}}" data-edit="faceForeground" />
+        </div>
+    </div>
+    <div class="form-group">
+        <label>{{localize "DICESONICE.diceColor"}}</label>
+        <div class="form-fields">
+            <input type="text" name="faceBackground" value="{{faceBackground}}" data-dtype="String" placeholder="{{localize 'DICESONICE.editorInheritBase'}}" />
+            <input type="color" name="faceBackgroundSelector" value="{{#if faceBackground}}{{faceBackground}}{{else}}#000000{{/if}}" data-edit="faceBackground" />
+        </div>
+    </div>
+    <div class="form-group">
+        <label>{{localize "DICESONICE.outlineColor"}}</label>
+        <div class="form-fields">
+            <input type="text" name="faceOutline" value="{{faceOutline}}" data-dtype="String" placeholder="{{localize 'DICESONICE.editorInheritBase'}}" />
+            <input type="color" name="faceOutlineSelector" value="{{#if faceOutline}}{{faceOutline}}{{else}}#000000{{/if}}" data-edit="faceOutline" />
+        </div>
+    </div>
+    <div class="form-group">
+        <label>{{localize "DICESONICE.editorLabelImage"}}</label>
+        <div class="form-fields">
+            <input type="text" name="faceLabelImage" value="{{faceLabelImage}}" placeholder="" />
+            <button type="button" class="file-picker" data-face-filepicker><i class="fas fa-file-import"></i></button>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>{{localize "DICESONICE.texture"}}</label>
+        <select name="faceTexture">
+            <option value="">{{localize "DICESONICE.editorInheritBase"}}</option>
+            {{selectOptions textureList selected=faceTexture}}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>{{localize "DICESONICE.editorGlow"}}</label>
+        <input type="checkbox" name="faceEmissive" {{#if faceEmissive}}checked{{/if}} />
+    </div>
+    <div class="form-group">
+        <button type="button" data-face-reset class="dialog-button">{{localize "DICESONICE.editorResetFace"}}</button>
+    </div>
+</div>

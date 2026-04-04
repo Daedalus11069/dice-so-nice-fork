@@ -539,7 +539,7 @@ export class DiceFactory {
 		return diceobj;
 	}
 
-	async create(scopedTextureCache, type, appearance) {
+	async create(scopedTextureCache, type, appearance, diceLibrary = null) {
 		let diceobj = this.getPresetBySystem(type, appearance.system);
 		if(diceobj.model && appearance.isGhost){
 			diceobj = this.getPresetBySystem(type, "standard");
@@ -609,7 +609,7 @@ export class DiceFactory {
 				});
 			}
 		}else{
-			let materialData = this.generateMaterialData(diceobj, appearance);
+			let materialData = this.generateMaterialData(diceobj, appearance, diceLibrary);
 
 			let baseMaterialCacheString = scopedTextureCache.type+type+materialData.cacheString+this.systems.get(appearance.system).getCacheString(appearance.systemSettings);
 			let material;
@@ -742,6 +742,29 @@ export class DiceFactory {
 				x = 0;
 				texturesOnThisLine = 0;
 			}
+
+			// Resolve per-face material data overrides
+			let faceMaterialData = materialData;
+			let faceFont = font;
+			let faceLabels = labels;
+			if(materialData.perFaceOverrides && i > 0) {
+				const faceValue = diceobj.values[i - 1];
+				if(faceValue !== undefined && materialData.perFaceOverrides[faceValue]) {
+					const faceOverride = materialData.perFaceOverrides[faceValue];
+					faceMaterialData = foundry.utils.deepClone(materialData);
+					delete faceMaterialData.perFaceOverrides;
+					foundry.utils.mergeObject(faceMaterialData, faceOverride, {overwrite: true});
+
+					if(faceOverride.font) {
+						faceFont = {type: faceOverride.font, scale: font.scale};
+					}
+					if(faceOverride.labelText !== undefined) {
+						faceLabels = [...labels];
+						faceLabels[i] = faceOverride.labelText;
+					}
+				}
+			}
+
 			if(i==0)//edge
 			{
 				//if the texture is fully opaque, we do not use it for edge
@@ -752,7 +775,8 @@ export class DiceFactory {
 			}
 			else
 			{
-				this.createTextMaterial(context, contextBump, contextEmissive, x, y, sizeTexture, diceobj, labels, font, i, materialData.texture, materialData);
+				let faceTexture = faceMaterialData.texture || materialData.texture;
+				this.createTextMaterial(context, contextBump, contextEmissive, x, y, sizeTexture, diceobj, faceLabels, faceFont, i, faceTexture, faceMaterialData);
 			}
 			texturesOnThisLine++;
 			x += sizeTexture;
@@ -855,7 +879,7 @@ export class DiceFactory {
 		contextBump.fillStyle = "#FFFFFF";
 		contextBump.fillRect(x, y, ts, ts);
 
-		contextEmissive.fillStyle = "#000000";
+		contextEmissive.fillStyle = materialData.emissive ? "#999999" : "#000000";
 		contextEmissive.fillRect(x, y, ts, ts);
 
 		//context.rect(x, y, ts, ts);
@@ -1198,10 +1222,13 @@ export class DiceFactory {
 				appearance.isGhost = true;
 			}
 		}
+		if(settings.libraryDieId){
+			appearance.libraryDieId = settings.libraryDieId;
+		}
 		return appearance;
 	}
 
-	generateMaterialData(diceobj, appearance) {
+	generateMaterialData(diceobj, appearance, diceLibrary = null) {
 		let materialData = {};
 		let colorindex;
 
@@ -1337,7 +1364,36 @@ export class DiceFactory {
 
 		materialData.isGhost = appearance.isGhost?appearance.isGhost:false;
 
-		materialData.cacheString = appearance.system+materialData.background+materialData.foreground+materialData.outline+materialData.texture.name+materialData.edge+materialData.material+materialData.font+materialData.isGhost;
+		// Per-face overrides from dice library
+		if(appearance.libraryDieId && diceLibrary) {
+			const libraryDie = Array.isArray(diceLibrary)
+				? diceLibrary.find(d => d.id === appearance.libraryDieId)
+				: null;
+			if(libraryDie && libraryDie.faces) {
+				materialData.perFaceOverrides = {};
+				for(const [faceValue, faceData] of Object.entries(libraryDie.faces)) {
+					if(!faceData) continue;
+					const override = {};
+					if(faceData.foreground !== null && faceData.foreground !== undefined) override.foreground = faceData.foreground;
+					if(faceData.background !== null && faceData.background !== undefined) override.background = faceData.background;
+					if(faceData.outline !== null && faceData.outline !== undefined) override.outline = faceData.outline;
+					if(faceData.font !== null && faceData.font !== undefined) override.font = faceData.font;
+					if(faceData.labelText !== null && faceData.labelText !== undefined) override.labelText = faceData.labelText;
+					if(faceData.labelImage !== null && faceData.labelImage !== undefined) override.labelImage = faceData.labelImage;
+					if(faceData.backgroundTexture !== null && faceData.backgroundTexture !== undefined) {
+						override.texture = DiceColors.getTexture(faceData.backgroundTexture);
+					}
+					if(faceData.emissive) override.emissive = true;
+					if(Object.keys(override).length > 0) {
+						materialData.perFaceOverrides[faceValue] = override;
+					}
+				}
+				materialData.libraryDieId = appearance.libraryDieId;
+			}
+		}
+
+		let cacheExtra = materialData.libraryDieId ? materialData.libraryDieId : "";
+		materialData.cacheString = appearance.system+materialData.background+materialData.foreground+materialData.outline+materialData.texture.name+materialData.edge+materialData.material+materialData.font+materialData.isGhost+cacheExtra;
 		return materialData;
 	}
 

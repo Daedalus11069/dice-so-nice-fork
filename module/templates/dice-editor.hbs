@@ -1,0 +1,59 @@
+<form class="dice-editor" autocomplete="off">
+    <div class="dice-editor-header">
+        <div class="form-group">
+            <label>{{localize "DICESONICE.editorDieName"}}</label>
+            <input type="text" name="dieName" value="{{dieName}}" placeholder="{{localize 'DICESONICE.editorDieNamePlaceholder'}}" />
+        </div>
+        <div class="form-group">
+            <label>{{localize "DICESONICE.editorDieType"}}</label>
+            <span class="die-type-label">{{dieType}}</span>
+        </div>
+    </div>
+
+    <div class="dice-editor-body">
+        <div class="dice-editor-preview" id="dice-editor-preview-container">
+            <p class="hint">{{localize "DICESONICE.editorPreviewHint"}}</p>
+        </div>
+
+        <div class="dice-editor-face-indicator">
+            <span data-face-indicator>{{localize "DICESONICE.editorClickFace"}}</span>
+        </div>
+
+        <div class="dice-editor-properties">
+            <fieldset class="dice-editor-global">
+                <legend>{{localize "DICESONICE.editorGlobalProps"}}</legend>
+                <div class="form-group">
+                    <label>{{localize "DICESONICE.material"}}</label>
+                    <select name="baseMaterial">
+                        {{selectOptions materialList selected=baseAppearance.material}}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>{{localize "DICESONICE.edgeColor"}}</label>
+                    <div class="form-fields">
+                        <input type="text" name="baseEdgeColor" value="{{baseAppearance.edgeColor}}" data-dtype="String" />
+                        <input type="color" name="baseEdgeColorSelector" value="{{#if baseAppearance.edgeColor}}{{baseAppearance.edgeColor}}{{else}}#000000{{/if}}" data-edit="baseEdgeColor" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>{{localize "DICESONICE.diceColor"}}</label>
+                    <div class="form-fields">
+                        <input type="text" name="baseDiceColor" value="{{baseAppearance.diceColor}}" data-dtype="String" />
+                        <input type="color" name="baseDiceColorSelector" value="{{baseAppearance.diceColor}}" data-edit="baseDiceColor" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>{{localize "DICESONICE.texture"}}</label>
+                    <select name="baseTexture">
+                        {{selectOptions textureList selected=baseAppearance.texture}}
+                    </select>
+                </div>
+            </fieldset>
+
+            <fieldset class="dice-editor-face-props" data-face-props style="display:none;">
+                <legend>{{localize "DICESONICE.editorFaceProps"}}</legend>
+                {{{facePropsHtml}}}
+            </fieldset>
+        </div>
+    </div>
+</form>

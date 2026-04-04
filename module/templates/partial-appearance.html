@@ -7,6 +7,21 @@
         <a class="system-control {{systemSettingsVisible}}" data-system-options title='{{localize "DICESONICE.Options"}}'><i class="fas fa-cog"></i></a>
     </div>
 
+    {{#if showLibrary}}
+    <div class="form-group" data-library-group>
+        <label>{{localize "DICESONICE.libraryDie"}}</label>
+        <div class="form-fields">
+            <select data-libraryDie data-dicetype="{{dicetype}}" name="appearance[{{dicetype}}][libraryDieId]">
+                <option value="">{{localize "DICESONICE.None"}}</option>
+                {{#each libraryDiceList}}
+                <option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+                {{/each}}
+            </select>
+            <a class="library-control" data-library-manage data-dicetype="{{dicetype}}" title='{{localize "DICESONICE.diceLibrary"}}'><i class="fas fa-book"></i></a>
+        </div>
+    </div>
+    {{/if}}
+
     <div class="form-group">
         <label>{{localize "DICESONICE.colorset"}}</label>
         <select data-colorset data-dicetype="{{dicetype}}" name="appearance[{{dicetype}}][colorset]">
