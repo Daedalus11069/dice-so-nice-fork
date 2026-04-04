@@ -346,4 +346,37 @@ export class Utils {
             }
         }
     }
+
+    /**
+     * Validate appearance settings against currently available resources.
+     * Resets any references to systems, colorsets, textures, or materials that no longer exist
+     */
+    static sanitizeAppearance(appearance) {
+        const dicefactory = game.dice3d.DiceFactory;
+
+        for (const scope in appearance) {
+            if (!appearance.hasOwnProperty(scope)) continue;
+            const settings = appearance[scope];
+            if (!settings || typeof settings !== 'object') continue;
+
+            if (settings.system && !dicefactory.systems.has(settings.system)) {
+                settings.system = "standard";
+                settings.systemSettings = {};
+            }
+
+            if (settings.colorset && settings.colorset !== "custom" && !COLORSETS[settings.colorset]) {
+                settings.colorset = "custom";
+            }
+
+            if (settings.texture && typeof settings.texture === 'string'
+                && settings.texture !== "none" && !TEXTURELIST[settings.texture]) {
+                settings.texture = "none";
+            }
+
+            if (settings.material && settings.material !== "auto" && !dicefactory.material_options[settings.material]) {
+                settings.material = "auto";
+            }
+        }
+        return appearance;
+    }
 }
