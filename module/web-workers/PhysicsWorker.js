@@ -3,7 +3,7 @@ import { DICE_SHAPE } from '../DiceModels.js';
 import { Vector3 } from 'three';
 import RegisterPromise from 'webworker-promise/lib/register';
 
-const DEBUG_SIMULATION_PERF = true;
+const DEBUG_SIMULATION_PERF = false;
 
 class PhysicsWorker {
     constructor() {

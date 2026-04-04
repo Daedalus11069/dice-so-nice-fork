@@ -97,14 +97,14 @@ export class Dice3D {
     }
 
     static CONFIG(user = game.user) {
-        let userSettings = user.getFlag("dice-so-nice", "settings") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "settings")) : null;
+        let userSettings = user.getFlag("dice-so-nice", "settings") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "settings")) : {};
         let config = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, userSettings, { performDeletions: true });
         foundry.utils.mergeObject(config, { "-=appearance": null, "-=sfxLine": null }, { performDeletions: true });
         return config;
     }
 
     static APPEARANCE(user = game.user) {
-        let userAppearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : null;
+        let userAppearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : {};
         let appearance = foundry.utils.mergeObject(Dice3D.DEFAULT_APPEARANCE(user), userAppearance, { performDeletions: true });
         return foundry.utils.mergeObject(appearance, { "-=dimensions": null }, { performDeletions: true });
     }
