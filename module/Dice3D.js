@@ -637,11 +637,11 @@ export class Dice3D {
             // Manage v13 popup system - TODO clean up consistency jquery
             const notificationElement = document.querySelector(`#chat-notifications .message[data-message-id="${chatMessage.id}"]`);
             if (notificationElement) {
-                notificationElement.classList.remove("dsn-hide");
-                notificationElement._lifeSpan = 0; // Reset lifespan so timeout duration starts from when the message is shown. No public method yet
+                // Remove previously hidden notification
+                notificationElement.remove();
             }
 
-            if(!ui.sidebar.expanded) {
+            if (!ui.sidebar.expanded) {
                 ui.chat.notify(chatMessage, { newMessage: true, existing: ui.chat.element.querySelector(`[data-message-id="${chatMessage.id}"]`) });
             }
 
