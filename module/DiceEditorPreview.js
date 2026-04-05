@@ -237,6 +237,10 @@ export class DiceEditorPreview {
      * Set a new die mesh in the preview scene.
      */
     async setDie(dieType, appearance, diceLibrary = null) {
+        // Guard against concurrent calls — each call gets a unique token;
+        // if a newer call starts before we finish, we abandon this one.
+        const token = this._setDieToken = {};
+
         if (this.dieMesh) {
             this.box.scene.remove(this.dieMesh);
             this.dieMesh = null;
@@ -245,18 +249,15 @@ export class DiceEditorPreview {
         const scopedTextureCache = this.box.renderer.scopedTextureCache;
         if (!scopedTextureCache) return;
 
-        this.dieMesh = await this.diceFactory.create(scopedTextureCache, dieType, appearance, diceLibrary);
-        if (!this.dieMesh) return;
+        const mesh = await this.diceFactory.create(scopedTextureCache, dieType, appearance, diceLibrary);
+        if (this._setDieToken !== token) return; // superseded by a newer call
+        if (!mesh) return;
 
-        console.log("[DSN Editor] setDie:", dieType, "mesh type:", this.dieMesh.type,
-            "isMesh:", this.dieMesh.isMesh, "isGroup:", this.dieMesh.isGroup,
-            "children:", this.dieMesh.children?.length || 0);
-
+        this.dieMesh = mesh;
         this.dieMesh.scale.multiplyScalar(2);
         this.box.scene.add(this.dieMesh);
 
         const diceobj = this.diceFactory.getPresetBySystem(dieType, appearance.system || "standard");
-        console.log("[DSN Editor] diceobj:", diceobj ? `shape=${diceobj.shape} type=${diceobj.type} values=${diceobj.values?.length}` : "null");
         if (diceobj) {
             this._buildFaceNormals(diceobj);
         }
@@ -269,8 +270,16 @@ export class DiceEditorPreview {
         if (appearance.libraryDieId) {
             this.diceFactory.disposeCachedMaterials();
         }
+        // Preserve the user's current rotation across mesh rebuilds
+        const savedRotation = this.dieMesh ? this.dieMesh.quaternion.clone() : null;
+        const savedSelection = new Set(this.selectedFaces);
         this.selectedFaces.clear();
         await this.setDie(dieType, appearance, diceLibrary);
+        if (savedRotation && this.dieMesh) {
+            this.dieMesh.quaternion.copy(savedRotation);
+        }
+        this.selectedFaces = savedSelection;
+        this._updateHighlights();
     }
 
     /**

@@ -32,7 +32,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     static PARTS = {
         editor: {
             template: "modules/dice-so-nice/templates/dice-editor.hbs",
-            scrollable: [""]
+            scrollable: [".dice-editor-properties"]
         },
         footer: {
             template: "templates/generic/form-footer.hbs"
@@ -139,8 +139,17 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie.name = ev.target.value;
         });
 
-        // Color selector sync
+        // Color selector sync — update the text field live but only trigger
+        // the mesh rebuild on "change" (when the picker is closed), not on
+        // every "input" frame, since each rebuild recreates the full Canvas2D
+        // texture atlas + Three.js materials.
         html.on("input", "input[type=color]", (ev) => {
+            const editTarget = $(ev.target).data("edit");
+            if (editTarget) {
+                html.find(`[name=${editTarget}]`).val(ev.target.value);
+            }
+        });
+        html.on("change", "input[type=color]", (ev) => {
             const editTarget = $(ev.target).data("edit");
             if (editTarget) {
                 html.find(`[name=${editTarget}]`).val(ev.target.value).trigger("change");
@@ -193,10 +202,11 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find("[name=faceTexture]").val(faceData.backgroundTexture || "");
             html.find("[name=faceEmissive]").prop("checked", !!faceData.emissive);
 
-            // Sync color pickers
-            if (faceData.foreground) html.find("[name=faceForegroundSelector]").val(faceData.foreground);
-            if (faceData.background) html.find("[name=faceBackgroundSelector]").val(faceData.background);
-            if (faceData.outline) html.find("[name=faceOutlineSelector]").val(faceData.outline);
+            // Sync color pickers — use face override or fall back to base appearance
+            const base = this.libraryDie.baseAppearance;
+            html.find("[name=faceForegroundSelector]").val(faceData.foreground || base.labelColor || "#FFFFFF");
+            html.find("[name=faceBackgroundSelector]").val(faceData.background || base.diceColor || "#000000");
+            html.find("[name=faceOutlineSelector]").val(faceData.outline || base.outlineColor || "#000000");
         } else {
             // Multi-selection: show "Mixed" placeholder
             html.find("[name=faceLabelText]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
@@ -207,6 +217,12 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find("[name=faceLabelImage]").val("");
             html.find("[name=faceTexture]").val("");
             html.find("[name=faceEmissive]").prop("checked", false);
+
+            // Color pickers fall back to base appearance
+            const base = this.libraryDie.baseAppearance;
+            html.find("[name=faceForegroundSelector]").val(base.labelColor || "#FFFFFF");
+            html.find("[name=faceBackgroundSelector]").val(base.diceColor || "#000000");
+            html.find("[name=faceOutlineSelector]").val(base.outlineColor || "#000000");
         }
     }
 

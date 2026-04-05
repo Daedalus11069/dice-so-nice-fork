@@ -355,6 +355,21 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.dice-editor-app .dice-editor-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.dice-editor-app .dice-editor-properties {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .dice-editor-app .dice-editor-header {
