@@ -2,11 +2,13 @@ import {
     Color,
     Quaternion,
     Raycaster,
+    Triangle,
     Vector2,
     Vector3
 } from 'three';
 import { DiceBox } from './DiceBox.js';
 import { Dice3D } from './Dice3D.js';
+import { DICE_SHAPE } from './DiceModels.js';
 
 /**
  * Dice Editor preview — wraps a DiceBox instance in "editor" mode
@@ -108,17 +110,27 @@ export class DiceEditorPreview {
         this.mouse = new Vector2();
 
         this.box.renderer.domElement.addEventListener("click", (event) => {
-            if (!this.dieMesh) return;
+            if (!this.dieMesh) {
+                console.log("[DSN Editor] Click ignored: no dieMesh");
+                return;
+            }
 
             const rect = this.box.renderer.domElement.getBoundingClientRect();
             this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
+            console.log("[DSN Editor] Click at NDC:", this.mouse.x.toFixed(3), this.mouse.y.toFixed(3));
+
             this.raycaster.setFromCamera(this.mouse, this.box.camera);
             const intersects = this.raycaster.intersectObject(this.dieMesh, true);
+            console.log("[DSN Editor] Intersects:", intersects.length);
             if (intersects.length === 0) return;
 
-            const faceValue = this._triangleToFaceValue(intersects[0].faceIndex);
+            const hit = intersects[0];
+            console.log("[DSN Editor] Hit faceIndex:", hit.faceIndex, "distance:", hit.distance.toFixed(2));
+
+            const faceValue = this._hitToFaceValue(hit);
+            console.log("[DSN Editor] Mapped faceValue:", faceValue);
             if (faceValue === null) return;
 
             if (event.ctrlKey || event.metaKey) {
@@ -139,43 +151,66 @@ export class DiceEditorPreview {
         });
     }
 
-    _triangleToFaceValue(triangleIndex) {
-        if (!this.dieMesh || !this._faceTriangleMap) return null;
-        for (const [faceValue, range] of this._faceTriangleMap.entries()) {
-            if (triangleIndex >= range.start && triangleIndex < range.end) {
-                return faceValue;
+    /**
+     * Determine the face value at the raycast hit point by comparing
+     * the hit triangle's normal against the known face normals from DICE_SHAPE.
+     */
+    _hitToFaceValue(hit) {
+        if (!this._faceNormals) {
+            console.log("[DSN Editor] No face normals built");
+            return null;
+        }
+
+        // Get the hit triangle's face normal in mesh-local space
+        const localNormal = hit.face.normal.clone();
+
+        // Find the closest face normal
+        let bestValue = null;
+        let bestAngle = Math.PI;
+        for (const { normal, value } of this._faceNormals) {
+            const angle = localNormal.angleTo(normal);
+            if (angle < bestAngle) {
+                bestAngle = angle;
+                bestValue = value;
             }
         }
-        return null;
+
+        console.log("[DSN Editor] Hit normal:", `(${localNormal.x.toFixed(3)}, ${localNormal.y.toFixed(3)}, ${localNormal.z.toFixed(3)})`,
+            "→ face", bestValue, `(angle: ${(bestAngle * 180 / Math.PI).toFixed(1)}°)`);
+        return bestValue;
     }
 
-    _buildFaceTriangleMap(diceobj) {
-        this._faceTriangleMap = new Map();
-        if (!this.dieMesh?.geometry) return;
-
-        const geo = this.dieMesh.geometry;
-        const index = geo.index;
-        if (!index) return;
-
-        if (geo.groups && geo.groups.length > 0) {
-            for (let g = 0; g < geo.groups.length; g++) {
-                const group = geo.groups[g];
-                const triStart = group.start / 3;
-                const triEnd = (group.start + group.count) / 3;
-                if (g > 0 && g - 1 < diceobj.values.length) {
-                    this._faceTriangleMap.set(diceobj.values[g - 1], { start: triStart, end: triEnd });
-                }
-            }
-        } else {
-            const totalTriangles = index.count / 3;
-            const numFaces = diceobj.values.length + 1;
-            const trisPerFace = Math.floor(totalTriangles / numFaces);
-            for (let i = 0; i < diceobj.values.length; i++) {
-                const start = (i + 1) * trisPerFace;
-                const end = (i + 2) * trisPerFace;
-                this._faceTriangleMap.set(diceobj.values[i], { start, end });
-            }
+    /**
+     * Build face normals from DICE_SHAPE vertex/face data.
+     * Each entry: { normal: Vector3, value: number }
+     */
+    _buildFaceNormals(diceobj) {
+        this._faceNormals = null;
+        const shapeData = DICE_SHAPE[diceobj.shape];
+        if (!shapeData || !shapeData.vertices || !shapeData.faces) {
+            console.log("[DSN Editor] No DICE_SHAPE data for", diceobj.shape);
+            return;
         }
+
+        const verts = shapeData.vertices.map(v => new Vector3(v[0], v[1], v[2]));
+        this._faceNormals = [];
+
+        for (let i = 0; i < shapeData.faces.length; i++) {
+            const face = shapeData.faces[i];
+            // Face value: last element if skipLastFaceIndex, otherwise from faceValues
+            const faceValue = shapeData.faceValues[i];
+            if (faceValue === 0) continue; // skip non-value faces (e.g. d2 cylinder sides)
+
+            // Compute normal from first 3 vertices of the face
+            const tri = new Triangle(verts[face[0]], verts[face[1]], verts[face[2]]);
+            const normal = new Vector3();
+            tri.getNormal(normal);
+
+            this._faceNormals.push({ normal, value: faceValue });
+        }
+
+        console.log("[DSN Editor] Built", this._faceNormals.length, "face normals for", diceobj.shape,
+            "values:", this._faceNormals.map(f => f.value));
     }
 
     _updateHighlights() {
@@ -213,12 +248,17 @@ export class DiceEditorPreview {
         this.dieMesh = await this.diceFactory.create(scopedTextureCache, dieType, appearance, diceLibrary);
         if (!this.dieMesh) return;
 
+        console.log("[DSN Editor] setDie:", dieType, "mesh type:", this.dieMesh.type,
+            "isMesh:", this.dieMesh.isMesh, "isGroup:", this.dieMesh.isGroup,
+            "children:", this.dieMesh.children?.length || 0);
+
         this.dieMesh.scale.multiplyScalar(2);
         this.box.scene.add(this.dieMesh);
 
         const diceobj = this.diceFactory.getPresetBySystem(dieType, appearance.system || "standard");
+        console.log("[DSN Editor] diceobj:", diceobj ? `shape=${diceobj.shape} type=${diceobj.type} values=${diceobj.values?.length}` : "null");
         if (diceobj) {
-            this._buildFaceTriangleMap(diceobj);
+            this._buildFaceNormals(diceobj);
         }
     }
 

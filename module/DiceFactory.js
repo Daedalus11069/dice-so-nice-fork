@@ -748,7 +748,10 @@ export class DiceFactory {
 			let faceFont = font;
 			let faceLabels = labels;
 			if(materialData.perFaceOverrides && i > 0) {
-				const faceValue = diceobj.values[i - 1];
+				// labels has edge prefix entries (1 for d2/d10, 2 for others) before face values start
+				const edgeOffset = labels.length - diceobj.values.length;
+				const faceValue = diceobj.values[i - edgeOffset];
+				console.log(`[DSN Debug] createMaterial i=${i}, edgeOffset=${edgeOffset}, values[${i-edgeOffset}]=${faceValue}, label="${labels[i]}", hasOverride=${faceValue !== undefined && !!materialData.perFaceOverrides[faceValue]}`);
 				if(faceValue !== undefined && materialData.perFaceOverrides[faceValue]) {
 					const faceOverride = materialData.perFaceOverrides[faceValue];
 					faceMaterialData = foundry.utils.deepClone(materialData);

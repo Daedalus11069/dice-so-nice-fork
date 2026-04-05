@@ -180,48 +180,6 @@ export class DiceBox {
 				await this.loadContextScopedTextures(this.config.boxType);
 				this.dicefactory.initializeMaterials();
 				game.dice3d.dice3dRenderers[this.config.boxType] = this.renderer;
-
-				// Create the editor renderer alongside the first renderer init
-				// (separate WebGL context needed for the Dice Editor preview)
-				if (!game.dice3d.dice3dRenderers.editor) {
-					const editorRenderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-					editorRenderer.setPixelRatio(window.devicePixelRatio);
-					if (this.dicefactory.realisticLighting) {
-						editorRenderer.toneMapping = ACESFilmicToneMapping;
-						editorRenderer.toneMappingExposure = 1.0;
-					}
-					editorRenderer.scopedTextureCache = { type: "editor" };
-					if (this.dicefactory.realisticLighting) {
-						const textureLoader = new TextureLoader();
-						editorRenderer.scopedTextureCache.roughnessMap_fingerprint = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_finger.webp');
-						editorRenderer.scopedTextureCache.roughnessMap_wood = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_wood.webp');
-						editorRenderer.scopedTextureCache.roughnessMap_metal = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_metal.webp');
-						editorRenderer.scopedTextureCache.roughnessMap_stone = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_stone.webp');
-						const pmrem = new PMREMGenerator(editorRenderer);
-						pmrem.compileEquirectangularShader();
-						await new Promise(resolve => {
-							new HDRLoader()
-								.setDataType(HalfFloatType)
-								.setPath('modules/dice-so-nice/textures/equirectangular/')
-								.load('blouberg_sunrise_2_1k.hdr', (texture) => {
-									editorRenderer.scopedTextureCache.textureCube = pmrem.fromEquirectangular(texture).texture;
-									editorRenderer.scopedTextureCache.textureCube.colorSpace = SRGBColorSpace;
-									texture.dispose();
-									pmrem.dispose();
-									resolve();
-								});
-						});
-					} else {
-						const loader = new CubeTextureLoader();
-						loader.setPath('modules/dice-so-nice/textures/cubemap/');
-						editorRenderer.scopedTextureCache.textureCube = loader.load([
-							'px.webp', 'nx.webp',
-							'py.webp', 'ny.webp',
-							'pz.webp', 'nz.webp'
-						]);
-					}
-					game.dice3d.dice3dRenderers.editor = editorRenderer;
-				}
 			}
 
 			this.stats = null;
