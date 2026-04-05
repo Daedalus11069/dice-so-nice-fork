@@ -3,6 +3,7 @@ import {BASE_PRESETS_LIST, EXTRA_PRESETS_LIST} from './DiceDefaultPresets.js';
 import {DiceColors, DICE_SCALE, COLORSETS} from './DiceColors.js';
 import {DICE_MODELS} from './DiceModels.js';
 import {DiceSystem} from './DiceSystem.js';
+import {DiceLibrary} from './DiceLibrary.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { ShaderUtils } from './ShaderUtils';
@@ -761,7 +762,10 @@ export class DiceFactory {
 					if(faceOverride.font) {
 						faceFont = {type: faceOverride.font, scale: font.scale};
 					}
-					if(faceOverride.labelText !== undefined) {
+					if(faceOverride.labelImageObj) {
+						faceLabels = [...labels];
+						faceLabels[i] = faceOverride.labelImageObj;
+					} else if(faceOverride.labelText !== undefined) {
 						faceLabels = [...labels];
 						faceLabels[i] = faceOverride.labelText;
 					}
@@ -830,6 +834,54 @@ export class DiceFactory {
 				mat.emissive = new Color(diceobj.emissive);
 				if(this.realisticLighting)
 					mat.emissive.convertLinearToSRGB();
+
+				// For library dice with per-face glow, build a selective emissive map
+				// that only has labels for glow-enabled faces. The full map is kept
+				// in userData for SFX (PlayAnimationBright) to swap in temporarily.
+				if(materialData.perFaceOverrides) {
+					const glowFaces = new Set();
+					for(const [fv, ov] of Object.entries(materialData.perFaceOverrides)) {
+						if(ov.emissive) glowFaces.add(String(fv));
+					}
+					if(glowFaces.size > 0) {
+						// Store the full emissive map for SFX use
+						mat.userData.emissiveMapFull = emissiveMap;
+
+						// Build the glow-only map: start black, copy only glow face tiles,
+						// then tint each tile with its glow color via multiply compositing.
+						let canvasGlow = document.createElement("canvas");
+						canvasGlow.width = canvasEmissive.width;
+						canvasGlow.height = canvasEmissive.height;
+						let ctxGlow = canvasGlow.getContext("2d");
+						ctxGlow.fillStyle = "#000000";
+						ctxGlow.fillRect(0, 0, canvasGlow.width, canvasGlow.height);
+
+						// Replay the tile layout to find glow face positions
+						let gx = 0, gy = 0, gCount = 0;
+						for(let gi = 0; gi < labels.length; gi++) {
+							if(gCount == texturesPerLine) { gy += sizeTexture; gx = 0; gCount = 0; }
+							if(gi > 0) {
+								const edgeOffset = labels.length - diceobj.values.length;
+								const fv = diceobj.values[gi - edgeOffset];
+								if(fv !== undefined && glowFaces.has(String(fv))) {
+									ctxGlow.drawImage(canvasEmissive, gx, gy, sizeTexture, sizeTexture, gx, gy, sizeTexture, sizeTexture);
+								}
+							}
+							gCount++;
+							gx += sizeTexture;
+						}
+
+						let glowMap = new CanvasTexture(canvasGlow);
+						glowMap.colorSpace = SRGBColorSpace;
+						glowMap.flipY = false;
+						mat.userData.emissiveMapGlow = glowMap;
+						mat.emissiveMap = glowMap;
+						mat.emissive = new Color(0xffffff);
+						if(this.realisticLighting)
+							mat.emissive.convertLinearToSRGB();
+						mat.emissiveIntensity = 0.7;
+					}
+				}
 			}
 		}
 
@@ -882,7 +934,7 @@ export class DiceFactory {
 		contextBump.fillStyle = "#FFFFFF";
 		contextBump.fillRect(x, y, ts, ts);
 
-		contextEmissive.fillStyle = materialData.emissive ? "#999999" : "#000000";
+		contextEmissive.fillStyle = "#000000";
 		contextEmissive.fillRect(x, y, ts, ts);
 
 		//context.rect(x, y, ts, ts);
@@ -924,11 +976,42 @@ export class DiceFactory {
 			//custom texture face
 			if(text.source instanceof HTMLImageElement){
 				isTexture = true;
-				context.drawImage(text.source, text.frame.x, text.frame.y, text.frame.w, text.frame.h, x, y, ts, ts);
-				if(bump)
-					contextBump.drawImage(bump.source, bump.frame.x, bump.frame.y, bump.frame.w, bump.frame.h,x,y,ts,ts);
-				if(emissive)
-					contextEmissive.drawImage(emissive.source, emissive.frame.x, emissive.frame.y, emissive.frame.w, emissive.frame.h,x,y,ts,ts);
+				// Library die label images support scale, flip, and vertical position
+				if(materialData.labelImageScale !== undefined) {
+					const scale = (materialData.labelImageScale ?? 100) / 100;
+					const flip = materialData.labelImageFlip || false;
+					const vpos = (materialData.labelImagePosition ?? 50) / 100;
+					const drawSize = ts * scale;
+					const dx = x + (ts - drawSize) / 2;
+					// vpos 0 = image shifted up by half tile, 0.5 = centered, 1 = shifted down
+					const maxOffset = ts / 2;
+					const dy = y + (ts - drawSize) / 2 + (vpos - 0.5) * 2 * maxOffset;
+					const drawImg = (ctx, src) => {
+						ctx.save();
+						ctx.beginPath();
+						ctx.rect(x, y, ts, ts);
+						ctx.clip();
+						if(flip) {
+							ctx.translate(0, y + ts);
+							ctx.scale(1, -1);
+							ctx.drawImage(src.source, src.frame.x, src.frame.y, src.frame.w, src.frame.h,
+								dx, y + ts - dy - drawSize, drawSize, drawSize);
+						} else {
+							ctx.drawImage(src.source, src.frame.x, src.frame.y, src.frame.w, src.frame.h,
+								dx, dy, drawSize, drawSize);
+						}
+						ctx.restore();
+					};
+					drawImg(context, text);
+					if(bump) drawImg(contextBump, bump);
+					if(emissive) drawImg(contextEmissive, emissive);
+				} else {
+					context.drawImage(text.source, text.frame.x, text.frame.y, text.frame.w, text.frame.h, x, y, ts, ts);
+					if(bump)
+						contextBump.drawImage(bump.source, bump.frame.x, bump.frame.y, bump.frame.w, bump.frame.h,x,y,ts,ts);
+					if(emissive)
+						contextEmissive.drawImage(emissive.source, emissive.frame.x, emissive.frame.y, emissive.frame.w, emissive.frame.h,x,y,ts,ts);
+				}
 			}
 			else{
 				let fontsize = ts / (1 + 2 * margin);
@@ -1382,7 +1465,16 @@ export class DiceFactory {
 					if(faceData.outline !== null && faceData.outline !== undefined) override.outline = faceData.outline;
 					if(faceData.font !== null && faceData.font !== undefined) override.font = faceData.font;
 					if(faceData.labelText !== null && faceData.labelText !== undefined) override.labelText = faceData.labelText;
-					if(faceData.labelImage !== null && faceData.labelImage !== undefined) override.labelImage = faceData.labelImage;
+					if(faceData.labelImage !== null && faceData.labelImage !== undefined) {
+						override.labelImage = faceData.labelImage;
+						const loadedImg = DiceLibrary.getLoadedImage(faceData.labelImage);
+						if(loadedImg) {
+							override.labelImageObj = loadedImg;
+							override.labelImageScale = faceData.labelImageScale ?? 100;
+							override.labelImageFlip = !!faceData.labelImageFlip;
+							override.labelImagePosition = faceData.labelImagePosition ?? 50;
+						}
+					}
 					if(faceData.backgroundTexture !== null && faceData.backgroundTexture !== undefined) {
 						override.texture = DiceColors.getTexture(faceData.backgroundTexture);
 					}

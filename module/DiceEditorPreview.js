@@ -218,7 +218,12 @@ export class DiceEditorPreview {
         const mat = this.dieMesh.material;
         if (!mat.userData?.materialData) return;
 
-        if (this.selectedFaces.size > 0) {
+        if (this._hasGlow) {
+            // When glow is active, the emissive is used for the bloom effect.
+            // Don't override it for selection highlights.
+            mat.emissive = new Color(0xffffff);
+            mat.emissiveIntensity = 0.7;
+        } else if (this.selectedFaces.size > 0) {
             mat.emissive = new Color(0x00AAFF);
             mat.emissiveIntensity = 0.3;
         } else {
@@ -256,6 +261,10 @@ export class DiceEditorPreview {
         this.dieMesh = mesh;
         this.dieMesh.scale.multiplyScalar(2);
         this.box.scene.add(this.dieMesh);
+
+        // Track whether glow is active (set in createMaterial) so _updateHighlights
+        // knows not to overwrite the emissive values.
+        this._hasGlow = !!this.dieMesh.material?.userData?.emissiveMapGlow;
 
         const diceobj = this.diceFactory.getPresetBySystem(dieType, appearance.system || "standard");
         if (diceobj) {

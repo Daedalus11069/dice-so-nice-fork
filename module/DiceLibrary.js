@@ -1,10 +1,14 @@
 import { DiceColors } from './DiceColors.js';
+import { AssetsLoader } from './AssetsLoader.js';
 
 /**
  * Manages CRUD operations on a user's custom dice library.
  * Stored in the `dice-so-nice/diceLibrary` user flag (array of custom die objects).
  */
 export class DiceLibrary {
+
+    // Static cache of loaded label images, keyed by URL → {source, frame}
+    static _imageCache = {};
 
     constructor() {
         this._dice = [];
@@ -200,6 +204,80 @@ export class DiceLibrary {
     static getFromUser(user, id) {
         const library = DiceLibrary.getLibraryForUser(user);
         return library.find(d => d.id === id) || null;
+    }
+
+    /**
+     * Pre-load label images for library dice that are actively assigned
+     * in users' appearances. Follows the same pattern as DiceFactory.preloadPresets():
+     * loops over all users (or a single user) to find active libraryDieId references,
+     * then loads their face label images via AssetsLoader.
+     *
+     * @param {string|null} userID - If set, only preload for this user.
+     */
+    static async preloadAssets(userID = null) {
+        const urls = new Set();
+        const collectFromUser = (user) => {
+            const appearance = user.getFlag("dice-so-nice", "appearance");
+            if (!appearance) return;
+            const library = DiceLibrary.getLibraryForUser(user);
+            if (!library.length) return;
+
+            for (const scope in appearance) {
+                if (!appearance.hasOwnProperty(scope)) continue;
+                const libId = appearance[scope]?.libraryDieId;
+                if (!libId) continue;
+                const die = library.find(d => d.id === libId);
+                if (!die?.faces) continue;
+                for (const faceData of Object.values(die.faces)) {
+                    if (faceData?.labelImage) urls.add(faceData.labelImage);
+                }
+            }
+        };
+
+        if (userID) {
+            const user = game.users.get(userID);
+            if (user) collectFromUser(user);
+        } else {
+            game.users.forEach(user => collectFromUser(user));
+        }
+
+        if (urls.size === 0) return;
+
+        const loader = new AssetsLoader();
+        const promises = [];
+        for (const url of urls) {
+            if (DiceLibrary._imageCache[url]) continue;
+            promises.push(
+                loader.load([url]).then(result => {
+                    DiceLibrary._imageCache[url] = result[url];
+                }).catch(err => {
+                    console.warn(`[Dice So Nice] Failed to preload label image: ${url}`, err);
+                })
+            );
+        }
+        await Promise.all(promises);
+    }
+
+    /**
+     * Synchronously retrieve a pre-loaded label image.
+     * @param {string} url
+     * @returns {{source: HTMLImageElement, frame: object}|null}
+     */
+    static getLoadedImage(url) {
+        return DiceLibrary._imageCache[url] || null;
+    }
+
+    /**
+     * Load a single label image into the cache (used by the editor for immediate preview).
+     * @param {string} url
+     * @returns {Promise<{source: HTMLImageElement, frame: object}>}
+     */
+    static async loadImage(url) {
+        if (DiceLibrary._imageCache[url]) return DiceLibrary._imageCache[url];
+        const loader = new AssetsLoader();
+        const result = await loader.load([url]);
+        DiceLibrary._imageCache[url] = result[url];
+        return result[url];
     }
 
     /**

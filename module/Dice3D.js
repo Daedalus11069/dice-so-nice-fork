@@ -345,6 +345,7 @@ export class Dice3D {
 
             Hooks.call("diceSoNiceReady", this);
             await this.DiceFactory._loadFonts();
+            await DiceLibrary.preloadAssets();
             await this.DiceFactory.preloadPresets();
         });
         DiceSFXManager.init();
@@ -502,6 +503,7 @@ export class Dice3D {
                     if (request.user == game.user.id || Dice3D.CONFIG().showOthersSFX)
                         DiceSFXManager.init();
                     if (request.user != game.user.id) {
+                        DiceLibrary.preloadAssets(request.user);
                         this.DiceFactory.preloadPresets(false, request.user);
                     }
                     break;

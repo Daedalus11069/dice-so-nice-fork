@@ -102,6 +102,9 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
                 faceBackground: "",
                 faceOutline: "",
                 faceLabelImage: "",
+                faceLabelImageScale: 100,
+                faceLabelImageFlip: false,
+                faceLabelImagePosition: 50,
                 faceTexture: "",
                 faceEmissive: false,
                 fontList: data.fontList,
@@ -158,6 +161,10 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
 
         // Face property change handlers
         html.on("change", "[name^=face]", () => this._onFacePropertyChange());
+        // Range sliders: update display value on input, trigger property change on release
+        html.on("input", "input[type=range]", (ev) => {
+            $(ev.target).next(".range-value").text(ev.target.value);
+        });
         html.on("click", "[data-face-reset]", () => this._onResetFace());
         html.on("click", "[data-face-filepicker]", () => this._onFilePicker());
 
@@ -199,9 +206,13 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find("[name=faceBackground]").val(faceData.background || "");
             html.find("[name=faceOutline]").val(faceData.outline || "");
             html.find("[name=faceLabelImage]").val(faceData.labelImage || "");
+            html.find("[name=faceLabelImageScale]").val(faceData.labelImageScale ?? 100);
+            html.find("[name=faceLabelImageFlip]").prop("checked", !!faceData.labelImageFlip);
+            html.find("[name=faceLabelImagePosition]").val(faceData.labelImagePosition ?? 50);
+            html.find(".label-image-controls").toggle(!!faceData.labelImage);
             html.find("[name=faceTexture]").val(faceData.backgroundTexture || "");
             html.find("[name=faceEmissive]").prop("checked", !!faceData.emissive);
-
+            html.find("[name=faceEmissiveColor]").val(faceData.emissiveColor || "");
             // Sync color pickers — use face override or fall back to base appearance
             const base = this.libraryDie.baseAppearance;
             html.find("[name=faceForegroundSelector]").val(faceData.foreground || base.labelColor || "#FFFFFF");
@@ -215,9 +226,12 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find("[name=faceBackground]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
             html.find("[name=faceOutline]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
             html.find("[name=faceLabelImage]").val("");
+            html.find("[name=faceLabelImageScale]").val(100);
+            html.find("[name=faceLabelImageFlip]").prop("checked", false);
+            html.find("[name=faceLabelImagePosition]").val(50);
+            html.find(".label-image-controls").hide();
             html.find("[name=faceTexture]").val("");
             html.find("[name=faceEmissive]").prop("checked", false);
-
             // Color pickers fall back to base appearance
             const base = this.libraryDie.baseAppearance;
             html.find("[name=faceForegroundSelector]").val(base.labelColor || "#FFFFFF");
@@ -244,7 +258,13 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         if (foreground) faceData.foreground = foreground;
         if (background) faceData.background = background;
         if (outline) faceData.outline = outline;
-        if (labelImage) faceData.labelImage = labelImage;
+        if (labelImage) {
+            faceData.labelImage = labelImage;
+            faceData.labelImageScale = parseInt(html.find("[name=faceLabelImageScale]").val()) || 100;
+            faceData.labelImageFlip = html.find("[name=faceLabelImageFlip]").is(":checked");
+            faceData.labelImagePosition = parseInt(html.find("[name=faceLabelImagePosition]").val()) || 50;
+        }
+        html.find(".label-image-controls").toggle(!!labelImage);
         if (backgroundTexture) faceData.backgroundTexture = backgroundTexture;
         if (emissive) faceData.emissive = true;
 
@@ -274,7 +294,9 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         const html = $(this.element);
         const fp = new foundry.applications.apps.FilePicker({
             type: "image",
-            callback: (path) => {
+            callback: async (path) => {
+                // Pre-load the image into the cache so the preview can use it immediately
+                await DiceLibrary.loadImage(path);
                 html.find("[name=faceLabelImage]").val(path).trigger("change");
             }
         });

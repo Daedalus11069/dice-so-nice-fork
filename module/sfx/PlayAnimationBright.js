@@ -35,6 +35,11 @@ export class PlayAnimationBright extends DiceSFX {
         this.baseColor = this.glowingMesh.material.emissive.clone();
         this.baseMaterial = this.glowingMesh.material;
         this.glowingMesh.material = this.baseMaterial.clone();
+        // If the material has a selective glow map, swap to the full emissive
+        // map so the bright animation lights up all labels, not just glow faces.
+        if (this.glowingMesh.material.userData.emissiveMapFull) {
+            this.glowingMesh.material.emissiveMap = this.glowingMesh.material.userData.emissiveMapFull;
+        }
         this.glowingMesh.material.onBeforeCompile = ShaderUtils.applyDiceSoNiceShader;
         foundry.audio.AudioHelper.play({
             src: PlayAnimationBright.sound,

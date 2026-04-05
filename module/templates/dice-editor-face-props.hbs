@@ -38,6 +38,26 @@
             <button type="button" class="file-picker" data-face-filepicker><i class="fas fa-file-import"></i></button>
         </div>
     </div>
+    <div class="label-image-controls" style="display:none">
+        <div class="form-group">
+            <label>{{localize "DICESONICE.editorImageScale"}}</label>
+            <div class="form-fields">
+                <input type="range" name="faceLabelImageScale" min="10" max="100" step="1" value="{{faceLabelImageScale}}" data-dtype="Number" />
+                <span class="range-value">{{faceLabelImageScale}}</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>{{localize "DICESONICE.editorImageFlip"}}</label>
+            <input type="checkbox" name="faceLabelImageFlip" {{#if faceLabelImageFlip}}checked{{/if}} />
+        </div>
+        <div class="form-group">
+            <label>{{localize "DICESONICE.editorImagePosition"}}</label>
+            <div class="form-fields">
+                <input type="range" name="faceLabelImagePosition" min="0" max="100" step="1" value="{{faceLabelImagePosition}}" data-dtype="Number" />
+                <span class="range-value">{{faceLabelImagePosition}}</span>
+            </div>
+        </div>
+    </div>
     <div class="form-group">
         <label>{{localize "DICESONICE.texture"}}</label>
         <select name="faceTexture">
