@@ -2,7 +2,7 @@
     <div class="form-group">
         <label>{{localize "DICESONICE.editorLabelText"}}</label>
         <div class="form-fields">
-            <input type="text" name="faceLabelText" value="{{faceLabelText}}" placeholder="{{localize 'DICESONICE.editorDefaultLabel'}}" />
+            <textarea name="faceLabelText" rows="3" placeholder="{{localize 'DICESONICE.editorDefaultLabel'}}">{{faceLabelText}}</textarea>
         </div>
     </div>
     <div class="form-group">
@@ -12,6 +12,13 @@
                 <option value="">{{localize "DICESONICE.editorInheritBase"}}</option>
                 {{selectOptions fontList selected=faceFont}}
             </select>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>{{localize "DICESONICE.editorFontScale"}}</label>
+        <div class="form-fields">
+            <input type="range" name="faceFontScale" min="20" max="200" step="5" value="{{faceFontScale}}" data-dtype="Number" />
+            <span class="range-value">{{faceFontScale}}%</span>
         </div>
     </div>
     <div class="form-group">

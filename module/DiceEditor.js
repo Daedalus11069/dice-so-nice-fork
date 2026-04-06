@@ -98,6 +98,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             {
                 faceLabelText: "",
                 faceFont: "",
+                faceFontScale: 100,
                 faceForeground: "",
                 faceBackground: "",
                 faceOutline: "",
@@ -202,6 +203,8 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             const faceData = this.libraryDie.faces[faceValue] || {};
             html.find("[name=faceLabelText]").val(faceData.labelText || "");
             html.find("[name=faceFont]").val(faceData.font || "");
+            html.find("[name=faceFontScale]").val(faceData.fontScale ?? 100);
+            html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text((faceData.fontScale ?? 100) + "%");
             html.find("[name=faceForeground]").val(faceData.foreground || "");
             html.find("[name=faceBackground]").val(faceData.background || "");
             html.find("[name=faceOutline]").val(faceData.outline || "");
@@ -222,6 +225,8 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             // Multi-selection: show "Mixed" placeholder
             html.find("[name=faceLabelText]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
             html.find("[name=faceFont]").val("");
+            html.find("[name=faceFontScale]").val(100);
+            html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text("100%");
             html.find("[name=faceForeground]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
             html.find("[name=faceBackground]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
             html.find("[name=faceOutline]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
@@ -246,6 +251,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         const faceData = {};
         const labelText = html.find("[name=faceLabelText]").val();
         const font = html.find("[name=faceFont]").val();
+        const fontScale = parseInt(html.find("[name=faceFontScale]").val()) || 100;
         const foreground = html.find("[name=faceForeground]").val();
         const background = html.find("[name=faceBackground]").val();
         const outline = html.find("[name=faceOutline]").val();
@@ -253,8 +259,12 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         const backgroundTexture = html.find("[name=faceTexture]").val();
         const emissive = html.find("[name=faceEmissive]").is(":checked");
 
+        // Update range value display
+        html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text(fontScale + "%");
+
         if (labelText) faceData.labelText = labelText;
         if (font) faceData.font = font;
+        if (fontScale !== 100) faceData.fontScale = fontScale;
         if (foreground) faceData.foreground = foreground;
         if (background) faceData.background = background;
         if (outline) faceData.outline = outline;

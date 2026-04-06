@@ -762,6 +762,9 @@ export class DiceFactory {
 					if(faceOverride.font) {
 						faceFont = {type: faceOverride.font, scale: font.scale};
 					}
+					if(faceOverride.fontScale) {
+						faceFont = {...faceFont, scale: (faceFont.scale || font.scale) * (faceOverride.fontScale / 100)};
+					}
 					if(faceOverride.labelImageObj) {
 						faceLabels = [...labels];
 						faceLabels[i] = faceOverride.labelImageObj;
@@ -1051,7 +1054,7 @@ export class DiceFactory {
 				contextEmissive.font =  fontsize+ 'pt '+font.type;
 
 				var lineHeight = fontsize;
-				
+
 				let textlines = text.split("\n");
 
 				if (textlines.length > 1) {
@@ -1479,6 +1482,7 @@ export class DiceFactory {
 						override.texture = DiceColors.getTexture(faceData.backgroundTexture);
 					}
 					if(faceData.emissive) override.emissive = true;
+					if(faceData.fontScale !== null && faceData.fontScale !== undefined) override.fontScale = faceData.fontScale;
 					if(Object.keys(override).length > 0) {
 						materialData.perFaceOverrides[faceValue] = override;
 					}
