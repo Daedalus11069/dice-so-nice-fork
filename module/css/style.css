@@ -351,6 +351,10 @@
 }
 
 /* Dice Editor App */
+.dice-editor-app {
+    max-height: calc(100vh - 20px);
+}
+
 .dice-editor-app .dice-editor {
     display: flex;
     flex-direction: column;

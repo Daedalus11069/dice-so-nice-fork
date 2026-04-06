@@ -226,6 +226,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         }).join(", ");
         html.find("[data-face-indicator]").text(faceLabel);
         html.find("[data-face-props]").show();
+        this._clampToViewport();
 
         // If single face selected, populate with its values
         if (faces.size === 1) {
@@ -273,6 +274,16 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find("[name=faceForegroundSelector]").val(base.labelColor || "#FFFFFF");
             html.find("[name=faceBackgroundSelector]").val(base.diceColor || "#000000");
             html.find("[name=faceOutlineSelector]").val(base.outlineColor || "#000000");
+        }
+    }
+
+    _clampToViewport() {
+        const el = this.element;
+        const rect = el.getBoundingClientRect();
+        const overflow = rect.bottom - window.innerHeight;
+        if (overflow > 0) {
+            const newTop = Math.max(0, rect.top - overflow - 10);
+            this.setPosition({ top: newTop });
         }
     }
 

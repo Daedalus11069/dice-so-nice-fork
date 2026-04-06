@@ -873,24 +873,29 @@ export class DiceFactory {
 						// Replay the full tile layout (including inherited repeats)
 						// to match shape face indices to tile positions
 						let gx = 0, gy = 0, gCount = 0, gShapeFace = 0;
-						const replayTiles = (startIdx, endIdx) => {
-							for(let gi = startIdx; gi < endIdx; gi++) {
+						for(let gi = 0; gi < labels.length; gi++) {
+							if(gCount == texturesPerLine) { gy += sizeTexture; gx = 0; gCount = 0; }
+							if(gi >= edgeOffset) {
+								gShapeFace++;
+								if(glowFaces.has(String(gShapeFace))) {
+									ctxGlow.drawImage(canvasEmissive, gx, gy, sizeTexture, sizeTexture, gx, gy, sizeTexture, sizeTexture);
+								}
+							}
+							gCount++;
+							gx += sizeTexture;
+						}
+						if(isHeritedFromShape) {
+							let startI = 2;
+							if(diceobj.shape == "d2" || diceobj.shape == "d10") startI = 1;
+							for(let gi = startI; gi < labels.length; gi++) {
 								if(gCount == texturesPerLine) { gy += sizeTexture; gx = 0; gCount = 0; }
-								if(gi > 0) {
-									gShapeFace++;
-									if(glowFaces.has(String(gShapeFace))) {
-										ctxGlow.drawImage(canvasEmissive, gx, gy, sizeTexture, sizeTexture, gx, gy, sizeTexture, sizeTexture);
-									}
+								gShapeFace++;
+								if(glowFaces.has(String(gShapeFace))) {
+									ctxGlow.drawImage(canvasEmissive, gx, gy, sizeTexture, sizeTexture, gx, gy, sizeTexture, sizeTexture);
 								}
 								gCount++;
 								gx += sizeTexture;
 							}
-						};
-						replayTiles(0, labels.length);
-						if(isHeritedFromShape) {
-							let startI = 2;
-							if(diceobj.shape == "d2" || diceobj.shape == "d10") startI = 1;
-							replayTiles(startI, labels.length);
 						}
 
 						let glowMap = new CanvasTexture(canvasGlow);
@@ -1041,6 +1046,20 @@ export class DiceFactory {
 				}
 			}
 			else{
+				// Clip text rendering to the face tile to prevent overflow into adjacent faces
+				context.save();
+				context.beginPath();
+				context.rect(x, y, ts, ts);
+				context.clip();
+				contextBump.save();
+				contextBump.beginPath();
+				contextBump.rect(x, y, ts, ts);
+				contextBump.clip();
+				contextEmissive.save();
+				contextEmissive.beginPath();
+				contextEmissive.rect(x, y, ts, ts);
+				contextEmissive.clip();
+
 				let fontsize = ts / (1 + 2 * margin);
 				let textstarty = (ts / 2);
 				let textstartx = (ts / 2);
@@ -1149,6 +1168,9 @@ export class DiceFactory {
 					}
 					textstarty += (lineHeight * 1.5);
 				}
+				context.restore();
+				contextBump.restore();
+				contextEmissive.restore();
 			}
 
 		} else {
