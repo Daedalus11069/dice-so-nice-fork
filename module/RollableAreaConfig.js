@@ -92,8 +92,13 @@ export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2
 
                     const rect = el.getBoundingClientRect();
 
-                    el.style.left = rect.left - newX + 'px';
-                    el.style.top = rect.top - newY - bodyTop + 'px';
+                    let newLeft = rect.left - newX;
+                    let newTop = rect.top - newY;
+                    newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - rect.width));
+                    newTop = Math.max(0, Math.min(newTop, window.innerHeight - rect.height));
+
+                    el.style.left = newLeft + 'px';
+                    el.style.top = newTop - bodyTop + 'px';
 
                     prevX = e.clientX;
                     prevY = e.clientY;
@@ -118,26 +123,33 @@ export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2
 
                 function onMouseMove(e) {
                     const rect = el.getBoundingClientRect();
+                    const MIN_SIZE = 200;
 
                     if(resizer.classList.contains("se")) {
-                        el.style.width = rect.width - (prevX - e.clientX) + "px";
-                        el.style.height = rect.height - (prevY - e.clientY) + "px";
+                        el.style.width = Math.max(MIN_SIZE, rect.width - (prevX - e.clientX)) + "px";
+                        el.style.height = Math.max(MIN_SIZE, rect.height - (prevY - e.clientY)) + "px";
                     }
                     else if(resizer.classList.contains("sw")) {
-                        el.style.width = rect.width + (prevX - e.clientX) + "px";
-                        el.style.height = rect.height - (prevY - e.clientY) + "px";
-                        el.style.left = rect.left - (prevX - e.clientX) + "px";
+                        const newWidth = Math.max(MIN_SIZE, rect.width + (prevX - e.clientX));
+                        const newHeight = Math.max(MIN_SIZE, rect.height - (prevY - e.clientY));
+                        if(newWidth > MIN_SIZE) el.style.left = rect.left - (prevX - e.clientX) + "px";
+                        el.style.width = newWidth + "px";
+                        el.style.height = newHeight + "px";
                     }
                     else if(resizer.classList.contains("ne")) {
-                        el.style.width = rect.width - (prevX - e.clientX) + "px";
-                        el.style.height = rect.height + (prevY - e.clientY) + "px";
-                        el.style.top = rect.top - (prevY - e.clientY) - bodyTop + "px";
+                        const newWidth = Math.max(MIN_SIZE, rect.width - (prevX - e.clientX));
+                        const newHeight = Math.max(MIN_SIZE, rect.height + (prevY - e.clientY));
+                        if(newHeight > MIN_SIZE) el.style.top = rect.top - (prevY - e.clientY) - bodyTop + "px";
+                        el.style.width = newWidth + "px";
+                        el.style.height = newHeight + "px";
                     }
                     else {
-                        el.style.width = rect.width + (prevX - e.clientX) + "px";
-                        el.style.height = rect.height + (prevY - e.clientY) + "px";
-                        el.style.left = rect.left - (prevX - e.clientX) + "px";
-                        el.style.top = rect.top - (prevY - e.clientY) - bodyTop + "px";
+                        const newWidth = Math.max(MIN_SIZE, rect.width + (prevX - e.clientX));
+                        const newHeight = Math.max(MIN_SIZE, rect.height + (prevY - e.clientY));
+                        if(newWidth > MIN_SIZE) el.style.left = rect.left - (prevX - e.clientX) + "px";
+                        if(newHeight > MIN_SIZE) el.style.top = rect.top - (prevY - e.clientY) - bodyTop + "px";
+                        el.style.width = newWidth + "px";
+                        el.style.height = newHeight + "px";
                     }
 
                     prevX = e.clientX;
