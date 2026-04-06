@@ -185,31 +185,65 @@ export class DiceEditorPreview {
      */
     _buildFaceNormals(diceobj) {
         this._faceNormals = null;
+        // Maps shape face value → diceobj type value
+        this._shapeToTypeValue = {};
         const shapeData = DICE_SHAPE[diceobj.shape];
-        if (!shapeData || !shapeData.vertices || !shapeData.faces) {
+        if (!shapeData) {
             console.log("[DSN Editor] No DICE_SHAPE data for", diceobj.shape);
             return;
         }
 
-        const verts = shapeData.vertices.map(v => new Vector3(v[0], v[1], v[2]));
         this._faceNormals = [];
 
-        for (let i = 0; i < shapeData.faces.length; i++) {
-            const face = shapeData.faces[i];
-            // Face value: last element if skipLastFaceIndex, otherwise from faceValues
-            const faceValue = shapeData.faceValues[i];
-            if (faceValue === 0) continue; // skip non-value faces (e.g. d2 cylinder sides)
+        // Map shape face index (1-based) to diceobj value
+        // For inherited shapes (df→d6, d3→d6, d5→d10, d7→d14), values cycle
+        const mapToTypeValue = (shapeFaceValue) => {
+            return diceobj.values[(shapeFaceValue - 1) % diceobj.values.length];
+        };
 
-            // Compute normal from first 3 vertices of the face
-            const tri = new Triangle(verts[face[0]], verts[face[1]], verts[face[2]]);
-            const normal = new Vector3();
-            tri.getNormal(normal);
+        if (shapeData.type === "Cylinder") {
+            const valueFaceValues = shapeData.faceValues.filter(v => v !== 0);
+            if (valueFaceValues.length >= 2) {
+                this._faceNormals.push({ normal: new Vector3(0, 1, 0), value: valueFaceValues[1] });
+                this._faceNormals.push({ normal: new Vector3(0, -1, 0), value: valueFaceValues[0] });
+                for (const sfv of valueFaceValues) {
+                    this._shapeToTypeValue[sfv] = mapToTypeValue(sfv);
+                }
+            }
+        } else if (shapeData.vertices && shapeData.faces) {
+            const verts = shapeData.vertices.map(v => new Vector3(v[0], v[1], v[2]));
 
-            this._faceNormals.push({ normal, value: faceValue });
+            for (let i = 0; i < shapeData.faces.length; i++) {
+                const face = shapeData.faces[i];
+                const shapeFaceValue = shapeData.faceValues[i];
+                if (shapeFaceValue === 0) continue;
+
+                const tri = new Triangle(verts[face[0]], verts[face[1]], verts[face[2]]);
+                const normal = new Vector3();
+                tri.getNormal(normal);
+
+                this._faceNormals.push({ normal, value: shapeFaceValue });
+                this._shapeToTypeValue[shapeFaceValue] = mapToTypeValue(shapeFaceValue);
+            }
+        } else {
+            console.log("[DSN Editor] Unsupported DICE_SHAPE type for", diceobj.shape);
+            return;
+        }
+
+        // Build type value → default label lookup
+        this._typeValueLabels = {};
+        const labels = Array.isArray(diceobj.labels[0]) ? diceobj.labels[0] : diceobj.labels;
+        const edgeOffset = labels.length - diceobj.values.length;
+        for (let i = 0; i < diceobj.values.length; i++) {
+            const label = labels[i + edgeOffset];
+            if (label !== undefined && typeof label === 'string') {
+                this._typeValueLabels[diceobj.values[i]] = label;
+            }
         }
 
         console.log("[DSN Editor] Built", this._faceNormals.length, "face normals for", diceobj.shape,
-            "values:", this._faceNormals.map(f => f.value));
+            "values:", this._faceNormals.map(f => f.value),
+            "typeMap:", this._shapeToTypeValue);
     }
 
     _updateHighlights() {

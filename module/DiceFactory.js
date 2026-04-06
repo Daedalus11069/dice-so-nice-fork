@@ -1,7 +1,7 @@
 import {DicePreset} from './DicePreset.js';
 import {BASE_PRESETS_LIST, EXTRA_PRESETS_LIST} from './DiceDefaultPresets.js';
 import {DiceColors, DICE_SCALE, COLORSETS} from './DiceColors.js';
-import {DICE_MODELS} from './DiceModels.js';
+import {DICE_MODELS, DICE_SHAPE} from './DiceModels.js';
 import {DiceSystem} from './DiceSystem.js';
 import {DiceLibrary} from './DiceLibrary.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -734,9 +734,38 @@ export class DiceFactory {
 		let ts = this.calc_texture_size(Math.sqrt(labelsTotal)*sizeTexture, true);
 		
 		canvas.width = canvas.height = canvasBump.width = canvasBump.height = canvasEmissive.width = canvasEmissive.height = ts;
+		// Helper: resolve per-face override for a given shape face index
+		const resolveOverride = (labelIdx, shapeFace) => {
+			let faceMaterialData = materialData;
+			let faceFont = font;
+			let faceLabels = labels;
+			if(materialData.perFaceOverrides && materialData.perFaceOverrides[shapeFace]) {
+				const faceOverride = materialData.perFaceOverrides[shapeFace];
+				faceMaterialData = foundry.utils.deepClone(materialData);
+				delete faceMaterialData.perFaceOverrides;
+				foundry.utils.mergeObject(faceMaterialData, faceOverride, {overwrite: true});
+				if(faceOverride.font) {
+					faceFont = {type: faceOverride.font, scale: font.scale};
+				}
+				if(faceOverride.fontScale) {
+					faceFont = {...faceFont, scale: (faceFont.scale || font.scale) * (faceOverride.fontScale / 100)};
+				}
+				if(faceOverride.labelImageObj) {
+					faceLabels = [...labels];
+					faceLabels[labelIdx] = faceOverride.labelImageObj;
+				} else if(faceOverride.labelText !== undefined) {
+					faceLabels = [...labels];
+					faceLabels[labelIdx] = faceOverride.labelText;
+				}
+			}
+			return { faceMaterialData, faceFont, faceLabels };
+		};
+
 		let x = 0;
 		let y = 0;
 		let texturesOnThisLine = 0;
+		let shapeFace = 0; // 1-based shape face counter
+		const edgeOffset = labels.length - diceobj.values.length;
 		for (var i = 0; i < labels.length; ++i) {
 			if(texturesOnThisLine == texturesPerLine){
 				y += sizeTexture;
@@ -744,38 +773,7 @@ export class DiceFactory {
 				texturesOnThisLine = 0;
 			}
 
-			// Resolve per-face material data overrides
-			let faceMaterialData = materialData;
-			let faceFont = font;
-			let faceLabels = labels;
-			if(materialData.perFaceOverrides && i > 0) {
-				// labels has edge prefix entries (1 for d2/d10, 2 for others) before face values start
-				const edgeOffset = labels.length - diceobj.values.length;
-				const faceValue = diceobj.values[i - edgeOffset];
-				console.log(`[DSN Debug] createMaterial i=${i}, edgeOffset=${edgeOffset}, values[${i-edgeOffset}]=${faceValue}, label="${labels[i]}", hasOverride=${faceValue !== undefined && !!materialData.perFaceOverrides[faceValue]}`);
-				if(faceValue !== undefined && materialData.perFaceOverrides[faceValue]) {
-					const faceOverride = materialData.perFaceOverrides[faceValue];
-					faceMaterialData = foundry.utils.deepClone(materialData);
-					delete faceMaterialData.perFaceOverrides;
-					foundry.utils.mergeObject(faceMaterialData, faceOverride, {overwrite: true});
-
-					if(faceOverride.font) {
-						faceFont = {type: faceOverride.font, scale: font.scale};
-					}
-					if(faceOverride.fontScale) {
-						faceFont = {...faceFont, scale: (faceFont.scale || font.scale) * (faceOverride.fontScale / 100)};
-					}
-					if(faceOverride.labelImageObj) {
-						faceLabels = [...labels];
-						faceLabels[i] = faceOverride.labelImageObj;
-					} else if(faceOverride.labelText !== undefined) {
-						faceLabels = [...labels];
-						faceLabels[i] = faceOverride.labelText;
-					}
-				}
-			}
-
-			if(i==0)//edge
+			if(i < edgeOffset)//edge
 			{
 				//if the texture is fully opaque, we do not use it for edge
 				let texture = {name:"none"};
@@ -785,6 +783,8 @@ export class DiceFactory {
 			}
 			else
 			{
+				shapeFace++;
+				const { faceMaterialData, faceFont, faceLabels } = resolveOverride(i, shapeFace);
 				let faceTexture = faceMaterialData.texture || materialData.texture;
 				this.createTextMaterial(context, contextBump, contextEmissive, x, y, sizeTexture, diceobj, faceLabels, faceFont, i, faceTexture, faceMaterialData);
 			}
@@ -792,11 +792,9 @@ export class DiceFactory {
 			x += sizeTexture;
 		}
 
-		//Special dice from shape divided by 2
-		//D3
+		//Inherited shapes (d3, d5, d7, df): draw repeated face tiles with their own overrides
 		if(isHeritedFromShape){
 			let startI = 2;
-			//for some reason, there's an extra empty cell for all shape except d2 and d10. Should fix that at some point.
 			if(diceobj.shape == "d2" || diceobj.shape == "d10")
 				startI = 1;
 			for(i=startI;i<labels.length;i++){
@@ -805,7 +803,10 @@ export class DiceFactory {
 					x = 0;
 					texturesOnThisLine = 0;
 				}
-				this.createTextMaterial(context, contextBump, contextEmissive, x, y, sizeTexture, diceobj, labels, font, i, materialData.texture, materialData);
+				shapeFace++;
+				const { faceMaterialData, faceFont, faceLabels } = resolveOverride(i, shapeFace);
+				let faceTexture = faceMaterialData.texture || materialData.texture;
+				this.createTextMaterial(context, contextBump, contextEmissive, x, y, sizeTexture, diceobj, faceLabels, faceFont, i, faceTexture, faceMaterialData);
 				texturesOnThisLine++;
 				x += sizeTexture;
 			}
@@ -844,14 +845,15 @@ export class DiceFactory {
 				if(materialData.perFaceOverrides) {
 					const baseHasEmissive = !!materialData.baseEmissive;
 					const glowFaces = new Set();
+					// Determine total shape face count
+					const shapeData = DICE_SHAPE[diceobj.shape];
+					const shapeFaceCount = shapeData ? shapeData.faceValues.filter(v => v !== 0).length : diceobj.values.length;
 					for(const [fv, ov] of Object.entries(materialData.perFaceOverrides)) {
 						if(ov.emissive) glowFaces.add(String(fv));
 					}
-					// If the base preset has emissive, also include all faces that
-					// don't have an explicit emissive: false override.
 					if(baseHasEmissive) {
-						for(const val of diceobj.values) {
-							const fv = String(val);
+						for(let f = 1; f <= shapeFaceCount; f++) {
+							const fv = String(f);
 							const ov = materialData.perFaceOverrides[fv];
 							if(!ov || ov.emissive !== false) {
 								glowFaces.add(fv);
@@ -859,11 +861,8 @@ export class DiceFactory {
 						}
 					}
 					if(glowFaces.size > 0) {
-						// Store the full emissive map for SFX use
 						mat.userData.emissiveMapFull = emissiveMap;
 
-						// Build the glow-only map: start black, copy only glow face tiles,
-						// then tint each tile with its glow color via multiply compositing.
 						let canvasGlow = document.createElement("canvas");
 						canvasGlow.width = canvasEmissive.width;
 						canvasGlow.height = canvasEmissive.height;
@@ -871,19 +870,27 @@ export class DiceFactory {
 						ctxGlow.fillStyle = "#000000";
 						ctxGlow.fillRect(0, 0, canvasGlow.width, canvasGlow.height);
 
-						// Replay the tile layout to find glow face positions
-						let gx = 0, gy = 0, gCount = 0;
-						for(let gi = 0; gi < labels.length; gi++) {
-							if(gCount == texturesPerLine) { gy += sizeTexture; gx = 0; gCount = 0; }
-							if(gi > 0) {
-								const edgeOffset = labels.length - diceobj.values.length;
-								const fv = diceobj.values[gi - edgeOffset];
-								if(fv !== undefined && glowFaces.has(String(fv))) {
-									ctxGlow.drawImage(canvasEmissive, gx, gy, sizeTexture, sizeTexture, gx, gy, sizeTexture, sizeTexture);
+						// Replay the full tile layout (including inherited repeats)
+						// to match shape face indices to tile positions
+						let gx = 0, gy = 0, gCount = 0, gShapeFace = 0;
+						const replayTiles = (startIdx, endIdx) => {
+							for(let gi = startIdx; gi < endIdx; gi++) {
+								if(gCount == texturesPerLine) { gy += sizeTexture; gx = 0; gCount = 0; }
+								if(gi > 0) {
+									gShapeFace++;
+									if(glowFaces.has(String(gShapeFace))) {
+										ctxGlow.drawImage(canvasEmissive, gx, gy, sizeTexture, sizeTexture, gx, gy, sizeTexture, sizeTexture);
+									}
 								}
+								gCount++;
+								gx += sizeTexture;
 							}
-							gCount++;
-							gx += sizeTexture;
+						};
+						replayTiles(0, labels.length);
+						if(isHeritedFromShape) {
+							let startI = 2;
+							if(diceobj.shape == "d2" || diceobj.shape == "d10") startI = 1;
+							replayTiles(startI, labels.length);
 						}
 
 						let glowMap = new CanvasTexture(canvasGlow);
@@ -991,6 +998,11 @@ export class DiceFactory {
 			//custom texture face
 			if(text.source instanceof HTMLImageElement){
 				isTexture = true;
+				// Per-face override label image: use the custom image for bump and emissive
+				if(materialData.labelImageObj) {
+					bump = text;
+					emissive = materialData.emissive !== false ? text : null;
+				}
 				// Library die label images support scale, flip, and vertical position
 				if(materialData.labelImageScale !== undefined) {
 					const scale = (materialData.labelImageScale ?? 100) / 100;

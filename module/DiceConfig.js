@@ -819,6 +819,13 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                             }
                         }
                         $(this.element).find(".dsn-appearance-hint").hide();
+                        const allLibraryDice = game.dice3d.diceLibrary ? game.dice3d.diceLibrary.getAll() : [];
+                        const typeDice = allLibraryDice.filter(d => d.dieType === diceType);
+                        const libraryDiceList = typeDice.map(d => ({
+                            id: d.id,
+                            name: d.name,
+                            selected: false
+                        }));
                         foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
                             dicetype: diceType,
                             appearance: this.currentGlobalAppearance,
@@ -827,6 +834,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                             textureList: this.initializationData.textureList,
                             materialList: this.initializationData.materialList,
                             fontList: this.initializationData.fontList,
+                            showLibrary: true,
+                            libraryDiceList: libraryDiceList,
                             systemSettings: newSystemSettings
                         }).then((html) => {
                             //We add a "title" attribute to all colorsets to give a way to users to see the colorset id

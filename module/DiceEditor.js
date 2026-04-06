@@ -1,5 +1,6 @@
 import { DiceEditorPreview } from './DiceEditorPreview.js';
 import { DiceLibrary } from './DiceLibrary.js';
+import { DICE_SHAPE } from './DiceModels.js';
 import { Utils } from './Utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -73,8 +74,11 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             const diceobj = factory.getPresetBySystem(dieType, resolved.system || "standard");
             if (diceobj && diceobj.emissive && diceobj.emissive !== 0x000000) {
                 this.libraryDie.baseAppearance.emissive = true;
-                for (const faceValue of diceobj.values) {
-                    this.libraryDie.faces[String(faceValue)] = { emissive: true };
+                // Use shape face count: for inherited shapes the shape has more faces than the type
+                const shapeData = DICE_SHAPE[diceobj.shape];
+                const shapeFaceCount = shapeData ? shapeData.faceValues.filter(v => v !== 0).length : diceobj.values.length;
+                for (let f = 1; f <= shapeFaceCount; f++) {
+                    this.libraryDie.faces[String(f)] = { emissive: true };
                 }
             }
 
@@ -128,7 +132,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
 
         data.buttons = [
             { type: "submit", icon: "fa-solid fa-save", label: "DICESONICE.Save" },
-            { type: "button", action: "exportDie", icon: "fa-solid fa-file-export", label: "DICESONICE.Export" },
+            { type: "button", action: "resetFaces", icon: "fa-solid fa-undo", label: "DICESONICE.editorResetFace" },
             { type: "button", action: "close", icon: "fa-solid fa-ban", label: "DICESONICE.Cancel" }
         ];
 
@@ -179,11 +183,10 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         html.on("input", "input[type=range]", (ev) => {
             $(ev.target).next(".range-value").text(ev.target.value);
         });
-        html.on("click", "[data-face-reset]", () => this._onResetFace());
         html.on("click", "[data-face-filepicker]", () => this._onFilePicker());
 
-        // Export button
-        html.on("click", "[data-action=exportDie]", () => this._onExport());
+        // Reset selected faces button (in footer)
+        html.on("click", "[data-action=resetFaces]", () => this._onResetFace());
     }
 
     _onGlobalChange() {
@@ -193,6 +196,17 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         this.libraryDie.baseAppearance.diceColor = html.find("[name=baseDiceColor]").val();
         this.libraryDie.baseAppearance.texture = html.find("[name=baseTexture]").val();
         this._refreshPreview();
+    }
+
+    /**
+     * Get the display label for a shape face (type value or preset label).
+     */
+    _getShapeFaceDisplay(shapeFaceValue) {
+        const typeMap = this.preview?._shapeToTypeValue || {};
+        const typeLabels = this.preview?._typeValueLabels || {};
+        const tv = typeMap[shapeFaceValue] !== undefined ? typeMap[shapeFaceValue] : shapeFaceValue;
+        const label = typeLabels[tv];
+        return { typeValue: tv, label: label && label.trim() ? label : String(tv) };
     }
 
     _onFaceSelect(faces) {
@@ -205,16 +219,20 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             return;
         }
 
-        const faceValues = [...faces].sort((a, b) => Number(a) - Number(b));
-        const faceLabel = faceValues.map(v => `Face ${v}`).join(", ");
+        const shapeFaces = [...faces].sort((a, b) => Number(a) - Number(b));
+        const faceLabel = shapeFaces.map(sf => {
+            const { typeValue } = this._getShapeFaceDisplay(sf);
+            return typeValue !== sf ? `Face ${sf} (${typeValue})` : `Face ${sf}`;
+        }).join(", ");
         html.find("[data-face-indicator]").text(faceLabel);
         html.find("[data-face-props]").show();
 
         // If single face selected, populate with its values
         if (faces.size === 1) {
-            const faceValue = String(faceValues[0]);
-            const faceData = this.libraryDie.faces[faceValue] || {};
-            html.find("[name=faceLabelText]").val(faceData.labelText || "").attr("placeholder", faceValue);
+            const shapeFace = String(shapeFaces[0]);
+            const faceData = this.libraryDie.faces[shapeFace] || {};
+            const { label: defaultLabel } = this._getShapeFaceDisplay(shapeFaces[0]);
+            html.find("[name=faceLabelText]").val(faceData.labelText || "").attr("placeholder", defaultLabel);
             html.find("[name=faceFont]").val(faceData.font || "");
             html.find("[name=faceFontScale]").val(faceData.fontScale ?? 100);
             html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text((faceData.fontScale ?? 100) + "%");
@@ -286,14 +304,19 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             faceData.labelImageScale = parseInt(html.find("[name=faceLabelImageScale]").val()) || 100;
             faceData.labelImageFlip = html.find("[name=faceLabelImageFlip]").is(":checked");
             faceData.labelImagePosition = parseInt(html.find("[name=faceLabelImagePosition]").val()) || 50;
+        } else {
+            faceData.labelImage = null;
+            faceData.labelImageScale = null;
+            faceData.labelImageFlip = null;
+            faceData.labelImagePosition = null;
         }
         html.find(".label-image-controls").toggle(!!labelImage);
         if (backgroundTexture) faceData.backgroundTexture = backgroundTexture;
         faceData.emissive = emissive;
 
-        // Apply to all selected faces
-        for (const faceValue of this.selectedFaces) {
-            const key = String(faceValue);
+        // Apply to all selected faces (keyed by shape face index)
+        for (const shapeFace of this.selectedFaces) {
+            const key = String(shapeFace);
             if (Object.keys(faceData).length > 0) {
                 this.libraryDie.faces[key] = foundry.utils.mergeObject(
                     this.libraryDie.faces[key] || {},
@@ -306,8 +329,9 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     _onResetFace() {
-        for (const faceValue of this.selectedFaces) {
-            delete this.libraryDie.faces[String(faceValue)];
+        if (this.selectedFaces.size === 0) return;
+        for (const shapeFace of this.selectedFaces) {
+            delete this.libraryDie.faces[String(shapeFace)];
         }
         this._onFaceSelect(this.selectedFaces);
         this._refreshPreview();
@@ -324,34 +348,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             }
         });
         fp.render(true);
-    }
-
-    _onExport() {
-        const library = game.dice3d.diceLibrary;
-        if (!this.isNew && this.libraryDie.id) {
-            const json = library.export(this.libraryDie.id);
-            if (json) {
-                const blob = new Blob([json], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `${this.libraryDie.name || "custom-die"}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-        } else {
-            // Export the in-memory die
-            const exportData = foundry.utils.deepClone(this.libraryDie);
-            delete exportData.id;
-            const json = JSON.stringify({ dsnLibraryExport: true, version: 1, dice: [exportData] }, null, 2);
-            const blob = new Blob([json], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${this.libraryDie.name || "custom-die"}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
     }
 
     _buildAppearance() {
