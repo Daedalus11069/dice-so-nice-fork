@@ -33,6 +33,8 @@
     "DICESONICE.Import": "Import…",
     "DICESONICE.Export": "Export all",
     "DICESONICE.ExportSFX": "Export Special effects",
+    "DICESONICE.ExportLibrary": "Export my Dice Library",
+    "DICESONICE.ImportLibrarySuccess": "Dice Library imported successfully! {count} dice imported, {skipped} skipped (duplicate IDs).",
     "DICESONICE.outlineColor": "Outline Color",
     "DICESONICE.edgeColor": "Edge Color",
     "DICESONICE.texture": "Texture",

@@ -787,6 +787,12 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 });
             });
 
+            $(this.element).on("click", "[data-exportLibrary]", async (ev) => {
+                const filename = `fvtt-dicesonice-Library-${Date.now()}.json`;
+                const json = this.actionExportLibraryToJSON();
+                foundry.utils.saveDataToFile(json, "text/json", filename);
+            });
+
             $(this.element).on("click", "#dice-configuration-canvas", (event) => {
                 let rect = event.target.getBoundingClientRect();
                 let x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -962,11 +968,38 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             preventClose: true,
             preventRender: true
         });
+
+        // Clone appearance and strip cross-user library die references (not portable)
+        const appearance = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "appearance") || {});
+        for (const scope in appearance) {
+            if (!appearance.hasOwnProperty(scope)) continue;
+            if (appearance[scope]?.libraryDieOwner) {
+                delete appearance[scope].libraryDieId;
+                delete appearance[scope].libraryDieOwner;
+            }
+        }
+
+        // Also strip cross-user refs from saves
+        const saves = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "saves") || {});
+        for (const saveName in saves) {
+            if (!saves.hasOwnProperty(saveName)) continue;
+            const saveAppearance = saves[saveName]?.appearance;
+            if (!saveAppearance) continue;
+            for (const scope in saveAppearance) {
+                if (!saveAppearance.hasOwnProperty(scope)) continue;
+                if (saveAppearance[scope]?.libraryDieOwner) {
+                    delete saveAppearance[scope].libraryDieId;
+                    delete saveAppearance[scope].libraryDieOwner;
+                }
+            }
+        }
+
         let data = {
-            appearance: game.user.getFlag("dice-so-nice", "appearance"),
+            appearance: appearance,
             sfxList: game.user.getFlag("dice-so-nice", "sfxList"),
             settings: game.user.getFlag("dice-so-nice", "settings"),
-            saves: game.user.getFlag("dice-so-nice", "saves")
+            saves: saves,
+            diceLibrary: game.user.getFlag("dice-so-nice", "diceLibrary")
         };
 
         return JSON.stringify(data, null, 2);
@@ -986,8 +1019,24 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         return JSON.stringify(data, null, 2);
     }
 
+    actionExportLibraryToJSON() {
+        const library = game.user.getFlag("dice-so-nice", "diceLibrary") || [];
+        const exportDice = library.map(d => foundry.utils.deepClone(d));
+        return JSON.stringify({
+            dsnLibraryExport: true,
+            version: 1,
+            dice: exportDice
+        }, null, 2);
+    }
+
     async actionImportFromJSON(json) {
         let data = JSON.parse(json);
+
+        // Handle library-only exports (from "Export my Dice Library" or DiceEditor exports)
+        if (data.dsnLibraryExport && Array.isArray(data.dice)) {
+            await this._importLibraryDice(data.dice);
+            return;
+        }
 
         if (data.appearance) {
             await game.user.unsetFlag("dice-so-nice", "appearance");
@@ -1005,6 +1054,43 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             await game.user.unsetFlag("dice-so-nice", "saves");
             await game.user.setFlag("dice-so-nice", "saves", data.saves);
         }
+        if (data.diceLibrary) {
+            await this._importLibraryDice(data.diceLibrary);
+        }
+    }
+
+    /**
+     * Import library dice, keeping their original IDs and skipping duplicates.
+     * @param {Array} diceArray - Array of die objects to import.
+     */
+    async _importLibraryDice(diceArray) {
+        if (!Array.isArray(diceArray) || diceArray.length === 0) return;
+
+        const library = game.dice3d.diceLibrary;
+        const existingIds = new Set(library.getAll().map(d => d.id));
+        let imported = 0;
+        let skipped = 0;
+
+        for (const dieData of diceArray) {
+            const die = foundry.utils.deepClone(dieData);
+            if (die.id && existingIds.has(die.id)) {
+                skipped++;
+                continue;
+            }
+            // If no ID (old export format), generate one
+            if (!die.id) {
+                die.id = foundry.utils.randomID();
+            }
+            die.updatedAt = Date.now();
+            library._dice.push(die);
+            existingIds.add(die.id);
+            imported++;
+        }
+
+        if (imported > 0) {
+            await library.save();
+        }
+        ui.notifications.info(game.i18n.format("DICESONICE.ImportLibrarySuccess", { count: imported, skipped: skipped }));
     }
 
     activateAppearanceTab(diceType) {

@@ -299,7 +299,8 @@ export class Utils {
         let saveObject = {
             appearance: game.user.getFlag("dice-so-nice", "appearance"),
             sfxList: game.user.getFlag("dice-so-nice", "sfxList"),
-            settings: game.user.getFlag("dice-so-nice", "settings")
+            settings: game.user.getFlag("dice-so-nice", "settings"),
+            diceLibrary: game.user.getFlag("dice-so-nice", "diceLibrary")
         };
 
         saves.set(name, saveObject);
@@ -345,6 +346,11 @@ export class Utils {
             if (reloadRequired) {
                 window.location.reload();
             }
+        }
+        if (save.diceLibrary) {
+            await game.user.unsetFlag("dice-so-nice", "diceLibrary");
+            await game.user.setFlag("dice-so-nice", "diceLibrary", save.diceLibrary);
+            await game.dice3d.diceLibrary.load();
         }
     }
 

@@ -113,28 +113,24 @@ export class DiceLibrary {
 
     /**
      * Export a die as a JSON string.
+     * ID is preserved so that imports can detect duplicates.
      */
     export(id) {
         const die = this.get(id);
         if (!die) return null;
-        const exportData = foundry.utils.deepClone(die);
-        delete exportData.id;
         return JSON.stringify({
             dsnLibraryExport: true,
             version: 1,
-            dice: [exportData]
+            dice: [foundry.utils.deepClone(die)]
         }, null, 2);
     }
 
     /**
      * Export all dice as a JSON string.
+     * IDs are preserved so that imports can detect duplicates.
      */
     exportAll() {
-        const exportDice = this._dice.map(d => {
-            const copy = foundry.utils.deepClone(d);
-            delete copy.id;
-            return copy;
-        });
+        const exportDice = this._dice.map(d => foundry.utils.deepClone(d));
         return JSON.stringify({
             dsnLibraryExport: true,
             version: 1,
@@ -144,6 +140,7 @@ export class DiceLibrary {
 
     /**
      * Import dice from a JSON string.
+     * Uses the same ID from the export; skips dice with duplicate IDs.
      * @param {string} jsonString
      * @returns {Array} The imported dice.
      */
@@ -157,15 +154,17 @@ export class DiceLibrary {
         if (!parsed.dsnLibraryExport || !Array.isArray(parsed.dice)) {
             throw new Error("Invalid dice library export format");
         }
+        const existingIds = new Set(this._dice.map(d => d.id));
         const imported = [];
         for (const dieData of parsed.dice) {
-            dieData.id = foundry.utils.randomID();
-            dieData.createdAt = Date.now();
+            if (dieData.id && existingIds.has(dieData.id)) continue;
+            if (!dieData.id) dieData.id = foundry.utils.randomID();
             dieData.updatedAt = Date.now();
             this._dice.push(dieData);
+            existingIds.add(dieData.id);
             imported.push(dieData);
         }
-        await this.save();
+        if (imported.length > 0) await this.save();
         return imported;
     }
 
