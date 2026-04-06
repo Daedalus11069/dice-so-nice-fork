@@ -285,7 +285,7 @@
     "DICESONICE.openDiceEditorButton": "Dice Editor",
     "DICESONICE.ChatCommandDescription": "Roll 3D dice without creating a chat message",
     "DICESONICE.ChatCommandCompletionDescription": "Enter a roll formula.",
-    "DICESONICE.libraryDie": "Library Die",
+    "DICESONICE.libraryDie": "Library Custom Die",
     "DICESONICE.diceLibrary": "Dice Library",
     "DICESONICE.editorTitle": "Dice Editor",
     "DICESONICE.editorDieName": "Die Name",
