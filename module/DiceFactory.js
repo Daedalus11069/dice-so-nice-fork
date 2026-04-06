@@ -842,9 +842,21 @@ export class DiceFactory {
 				// that only has labels for glow-enabled faces. The full map is kept
 				// in userData for SFX (PlayAnimationBright) to swap in temporarily.
 				if(materialData.perFaceOverrides) {
+					const baseHasEmissive = !!materialData.baseEmissive;
 					const glowFaces = new Set();
 					for(const [fv, ov] of Object.entries(materialData.perFaceOverrides)) {
 						if(ov.emissive) glowFaces.add(String(fv));
+					}
+					// If the base preset has emissive, also include all faces that
+					// don't have an explicit emissive: false override.
+					if(baseHasEmissive) {
+						for(const val of diceobj.values) {
+							const fv = String(val);
+							const ov = materialData.perFaceOverrides[fv];
+							if(!ov || ov.emissive !== false) {
+								glowFaces.add(fv);
+							}
+						}
 					}
 					if(glowFaces.size > 0) {
 						// Store the full emissive map for SFX use
@@ -1481,13 +1493,17 @@ export class DiceFactory {
 					if(faceData.backgroundTexture !== null && faceData.backgroundTexture !== undefined) {
 						override.texture = DiceColors.getTexture(faceData.backgroundTexture);
 					}
-					if(faceData.emissive) override.emissive = true;
+					if(faceData.emissive === true) override.emissive = true;
+					else if(faceData.emissive === false) override.emissive = false;
 					if(faceData.fontScale !== null && faceData.fontScale !== undefined) override.fontScale = faceData.fontScale;
 					if(Object.keys(override).length > 0) {
 						materialData.perFaceOverrides[faceValue] = override;
 					}
 				}
 				materialData.libraryDieId = appearance.libraryDieId;
+				if(libraryDie.baseAppearance?.emissive) {
+					materialData.baseEmissive = true;
+				}
 			}
 		}
 

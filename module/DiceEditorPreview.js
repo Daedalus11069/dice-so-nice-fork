@@ -1,5 +1,4 @@
 import {
-    Color,
     Quaternion,
     Raycaster,
     Triangle,
@@ -214,23 +213,9 @@ export class DiceEditorPreview {
     }
 
     _updateHighlights() {
-        if (!this.dieMesh?.material?.emissiveMap) return;
-        const mat = this.dieMesh.material;
-        if (!mat.userData?.materialData) return;
-
-        if (this._hasGlow) {
-            // When glow is active, the emissive is used for the bloom effect.
-            // Don't override it for selection highlights.
-            mat.emissive = new Color(0xffffff);
-            mat.emissiveIntensity = 0.7;
-        } else if (this.selectedFaces.size > 0) {
-            mat.emissive = new Color(0x00AAFF);
-            mat.emissiveIntensity = 0.3;
-        } else {
-            mat.emissive = new Color(0x000000);
-            mat.emissiveIntensity = 1;
-        }
-        mat.needsUpdate = true;
+        // No-op for now. Face selection is shown via the UI text indicator.
+        // A visual highlight on the 3D mesh would conflict with preset emissive
+        // maps (e.g. Spectrum glow), so we skip it.
     }
 
     _animate() {
@@ -261,10 +246,6 @@ export class DiceEditorPreview {
         this.dieMesh = mesh;
         this.dieMesh.scale.multiplyScalar(2);
         this.box.scene.add(this.dieMesh);
-
-        // Track whether glow is active (set in createMaterial) so _updateHighlights
-        // knows not to overwrite the emissive values.
-        this._hasGlow = !!this.dieMesh.material?.userData?.emissiveMapGlow;
 
         const diceobj = this.diceFactory.getPresetBySystem(dieType, appearance.system || "standard");
         if (diceobj) {

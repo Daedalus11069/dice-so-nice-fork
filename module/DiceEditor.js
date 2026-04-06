@@ -65,6 +65,19 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie.baseAppearance.texture = resolved.texture || "none";
             this.libraryDie.baseAppearance.material = resolved.material || "plastic";
             this.libraryDie.baseAppearance.font = resolved.font || "auto";
+            this.libraryDie.baseAppearance.system = resolved.system || "standard";
+
+            // If the preset has emissive maps (e.g. Spectrum, Dot), mark the base
+            // as emissive and pre-populate all faces with emissive: true so that
+            // the per-face glow system preserves preset glow by default.
+            const diceobj = factory.getPresetBySystem(dieType, resolved.system || "standard");
+            if (diceobj && diceobj.emissive && diceobj.emissive !== 0x000000) {
+                this.libraryDie.baseAppearance.emissive = true;
+                for (const faceValue of diceobj.values) {
+                    this.libraryDie.faces[String(faceValue)] = { emissive: true };
+                }
+            }
+
             this.isNew = true;
         }
 
@@ -201,7 +214,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         if (faces.size === 1) {
             const faceValue = String(faceValues[0]);
             const faceData = this.libraryDie.faces[faceValue] || {};
-            html.find("[name=faceLabelText]").val(faceData.labelText || "");
+            html.find("[name=faceLabelText]").val(faceData.labelText || "").attr("placeholder", faceValue);
             html.find("[name=faceFont]").val(faceData.font || "");
             html.find("[name=faceFontScale]").val(faceData.fontScale ?? 100);
             html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text((faceData.fontScale ?? 100) + "%");
@@ -276,7 +289,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         }
         html.find(".label-image-controls").toggle(!!labelImage);
         if (backgroundTexture) faceData.backgroundTexture = backgroundTexture;
-        if (emissive) faceData.emissive = true;
+        faceData.emissive = emissive;
 
         // Apply to all selected faces
         for (const faceValue of this.selectedFaces) {
@@ -352,7 +365,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             texture: base.texture || "none",
             material: base.material || "plastic",
             font: base.font || "auto",
-            system: "standard",
+            system: base.system || "standard",
             systemSettings: {},
             libraryDieId: this.libraryDie.id || null
         };
