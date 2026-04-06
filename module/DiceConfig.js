@@ -5,7 +5,7 @@ import { Utils } from './Utils.js';
 import { DiceNotation } from './DiceNotation.js';
 import { DiceColors, DICE_SCALE } from './DiceColors.js';
 import { DiceSystem } from './DiceSystem.js';
-import { DiceLibrary } from './DiceLibrary.js';
+import { DiceLibrary, LIBRARY_DIE_TYPES } from './DiceLibrary.js';
 import { DiceLibraryDialog } from './DiceLibraryDialog.js';
 import { DiceEditor } from './DiceEditor.js';
 
@@ -296,7 +296,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 textureList: data.textureList,
                 materialList: data.materialList,
                 fontList: data.fontList,
-                showLibrary: isPerDie,
+                showLibrary: isPerDie && LIBRARY_DIE_TYPES.includes(diceType),
                 libraryDiceGroups: libraryDiceGroups,
                 systemSettings: systemSettingsScoped.hasOwnProperty(diceType) ? systemSettingsScoped[diceType] : '',
                 systemSettingsVisible: systemSettingsScoped.hasOwnProperty(diceType) ? '' : 'dsn-hidden'
@@ -831,7 +831,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                             textureList: this.initializationData.textureList,
                             materialList: this.initializationData.materialList,
                             fontList: this.initializationData.fontList,
-                            showLibrary: true,
+                            showLibrary: LIBRARY_DIE_TYPES.includes(diceType),
                             libraryDiceGroups: libraryDiceGroups,
                             systemSettings: newSystemSettings
                         }).then((html) => {
