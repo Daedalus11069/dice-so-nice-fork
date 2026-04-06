@@ -15,8 +15,12 @@
         <div class="form-fields">
             <select data-libraryDie data-dicetype="{{dicetype}}" name="appearance[{{dicetype}}][libraryDieId]">
                 <option value="">{{localize "DICESONICE.None"}}</option>
-                {{#each libraryDiceList}}
-                <option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+                {{#each libraryDiceGroups}}
+                <optgroup label="{{this.label}}">
+                    {{#each this.dice}}
+                    <option value="{{this.value}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+                    {{/each}}
+                </optgroup>
                 {{/each}}
             </select>
             <a class="library-control" data-library-manage data-dicetype="{{dicetype}}" title='{{localize "DICESONICE.diceLibrary"}}'><i class="fas fa-book"></i></a>

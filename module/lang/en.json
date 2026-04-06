@@ -312,5 +312,8 @@
     "DICESONICE.editorDeleteConfirm": "Are you sure you want to delete \"{name}\"?",
     "DICESONICE.editorNoCustomDice": "No custom dice yet. Click \"Create New\" to get started!",
     "DICESONICE.editorImportSuccess": "Custom dice imported successfully!",
-    "DICESONICE.editorAllTypes": "All Types"
+    "DICESONICE.editorAllTypes": "All Types",
+    "DICESONICE.libraryMyDice": "My Dice",
+    "DICESONICE.libraryUserDice": "{name}'s Dice",
+    "DICESONICE.libraryNoDice": "No custom dice in this section."
 }

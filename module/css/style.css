@@ -455,43 +455,104 @@
 }
 
 /* Dice Library Dialog */
-.dice-library-dialog-app .dice-library-header {
+.dice-library-dialog-app .window-content {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 8px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid var(--color-border-light-tertiary);
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.dice-library-dialog-app .dice-library-title {
+.dice-library-dialog-app .dice-library-dialog {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.dice-library-dialog-app .dice-library-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.dice-library-dialog-app .dice-library-empty {
+    flex: 1;
+}
+
+.dice-library-dialog-app .dice-library-section {
+    margin-bottom: 4px;
+    border: 1px solid var(--color-border-light-tertiary);
+    border-radius: 4px;
+}
+
+.dice-library-dialog-app .dice-library-section-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: bold;
-    font-size: 1.05em;
+    padding: 6px 10px;
+    background: var(--color-cool-5);
+    cursor: pointer;
+    user-select: none;
+}
+
+.dice-library-dialog-app .dice-library-section-header:hover {
+    background: var(--color-cool-4);
+}
+
+.dice-library-dialog-app .section-chevron {
+    transition: transform 0.15s ease;
+    font-size: 0.8em;
+    width: 12px;
+}
+
+.dice-library-dialog-app .dice-library-section.collapsed .section-chevron {
+    transform: rotate(-90deg);
+}
+
+.dice-library-dialog-app .dice-library-section.collapsed .dice-library-section-body {
+    display: none;
 }
 
 .dice-library-dialog-app .die-type-badge {
     display: inline-block;
-    background: var(--color-cool-5);
+    background: var(--color-cool-4);
     border: 1px solid var(--color-border-light-tertiary);
     border-radius: 3px;
-    padding: 2px 8px;
+    padding: 1px 8px;
     font-size: 0.85em;
     text-transform: uppercase;
     font-weight: bold;
     letter-spacing: 0.5px;
 }
 
-.dice-library-dialog-app .dice-library-actions {
-    display: flex;
-    gap: 4px;
+.dice-library-dialog-app .section-create-btn {
+    margin-left: auto;
+    font-size: 0.8em;
+    padding: 2px 8px;
+    line-height: 1.4;
 }
 
-.dice-library-dialog-app .dice-library-actions button {
-    font-size: 0.85em;
-    padding: 4px 10px;
+.dice-library-dialog-app .dice-library-section-body {
+    padding: 4px 0;
+}
+
+.dice-library-dialog-app .dice-library-subsection {
+    padding: 0 10px;
+}
+
+.dice-library-dialog-app .dice-library-subsection-header {
+    font-size: 0.8em;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-text-dark-secondary);
+    padding: 4px 0 2px;
+}
+
+.dice-library-dialog-app .dice-library-other-user {
+    border-top: 1px solid var(--color-border-light-tertiary);
+    margin-top: 2px;
+    padding-top: 2px;
 }
 
 .dice-library-dialog-app .dice-list {
@@ -503,25 +564,23 @@
 .dice-library-dialog-app .dice-list-entry {
     display: flex;
     align-items: center;
-    padding: 8px 10px;
+    padding: 4px 8px;
     border-radius: 4px;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 .dice-library-dialog-app .dice-list-entry:hover {
     background: var(--color-cool-5);
 }
 
+.dice-library-dialog-app .other-user-entry {
+    opacity: 0.8;
+}
+
 .dice-library-dialog-app .die-name {
     flex: 1;
     font-weight: bold;
-}
-
-.dice-library-dialog-app .die-type {
-    margin-right: 12px;
-    color: var(--color-text-dark-secondary);
-    text-transform: uppercase;
-    font-size: 0.85em;
+    font-size: 0.95em;
 }
 
 .dice-library-dialog-app .die-actions {
@@ -544,14 +603,18 @@
     color: var(--color-level-error);
 }
 
-.dice-library-dialog-app .dice-library-empty {
+.dice-library-dialog-app .dice-library-empty,
+.dice-library-dialog-app .dice-library-empty-sub {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px 20px;
     color: var(--color-text-dark-secondary);
     text-align: center;
+}
+
+.dice-library-dialog-app .dice-library-empty {
+    padding: 40px 20px;
 }
 
 .dice-library-dialog-app .dice-library-empty i {
@@ -563,4 +626,32 @@
 .dice-library-dialog-app .dice-library-empty p {
     margin: 0;
     font-style: italic;
+}
+
+.dice-library-dialog-app .dice-library-empty-sub {
+    padding: 6px 0;
+    font-size: 0.85em;
+    font-style: italic;
+}
+
+.dice-library-dialog-app .dice-library-footer {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 8px 0 0;
+    border-top: 1px solid var(--color-border-light-tertiary);
+    margin-top: 4px;
+}
+
+.dice-library-dialog-app .dice-library-footer select {
+    flex: 0 0 auto;
+    width: auto;
+}
+
+.dice-library-dialog-app .dice-library-footer button {
+    flex: 0 0 auto;
+    font-size: 0.85em;
+    padding: 4px 10px;
 }

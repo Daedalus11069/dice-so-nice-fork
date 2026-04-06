@@ -1360,6 +1360,9 @@ export class DiceFactory {
 		if(settings.libraryDieId){
 			appearance.libraryDieId = settings.libraryDieId;
 		}
+		if(settings.libraryDieOwner){
+			appearance.libraryDieOwner = settings.libraryDieOwner;
+		}
 		return appearance;
 	}
 
@@ -1500,10 +1503,20 @@ export class DiceFactory {
 		materialData.isGhost = appearance.isGhost?appearance.isGhost:false;
 
 		// Per-face overrides from dice library
-		if(appearance.libraryDieId && diceLibrary) {
-			const libraryDie = Array.isArray(diceLibrary)
-				? diceLibrary.find(d => d.id === appearance.libraryDieId)
-				: null;
+		if(appearance.libraryDieId) {
+			let libraryDie = null;
+			if(appearance.libraryDieOwner) {
+				// Cross-user reference: load from the owner's library
+				const owner = game.users.get(appearance.libraryDieOwner);
+				if(owner) {
+					libraryDie = DiceLibrary.getFromUser(owner, appearance.libraryDieId);
+				}
+			} else if(diceLibrary) {
+				// Own library: use the passed array (current behavior)
+				libraryDie = Array.isArray(diceLibrary)
+					? diceLibrary.find(d => d.id === appearance.libraryDieId)
+					: null;
+			}
 			if(libraryDie && libraryDie.faces) {
 				materialData.perFaceOverrides = {};
 				for(const [faceValue, faceData] of Object.entries(libraryDie.faces)) {
@@ -1541,7 +1554,7 @@ export class DiceFactory {
 			}
 		}
 
-		let cacheExtra = materialData.libraryDieId ? materialData.libraryDieId : "";
+		let cacheExtra = materialData.libraryDieId ? (appearance.libraryDieOwner || "") + materialData.libraryDieId : "";
 		materialData.cacheString = appearance.system+materialData.background+materialData.foreground+materialData.outline+materialData.texture.name+materialData.edge+materialData.material+materialData.font+materialData.isGhost+cacheExtra;
 		return materialData;
 	}

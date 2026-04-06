@@ -281,19 +281,12 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         let tabsAppearance = [];
         let tabsPromises = [];
         data.navAppearance = {};
-        const allLibraryDice = game.dice3d.diceLibrary ? game.dice3d.diceLibrary.getAll() : [];
         tabsList.forEach((diceType) => {
-            // Build library dice list for this die type (not for global)
+            // Build library dice groups for this die type (not for global)
             const isPerDie = diceType !== "global";
-            let libraryDiceList = [];
+            let libraryDiceGroups = [];
             if(isPerDie) {
-                const typeDice = allLibraryDice.filter(d => d.dieType === diceType);
-                const selectedId = data.appearance[diceType]?.libraryDieId || "";
-                libraryDiceList = typeDice.map(d => ({
-                    id: d.id,
-                    name: d.name,
-                    selected: d.id === selectedId
-                }));
+                libraryDiceGroups = DiceLibraryDialog.buildLibraryDiceGroups(diceType, data.appearance[diceType]);
             }
             tabsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
                 dicetype: diceType,
@@ -304,7 +297,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 materialList: data.materialList,
                 fontList: data.fontList,
                 showLibrary: isPerDie,
-                libraryDiceList: libraryDiceList,
+                libraryDiceGroups: libraryDiceGroups,
                 systemSettings: systemSettingsScoped.hasOwnProperty(diceType) ? systemSettingsScoped[diceType] : '',
                 systemSettingsVisible: systemSettingsScoped.hasOwnProperty(diceType) ? '' : 'dsn-hidden'
             }).then((html) => {
@@ -819,13 +812,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                             }
                         }
                         $(this.element).find(".dsn-appearance-hint").hide();
-                        const allLibraryDice = game.dice3d.diceLibrary ? game.dice3d.diceLibrary.getAll() : [];
-                        const typeDice = allLibraryDice.filter(d => d.dieType === diceType);
-                        const libraryDiceList = typeDice.map(d => ({
-                            id: d.id,
-                            name: d.name,
-                            selected: false
-                        }));
+                        const libraryDiceGroups = DiceLibraryDialog.buildLibraryDiceGroups(diceType, null);
                         foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
                             dicetype: diceType,
                             appearance: this.currentGlobalAppearance,
@@ -835,7 +822,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                             materialList: this.initializationData.materialList,
                             fontList: this.initializationData.fontList,
                             showLibrary: true,
-                            libraryDiceList: libraryDiceList,
+                            libraryDiceGroups: libraryDiceGroups,
                             systemSettings: newSystemSettings
                         }).then((html) => {
                             //We add a "title" attribute to all colorsets to give a way to users to see the colorset id
@@ -1200,6 +1187,19 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         }
     }
 
+    /**
+     * Parse a library die select value into libraryDieId + libraryDieOwner.
+     * Values are either "dieId" (own die) or "userId:dieId" (other user's die).
+     */
+    static _parseLibraryDieValue(val) {
+        if (!val) return {};
+        if (val.includes(":")) {
+            const [owner, id] = val.split(":", 2);
+            return { libraryDieId: id, libraryDieOwner: owner };
+        }
+        return { libraryDieId: val };
+    }
+
     getShowcaseAppearance() {
         let config = {
             autoscale: false,
@@ -1229,7 +1229,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 material: $(element).find('[data-material]').val(),
                 font: $(element).find('[data-font]').val(),
                 system: $(element).find('[data-system]').val(),
-                libraryDieId: $(element).find('[data-libraryDie]').val() || undefined
+                ...DiceConfig._parseLibraryDieValue($(element).find('[data-libraryDie]').val())
             };
 
             const systemSettingsRaw = {};
@@ -1260,6 +1260,35 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         config.diceLibrary = DiceLibrary.getLibraryForUser(game.user);
         this.currentGlobalAppearance = config.appearance.global;
         return config;
+    }
+
+    /**
+     * Refresh the library die dropdown(s) in appearance tabs.
+     * Called by DiceLibraryDialog after add/duplicate/delete/import.
+     * @param {string|null} dieType - Refresh only this type's tab, or all tabs if null.
+     */
+    refreshLibraryDropdown(dieType = null) {
+        const tabs = dieType
+            ? $(this.element).find(`.tabAppearance[data-tab="${dieType}"]`)
+            : $(this.element).find('.tabAppearance').not('[data-tab="global"]');
+
+        tabs.each((_, element) => {
+            const tab = $(element).data("tab");
+            const select = $(element).find('[data-libraryDie]');
+            if (!select.length) return;
+            const currentVal = select.val() || "";
+            const groups = DiceLibraryDialog.buildLibraryDiceGroups(tab, null, currentVal);
+            let html = `<option value="">${game.i18n.localize("DICESONICE.None")}</option>`;
+            for (const group of groups) {
+                html += `<optgroup label="${group.label}">`;
+                for (const d of group.dice) {
+                    const sel = d.value === currentVal ? " selected" : "";
+                    html += `<option value="${d.value}"${sel}>${d.name}</option>`;
+                }
+                html += `</optgroup>`;
+            }
+            select.html(html);
+        });
     }
 
     //Not used because SFX aren't initialized. Keeping it here for later use.

@@ -5,6 +5,12 @@ import { AssetsLoader } from './AssetsLoader.js';
  * Manages CRUD operations on a user's custom dice library.
  * Stored in the `dice-so-nice/diceLibrary` user flag (array of custom die objects).
  */
+/**
+ * Ordered list of die types supported by the Dice Editor / Library.
+ * D4 excluded (special rendering, not yet supported). DC excluded (coin).
+ */
+export const LIBRARY_DIE_TYPES = ["df", "d2", "d3", "d5", "d6", "d7", "d8", "d10", "d12", "d14", "d16", "d20", "d24", "d30", "d100"];
+
 export class DiceLibrary {
 
     // Static cache of loaded label images, keyed by URL → {source, frame}
@@ -219,14 +225,16 @@ export class DiceLibrary {
         const collectFromUser = (user) => {
             const appearance = user.getFlag("dice-so-nice", "appearance");
             if (!appearance) return;
-            const library = DiceLibrary.getLibraryForUser(user);
-            if (!library.length) return;
 
             for (const scope in appearance) {
                 if (!appearance.hasOwnProperty(scope)) continue;
                 const libId = appearance[scope]?.libraryDieId;
                 if (!libId) continue;
-                const die = library.find(d => d.id === libId);
+                // Resolve die from owner's library if cross-user, otherwise from this user's
+                const ownerId = appearance[scope]?.libraryDieOwner;
+                const owner = ownerId ? game.users.get(ownerId) : user;
+                if (!owner) continue;
+                const die = DiceLibrary.getFromUser(owner, libId);
                 if (!die?.faces) continue;
                 for (const faceData of Object.values(die.faces)) {
                     if (faceData?.labelImage) urls.add(faceData.labelImage);

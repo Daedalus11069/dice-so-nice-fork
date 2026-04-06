@@ -1,4 +1,5 @@
 import { TEXTURELIST, COLORSETS } from './DiceColors.js';
+import { DiceLibrary } from './DiceLibrary.js';
 /**
  * Generic utilities class...
  */
@@ -379,9 +380,19 @@ export class Utils {
 
             // Validate libraryDieId references
             if (settings.libraryDieId) {
-                const library = game.dice3d?.diceLibrary;
-                if (library && !library.get(settings.libraryDieId)) {
-                    delete settings.libraryDieId;
+                if (settings.libraryDieOwner) {
+                    // Cross-user reference: check owner exists and has the die
+                    const owner = game.users?.get(settings.libraryDieOwner);
+                    if (!owner || !DiceLibrary.getFromUser(owner, settings.libraryDieId)) {
+                        delete settings.libraryDieId;
+                        delete settings.libraryDieOwner;
+                    }
+                } else {
+                    // Own library reference
+                    const library = game.dice3d?.diceLibrary;
+                    if (library && !library.get(settings.libraryDieId)) {
+                        delete settings.libraryDieId;
+                    }
                 }
             }
         }

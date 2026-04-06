@@ -1,9 +1,11 @@
 import { DiceEditor } from './DiceEditor.js';
+import { DiceLibrary, LIBRARY_DIE_TYPES } from './DiceLibrary.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 /**
- * Library popup — lists the user's custom dice for a given type, with CRUD actions.
+ * Unified library popup — shows all die types in collapsible sections,
+ * including other users' dice (duplicate-only).
  */
 export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2) {
 
@@ -17,14 +19,14 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
         id: "dice-library-dialog",
         position: {
             width: 540,
-            height: 400
+            height: 500
         }
     };
 
     static PARTS = {
         content: {
             template: "modules/dice-so-nice/templates/dice-library-dialog.hbs",
-            scrollable: [""]
+            scrollable: [".dice-library-list"]
         }
     };
 
@@ -34,52 +36,181 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
         this.diceConfig = options.diceConfig || null;
     }
 
+    _refreshConfigDropdown() {
+        if (this.diceConfig) {
+            this.diceConfig.refreshLibraryDropdown();
+        }
+    }
+
     async _prepareContext(options) {
-        const library = game.dice3d.diceLibrary;
-        let dice;
-        if (this.dieType) {
-            dice = library.getByType(this.dieType);
-        } else {
-            dice = library.getAll();
+        const myId = game.user.id;
+        const myDice = game.dice3d.diceLibrary.getAll();
+
+        // Collect other users' dice
+        const otherUsersData = [];
+        for (const user of game.users) {
+            if (user.id === myId) continue;
+            const userDice = DiceLibrary.getLibraryForUser(user);
+            if (userDice.length > 0) {
+                otherUsersData.push({
+                    userId: user.id,
+                    userName: user.name,
+                    dice: userDice
+                });
+            }
         }
 
-        return {
-            dieType: this.dieType ? this.dieType.toUpperCase() : game.i18n.localize("DICESONICE.editorAllTypes"),
-            dice
-        };
+        // Build sections by die type — collect all types that have at least one die
+        const allTypes = new Set();
+        for (const d of myDice) allTypes.add(d.dieType);
+        for (const u of otherUsersData) {
+            for (const d of u.dice) allTypes.add(d.dieType);
+        }
+
+        // Sort die types in canonical order
+        const sortedTypes = [...allTypes].sort((a, b) => {
+            const ia = LIBRARY_DIE_TYPES.indexOf(a);
+            const ib = LIBRARY_DIE_TYPES.indexOf(b);
+            return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+        });
+
+        const sections = sortedTypes.map(dieType => {
+            const myTypeDice = myDice.filter(d => d.dieType === dieType);
+            const otherUsers = otherUsersData
+                .map(u => ({
+                    userId: u.userId,
+                    userName: u.userName,
+                    dice: u.dice.filter(d => d.dieType === dieType)
+                }))
+                .filter(u => u.dice.length > 0);
+
+            return {
+                dieType,
+                label: dieType.toUpperCase(),
+                expanded: dieType === this.dieType,
+                myDice: myTypeDice,
+                otherUsers
+            };
+        });
+
+        // Build die type list for footer create selector
+        const dieTypeOptions = LIBRARY_DIE_TYPES.map(t => ({
+            value: t,
+            label: t.toUpperCase(),
+            selected: t === this.dieType
+        }));
+
+        return { sections, hasAnySections: sections.length > 0, dieTypeOptions };
+    }
+
+    /**
+     * Build optgroup data for the library die dropdown in DiceConfig.
+     * Used by DiceConfig._prepareContext, refreshLibraryDropdown, and tab creation.
+     * @param {string} dieType - Die type to filter by
+     * @param {object|null} appearance - Appearance data for determining selected value
+     * @param {string} [selectedOverride] - Override for selected value (used by refreshLibraryDropdown)
+     * @returns {Array<{label: string, dice: Array<{value: string, name: string, selected: boolean}>}>}
+     */
+    static buildLibraryDiceGroups(dieType, appearance, selectedOverride = null) {
+        const myId = game.user.id;
+        const selectedId = selectedOverride ?? appearance?.libraryDieId ?? "";
+        const selectedOwner = appearance?.libraryDieOwner ?? "";
+        // Determine the full selected value for comparison
+        const selectedVal = selectedOwner ? `${selectedOwner}:${selectedId}` : selectedId;
+
+        const groups = [];
+
+        // My dice
+        const myDice = game.dice3d.diceLibrary ? game.dice3d.diceLibrary.getAll().filter(d => d.dieType === dieType) : [];
+        if (myDice.length > 0) {
+            groups.push({
+                label: game.i18n.localize("DICESONICE.libraryMyDice"),
+                dice: myDice.map(d => ({
+                    value: d.id,
+                    name: d.name,
+                    selected: d.id === selectedVal
+                }))
+            });
+        }
+
+        // Other users' dice
+        for (const user of game.users) {
+            if (user.id === myId) continue;
+            const userDice = DiceLibrary.getLibraryForUser(user).filter(d => d.dieType === dieType);
+            if (userDice.length > 0) {
+                groups.push({
+                    label: user.name,
+                    dice: userDice.map(d => ({
+                        value: `${user.id}:${d.id}`,
+                        name: d.name,
+                        selected: `${user.id}:${d.id}` === selectedVal
+                    }))
+                });
+            }
+        }
+
+        return groups;
     }
 
     _onRender(context, options) {
         const html = $(this.element);
 
         // Remove previous event handlers to avoid stacking on re-render
-        html.off("click.diceLibrary change.diceLibrary");
+        html.off(".diceLibrary");
 
-        html.on("click.diceLibrary", "[data-action=createNew]", () => {
-            const dieType = this.dieType || "d20";
+        // Collapse/expand sections
+        html.on("click.diceLibrary", "[data-action=toggleSection]", (ev) => {
+            const section = $(ev.currentTarget).closest(".dice-library-section");
+            section.toggleClass("collapsed");
+        });
+
+        // Create new die in a specific section
+        html.on("click.diceLibrary", "[data-action=createNew]", (ev) => {
+            ev.stopPropagation();
+            const dieType = $(ev.currentTarget).data("die-type");
             const editor = new DiceEditor(dieType, null, {
-                onSave: () => this.render(true)
+                diceConfig: this.diceConfig,
+                onSave: () => { this.render(true); this._refreshConfigDropdown(); }
             });
             editor.render(true);
         });
 
+        // Edit own die
         html.on("click.diceLibrary", "[data-action=editDie]", (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             const die = game.dice3d.diceLibrary.get(id);
             if (!die) return;
             const editor = new DiceEditor(die.dieType, die, {
-                onSave: () => this.render(true)
+                onSave: () => { this.render(true); this._refreshConfigDropdown(); }
             });
             editor.render(true);
         });
 
+        // Duplicate own die
         html.on("click.diceLibrary", "[data-action=duplicateDie]", async (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             await game.dice3d.diceLibrary.duplicate(id);
             this.render(true);
+            this._refreshConfigDropdown();
         });
 
+        // Duplicate another user's die into own library
+        html.on("click.diceLibrary", "[data-action=duplicateOtherDie]", async (ev) => {
+            const id = $(ev.currentTarget).data("die-id");
+            const userId = $(ev.currentTarget).data("user-id");
+            const owner = game.users.get(userId);
+            if (!owner) return;
+            const die = DiceLibrary.getFromUser(owner, id);
+            if (!die) return;
+            const copy = foundry.utils.deepClone(die);
+            delete copy.id;
+            copy.name = `${copy.name} (Copy)`;
+            await game.dice3d.diceLibrary.add(copy);
+            this.render(true);
+            this._refreshConfigDropdown();
+        });
 
+        // Delete own die
         html.on("click.diceLibrary", "[data-action=deleteDie]", async (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             const die = game.dice3d.diceLibrary.get(id);
@@ -91,23 +222,26 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             await game.dice3d.diceLibrary.delete(id);
             game.dice3d.box.dicefactory.disposeCachedMaterials();
             this.render(true);
+            this._refreshConfigDropdown();
         });
 
-        html.on("click.diceLibrary", "[data-action=importDie]", () => {
-            html.find("[data-import-file]").trigger("click");
+        // Footer: create die from selected type
+        html.on("click.diceLibrary", "[data-action=createFromFooter]", () => {
+            const dieType = html.find("[data-footer-dietype]").val();
+            if (!dieType) return;
+            const editor = new DiceEditor(dieType, null, {
+                diceConfig: this.diceConfig,
+                onSave: () => { this.render(true); this._refreshConfigDropdown(); }
+            });
+            editor.render(true);
         });
 
-        html.on("change.diceLibrary", "[data-import-file]", async (ev) => {
-            const file = ev.target.files[0];
-            if (!file) return;
-            try {
-                const text = await file.text();
-                await game.dice3d.diceLibrary.import(text);
-                ui.notifications.info(game.i18n.localize("DICESONICE.editorImportSuccess"));
-                this.render(true);
-            } catch (e) {
-                ui.notifications.error(e.message);
+        // Auto-scroll to the expanded section
+        if (this.dieType) {
+            const target = html.find(`.dice-library-section[data-die-type="${this.dieType}"]`);
+            if (target.length) {
+                target[0].scrollIntoView({ behavior: "smooth", block: "start" });
             }
-        });
+        }
     }
 }

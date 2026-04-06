@@ -1,5 +1,6 @@
 import { DiceEditorPreview } from './DiceEditorPreview.js';
 import { DiceLibrary } from './DiceLibrary.js';
+import { DiceColors } from './DiceColors.js';
 import { DICE_SHAPE } from './DiceModels.js';
 import { Utils } from './Utils.js';
 
@@ -54,16 +55,32 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie = foundry.utils.deepClone(libraryDie);
             this.isNew = false;
         } else {
-            // Initialize new die from the user's current appearance for this die type
+            // Initialize new die from the current appearance for this die type.
+            // Prefer live DiceConfig form values (unsaved) over the persisted flag.
             const factory = game.dice3d.box.dicefactory;
-            const appearances = game.user.getFlag("dice-so-nice", "appearance") || {};
+            const diceConfig = options.diceConfig || null;
+            const appearances = diceConfig
+                ? diceConfig.getShowcaseAppearance().appearance
+                : (game.user.getFlag("dice-so-nice", "appearance") || {});
             const resolved = factory.getAppearanceForDice(appearances, dieType);
             this.libraryDie = DiceLibrary.createEmptyDie(dieType, `Custom ${dieType.toUpperCase()}`);
             this.libraryDie.baseAppearance.diceColor = resolved.background || "#000000";
             this.libraryDie.baseAppearance.labelColor = resolved.foreground || "#FFFFFF";
             this.libraryDie.baseAppearance.outlineColor = resolved.outline || "";
             this.libraryDie.baseAppearance.edgeColor = resolved.edge || "";
-            this.libraryDie.baseAppearance.texture = resolved.texture || "none";
+            // When texture is "none" but a themed colorset is active, the actual
+            // texture comes from the colorset data (resolved in generateMaterialData).
+            // Since the editor forces colorset to "custom", we must resolve it here.
+            let effectiveTexture = resolved.texture || "none";
+            if (effectiveTexture === "none" && resolved.colorset && resolved.colorset !== "custom") {
+                const colorsetData = DiceColors.getColorSet(resolved.colorset);
+                if (colorsetData.texture && colorsetData.texture !== "custom" && colorsetData.texture !== "none") {
+                    effectiveTexture = Array.isArray(colorsetData.texture)
+                        ? colorsetData.texture[0]
+                        : colorsetData.texture;
+                }
+            }
+            this.libraryDie.baseAppearance.texture = effectiveTexture;
             this.libraryDie.baseAppearance.material = resolved.material || "plastic";
             this.libraryDie.baseAppearance.font = resolved.font || "auto";
             this.libraryDie.baseAppearance.system = resolved.system || "standard";
