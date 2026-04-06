@@ -142,7 +142,7 @@ export class DiceLibrary {
      * Import dice from a JSON string.
      * Uses the same ID from the export; skips dice with duplicate IDs.
      * @param {string} jsonString
-     * @returns {Array} The imported dice.
+     * @returns {{imported: number, skipped: number}}
      */
     async import(jsonString) {
         let parsed;
@@ -154,18 +154,34 @@ export class DiceLibrary {
         if (!parsed.dsnLibraryExport || !Array.isArray(parsed.dice)) {
             throw new Error("Invalid dice library export format");
         }
+        return this.importArray(parsed.dice);
+    }
+
+    /**
+     * Import an array of die objects into the library.
+     * Preserves original IDs; skips dice with duplicate IDs.
+     * @param {Array} diceArray - Array of die data objects.
+     * @returns {{imported: number, skipped: number}}
+     */
+    async importArray(diceArray) {
+        if (!Array.isArray(diceArray) || diceArray.length === 0) return { imported: 0, skipped: 0 };
         const existingIds = new Set(this._dice.map(d => d.id));
-        const imported = [];
-        for (const dieData of parsed.dice) {
-            if (dieData.id && existingIds.has(dieData.id)) continue;
-            if (!dieData.id) dieData.id = foundry.utils.randomID();
-            dieData.updatedAt = Date.now();
-            this._dice.push(dieData);
-            existingIds.add(dieData.id);
-            imported.push(dieData);
+        let imported = 0;
+        let skipped = 0;
+        for (const dieData of diceArray) {
+            const die = foundry.utils.deepClone(dieData);
+            if (die.id && existingIds.has(die.id)) {
+                skipped++;
+                continue;
+            }
+            if (!die.id) die.id = foundry.utils.randomID();
+            die.updatedAt = Date.now();
+            this._dice.push(die);
+            existingIds.add(die.id);
+            imported++;
         }
-        if (imported.length > 0) await this.save();
-        return imported;
+        if (imported > 0) await this.save();
+        return { imported, skipped };
     }
 
     /**
@@ -309,5 +325,53 @@ export class DiceLibrary {
             },
             faces: {}
         };
+    }
+
+    /**
+     * Build optgroup data for the library die dropdown in DiceConfig.
+     * @param {string} dieType - Die type to filter by
+     * @param {object|null} appearance - Appearance data for determining selected value
+     * @param {string} [selectedOverride] - Override for selected value
+     * @returns {Array<{label: string, dice: Array<{value: string, name: string, selected: boolean}>}>}
+     */
+    static buildLibraryDiceGroups(dieType, appearance, selectedOverride = null) {
+        const myId = game.user.id;
+        const selectedId = selectedOverride ?? appearance?.libraryDieId ?? "";
+        const selectedOwner = appearance?.libraryDieOwner ?? "";
+        // Determine the full selected value for comparison
+        const selectedVal = selectedOwner ? `${selectedOwner}:${selectedId}` : selectedId;
+
+        const groups = [];
+
+        // My dice
+        const myDice = game.dice3d.diceLibrary ? game.dice3d.diceLibrary.getAll().filter(d => d.dieType === dieType) : [];
+        if (myDice.length > 0) {
+            groups.push({
+                label: game.i18n.localize("DICESONICE.libraryMyDice"),
+                dice: myDice.map(d => ({
+                    value: d.id,
+                    name: d.name,
+                    selected: d.id === selectedVal
+                }))
+            });
+        }
+
+        // Other users' dice
+        for (const user of game.users) {
+            if (user.id === myId) continue;
+            const userDice = DiceLibrary.getLibraryForUser(user).filter(d => d.dieType === dieType);
+            if (userDice.length > 0) {
+                groups.push({
+                    label: game.i18n.format("DICESONICE.libraryUserDice", { name: user.name }),
+                    dice: userDice.map(d => ({
+                        value: `${user.id}:${d.id}`,
+                        name: d.name,
+                        selected: `${user.id}:${d.id}` === selectedVal
+                    }))
+                });
+            }
+        }
+
+        return groups;
     }
 }

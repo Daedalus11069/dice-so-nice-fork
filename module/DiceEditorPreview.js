@@ -90,7 +90,6 @@ export class DiceEditorPreview {
             const speed = 0.01;
             const cameraRight = new Vector3();
             const cameraUp = new Vector3();
-            this.box.camera.getWorldDirection(new Vector3());
             cameraRight.setFromMatrixColumn(this.box.camera.matrixWorld, 0);
             cameraUp.setFromMatrixColumn(this.box.camera.matrixWorld, 1);
 
@@ -99,9 +98,10 @@ export class DiceEditorPreview {
             this.dieMesh.quaternion.premultiply(qX).premultiply(qY);
         });
 
-        window.addEventListener("mouseup", (e) => {
+        this._onWindowMouseUp = (e) => {
             if (e.button === 2) this._isDragging = false;
-        });
+        };
+        window.addEventListener("mouseup", this._onWindowMouseUp);
     }
 
     _initRaycasting() {
@@ -109,27 +109,18 @@ export class DiceEditorPreview {
         this.mouse = new Vector2();
 
         this.box.renderer.domElement.addEventListener("click", (event) => {
-            if (!this.dieMesh) {
-                console.log("[DSN Editor] Click ignored: no dieMesh");
-                return;
-            }
+            if (!this.dieMesh) return;
 
             const rect = this.box.renderer.domElement.getBoundingClientRect();
             this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-            console.log("[DSN Editor] Click at NDC:", this.mouse.x.toFixed(3), this.mouse.y.toFixed(3));
-
             this.raycaster.setFromCamera(this.mouse, this.box.camera);
             const intersects = this.raycaster.intersectObject(this.dieMesh, true);
-            console.log("[DSN Editor] Intersects:", intersects.length);
             if (intersects.length === 0) return;
 
             const hit = intersects[0];
-            console.log("[DSN Editor] Hit faceIndex:", hit.faceIndex, "distance:", hit.distance.toFixed(2));
-
             const faceValue = this._hitToFaceValue(hit);
-            console.log("[DSN Editor] Mapped faceValue:", faceValue);
             if (faceValue === null) return;
 
             if (event.ctrlKey || event.metaKey) {
@@ -143,7 +134,6 @@ export class DiceEditorPreview {
                 this.selectedFaces.add(faceValue);
             }
 
-            this._updateHighlights();
             if (this.onFaceSelect) {
                 this.onFaceSelect(new Set(this.selectedFaces));
             }
@@ -155,10 +145,7 @@ export class DiceEditorPreview {
      * the hit triangle's normal against the known face normals from DICE_SHAPE.
      */
     _hitToFaceValue(hit) {
-        if (!this._faceNormals) {
-            console.log("[DSN Editor] No face normals built");
-            return null;
-        }
+        if (!this._faceNormals) return null;
 
         // Get the hit triangle's face normal in mesh-local space
         const localNormal = hit.face.normal.clone();
@@ -174,8 +161,6 @@ export class DiceEditorPreview {
             }
         }
 
-        console.log("[DSN Editor] Hit normal:", `(${localNormal.x.toFixed(3)}, ${localNormal.y.toFixed(3)}, ${localNormal.z.toFixed(3)})`,
-            "→ face", bestValue, `(angle: ${(bestAngle * 180 / Math.PI).toFixed(1)}°)`);
         return bestValue;
     }
 
@@ -188,10 +173,7 @@ export class DiceEditorPreview {
         // Maps shape face value → diceobj type value
         this._shapeToTypeValue = {};
         const shapeData = DICE_SHAPE[diceobj.shape];
-        if (!shapeData) {
-            console.log("[DSN Editor] No DICE_SHAPE data for", diceobj.shape);
-            return;
-        }
+        if (!shapeData) return;
 
         this._faceNormals = [];
 
@@ -225,9 +207,6 @@ export class DiceEditorPreview {
                 this._faceNormals.push({ normal, value: shapeFaceValue });
                 this._shapeToTypeValue[shapeFaceValue] = mapToTypeValue(shapeFaceValue);
             }
-        } else {
-            console.log("[DSN Editor] Unsupported DICE_SHAPE type for", diceobj.shape);
-            return;
         }
 
         // Build type value → default label lookup
@@ -240,16 +219,6 @@ export class DiceEditorPreview {
                 this._typeValueLabels[diceobj.values[i]] = label;
             }
         }
-
-        console.log("[DSN Editor] Built", this._faceNormals.length, "face normals for", diceobj.shape,
-            "values:", this._faceNormals.map(f => f.value),
-            "typeMap:", this._shapeToTypeValue);
-    }
-
-    _updateHighlights() {
-        // No-op for now. Face selection is shown via the UI text indicator.
-        // A visual highlight on the 3D mesh would conflict with preset emissive
-        // maps (e.g. Spectrum glow), so we skip it.
     }
 
     _animate() {
@@ -278,7 +247,7 @@ export class DiceEditorPreview {
         if (!mesh) return;
 
         this.dieMesh = mesh;
-        this.dieMesh.scale.multiplyScalar(2);
+        this.dieMesh.scale.multiplyScalar(1.7);
         this.box.scene.add(this.dieMesh);
 
         const diceobj = this.diceFactory.getPresetBySystem(dieType, appearance.system || "standard");
@@ -303,7 +272,6 @@ export class DiceEditorPreview {
             this.dieMesh.quaternion.copy(savedRotation);
         }
         this.selectedFaces = savedSelection;
-        this._updateHighlights();
     }
 
     /**
@@ -321,6 +289,10 @@ export class DiceEditorPreview {
      * Clean up resources.
      */
     dispose() {
+        if (this._onWindowMouseUp) {
+            window.removeEventListener("mouseup", this._onWindowMouseUp);
+            this._onWindowMouseUp = null;
+        }
         if (this._animFrameId) {
             cancelAnimationFrame(this._animFrameId);
             this._animFrameId = null;

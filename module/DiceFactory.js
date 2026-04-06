@@ -860,7 +860,7 @@ export class DiceFactory {
 							}
 						}
 					}
-					if(glowFaces.size > 0) {
+					if(glowFaces.size > 0 && glowFaces.size < shapeFaceCount) {
 						mat.userData.emissiveMapFull = emissiveMap;
 
 						let canvasGlow = document.createElement("canvas");
@@ -906,7 +906,7 @@ export class DiceFactory {
 						mat.emissive = new Color(0xffffff);
 						if(this.realisticLighting)
 							mat.emissive.convertLinearToSRGB();
-						mat.emissiveIntensity = 0.7;
+						mat.emissiveIntensity = baseHasEmissive ? (diceobj.emissiveIntensity || 1) : 0.7;
 					}
 				}
 			}
@@ -1565,13 +1565,14 @@ export class DiceFactory {
 					}
 				}
 				materialData.libraryDieId = appearance.libraryDieId;
+				materialData.libraryDieUpdatedAt = libraryDie.updatedAt || "";
 				if(libraryDie.baseAppearance?.emissive) {
 					materialData.baseEmissive = true;
 				}
 			}
 		}
 
-		let cacheExtra = materialData.libraryDieId ? (appearance.libraryDieOwner || "") + materialData.libraryDieId : "";
+		let cacheExtra = materialData.libraryDieId ? (appearance.libraryDieOwner || "") + materialData.libraryDieId + materialData.libraryDieUpdatedAt : "";
 		materialData.cacheString = appearance.system+materialData.background+materialData.foreground+materialData.outline+materialData.texture.name+materialData.edge+materialData.material+materialData.font+materialData.isGhost+cacheExtra;
 		return materialData;
 	}

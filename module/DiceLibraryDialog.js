@@ -54,7 +54,7 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             if (userDice.length > 0) {
                 otherUsersData.push({
                     userId: user.id,
-                    userName: user.name,
+                    userName: game.i18n.format("DICESONICE.libraryUserDice", { name: user.name }),
                     dice: userDice
                 });
             }
@@ -103,53 +103,9 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
         return { sections, hasAnySections: sections.length > 0, dieTypeOptions };
     }
 
-    /**
-     * Build optgroup data for the library die dropdown in DiceConfig.
-     * Used by DiceConfig._prepareContext, refreshLibraryDropdown, and tab creation.
-     * @param {string} dieType - Die type to filter by
-     * @param {object|null} appearance - Appearance data for determining selected value
-     * @param {string} [selectedOverride] - Override for selected value (used by refreshLibraryDropdown)
-     * @returns {Array<{label: string, dice: Array<{value: string, name: string, selected: boolean}>}>}
-     */
+    /** @deprecated Use DiceLibrary.buildLibraryDiceGroups instead */
     static buildLibraryDiceGroups(dieType, appearance, selectedOverride = null) {
-        const myId = game.user.id;
-        const selectedId = selectedOverride ?? appearance?.libraryDieId ?? "";
-        const selectedOwner = appearance?.libraryDieOwner ?? "";
-        // Determine the full selected value for comparison
-        const selectedVal = selectedOwner ? `${selectedOwner}:${selectedId}` : selectedId;
-
-        const groups = [];
-
-        // My dice
-        const myDice = game.dice3d.diceLibrary ? game.dice3d.diceLibrary.getAll().filter(d => d.dieType === dieType) : [];
-        if (myDice.length > 0) {
-            groups.push({
-                label: game.i18n.localize("DICESONICE.libraryMyDice"),
-                dice: myDice.map(d => ({
-                    value: d.id,
-                    name: d.name,
-                    selected: d.id === selectedVal
-                }))
-            });
-        }
-
-        // Other users' dice
-        for (const user of game.users) {
-            if (user.id === myId) continue;
-            const userDice = DiceLibrary.getLibraryForUser(user).filter(d => d.dieType === dieType);
-            if (userDice.length > 0) {
-                groups.push({
-                    label: user.name,
-                    dice: userDice.map(d => ({
-                        value: `${user.id}:${d.id}`,
-                        name: d.name,
-                        selected: `${user.id}:${d.id}` === selectedVal
-                    }))
-                });
-            }
-        }
-
-        return groups;
+        return DiceLibrary.buildLibraryDiceGroups(dieType, appearance, selectedOverride);
     }
 
     _onRender(context, options) {

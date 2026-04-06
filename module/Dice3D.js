@@ -339,12 +339,12 @@ export class Dice3D {
         this._initListeners();
         this._buildDiceBox();
         this.diceLibrary = new DiceLibrary();
-        this.diceLibrary.load();
         DiceColors.loadTextures(TEXTURELIST, async (images) => {
             DiceColors.initColorSets();
 
             Hooks.call("diceSoNiceReady", this);
             await this.DiceFactory._loadFonts();
+            await this.diceLibrary.load();
             await DiceLibrary.preloadAssets();
             await this.DiceFactory.preloadPresets();
         });

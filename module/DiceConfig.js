@@ -286,7 +286,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             const isPerDie = diceType !== "global";
             let libraryDiceGroups = [];
             if(isPerDie) {
-                libraryDiceGroups = DiceLibraryDialog.buildLibraryDiceGroups(diceType, data.appearance[diceType]);
+                libraryDiceGroups = DiceLibrary.buildLibraryDiceGroups(diceType, data.appearance[diceType]);
             }
             tabsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
                 dicetype: diceType,
@@ -822,7 +822,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                             }
                         }
                         $(this.element).find(".dsn-appearance-hint").hide();
-                        const libraryDiceGroups = DiceLibraryDialog.buildLibraryDiceGroups(diceType, null);
+                        const libraryDiceGroups = DiceLibrary.buildLibraryDiceGroups(diceType, null);
                         foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
                             dicetype: diceType,
                             appearance: this.currentGlobalAppearance,
@@ -1020,13 +1020,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     actionExportLibraryToJSON() {
-        const library = game.user.getFlag("dice-so-nice", "diceLibrary") || [];
-        const exportDice = library.map(d => foundry.utils.deepClone(d));
-        return JSON.stringify({
-            dsnLibraryExport: true,
-            version: 1,
-            dice: exportDice
-        }, null, 2);
+        return game.dice3d.diceLibrary.exportAll();
     }
 
     async actionImportFromJSON(json) {
@@ -1064,32 +1058,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
      * @param {Array} diceArray - Array of die objects to import.
      */
     async _importLibraryDice(diceArray) {
-        if (!Array.isArray(diceArray) || diceArray.length === 0) return;
-
-        const library = game.dice3d.diceLibrary;
-        const existingIds = new Set(library.getAll().map(d => d.id));
-        let imported = 0;
-        let skipped = 0;
-
-        for (const dieData of diceArray) {
-            const die = foundry.utils.deepClone(dieData);
-            if (die.id && existingIds.has(die.id)) {
-                skipped++;
-                continue;
-            }
-            // If no ID (old export format), generate one
-            if (!die.id) {
-                die.id = foundry.utils.randomID();
-            }
-            die.updatedAt = Date.now();
-            library._dice.push(die);
-            existingIds.add(die.id);
-            imported++;
-        }
-
-        if (imported > 0) {
-            await library.save();
-        }
+        const { imported, skipped } = await game.dice3d.diceLibrary.importArray(diceArray);
         ui.notifications.info(game.i18n.format("DICESONICE.ImportLibrarySuccess", { count: imported, skipped: skipped }));
     }
 
@@ -1380,7 +1349,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             const select = $(element).find('[data-libraryDie]');
             if (!select.length) return;
             const currentVal = select.val() || "";
-            const groups = DiceLibraryDialog.buildLibraryDiceGroups(tab, null, currentVal);
+            const groups = DiceLibrary.buildLibraryDiceGroups(tab, null, currentVal);
             let html = `<option value="">${game.i18n.localize("DICESONICE.None")}</option>`;
             for (const group of groups) {
                 html += `<optgroup label="${group.label}">`;
