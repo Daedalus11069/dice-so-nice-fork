@@ -143,6 +143,9 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     _onRender(context, options) {
         const html = $(this.element);
 
+        // Remove previous event handlers to avoid stacking on re-render
+        html.off(".diceEditor");
+
         // Initialize 3D preview
         const previewContainer = html.find("#dice-editor-preview-container")[0];
         if (previewContainer && !this.preview) {
@@ -152,11 +155,11 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         }
 
         // Global property change handlers
-        html.on("change", "[name=baseMaterial]", () => this._onGlobalChange());
-        html.on("change", "[name=baseEdgeColor]", () => this._onGlobalChange());
-        html.on("change", "[name=baseDiceColor]", () => this._onGlobalChange());
-        html.on("change", "[name=baseTexture]", () => this._onGlobalChange());
-        html.on("change", "[name=dieName]", (ev) => {
+        html.on("change.diceEditor", "[name=baseMaterial]", () => this._onGlobalChange());
+        html.on("change.diceEditor", "[name=baseEdgeColor]", () => this._onGlobalChange());
+        html.on("change.diceEditor", "[name=baseDiceColor]", () => this._onGlobalChange());
+        html.on("change.diceEditor", "[name=baseTexture]", () => this._onGlobalChange());
+        html.on("change.diceEditor", "[name=dieName]", (ev) => {
             this.libraryDie.name = ev.target.value;
         });
 
@@ -164,13 +167,13 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         // the mesh rebuild on "change" (when the picker is closed), not on
         // every "input" frame, since each rebuild recreates the full Canvas2D
         // texture atlas + Three.js materials.
-        html.on("input", "input[type=color]", (ev) => {
+        html.on("input.diceEditor", "input[type=color]", (ev) => {
             const editTarget = $(ev.target).data("edit");
             if (editTarget) {
                 html.find(`[name=${editTarget}]`).val(ev.target.value);
             }
         });
-        html.on("change", "input[type=color]", (ev) => {
+        html.on("change.diceEditor", "input[type=color]", (ev) => {
             const editTarget = $(ev.target).data("edit");
             if (editTarget) {
                 html.find(`[name=${editTarget}]`).val(ev.target.value).trigger("change");
@@ -178,15 +181,15 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         });
 
         // Face property change handlers
-        html.on("change", "[name^=face]", () => this._onFacePropertyChange());
+        html.on("change.diceEditor", "[name^=face]", () => this._onFacePropertyChange());
         // Range sliders: update display value on input, trigger property change on release
-        html.on("input", "input[type=range]", (ev) => {
+        html.on("input.diceEditor", "input[type=range]", (ev) => {
             $(ev.target).next(".range-value").text(ev.target.value);
         });
-        html.on("click", "[data-face-filepicker]", () => this._onFilePicker());
+        html.on("click.diceEditor", "[data-face-filepicker]", () => this._onFilePicker());
 
         // Reset selected faces button (in footer)
-        html.on("click", "[data-action=resetFaces]", () => this._onResetFace());
+        html.on("click.diceEditor", "[data-action=resetFaces]", () => this._onResetFace());
     }
 
     _onGlobalChange() {

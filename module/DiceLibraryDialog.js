@@ -52,7 +52,10 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
     _onRender(context, options) {
         const html = $(this.element);
 
-        html.on("click", "[data-action=createNew]", () => {
+        // Remove previous event handlers to avoid stacking on re-render
+        html.off("click.diceLibrary change.diceLibrary");
+
+        html.on("click.diceLibrary", "[data-action=createNew]", () => {
             const dieType = this.dieType || "d20";
             const editor = new DiceEditor(dieType, null, {
                 onSave: () => this.render(true)
@@ -60,7 +63,7 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             editor.render(true);
         });
 
-        html.on("click", "[data-action=editDie]", (ev) => {
+        html.on("click.diceLibrary", "[data-action=editDie]", (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             const die = game.dice3d.diceLibrary.get(id);
             if (!die) return;
@@ -70,27 +73,14 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             editor.render(true);
         });
 
-        html.on("click", "[data-action=duplicateDie]", async (ev) => {
+        html.on("click.diceLibrary", "[data-action=duplicateDie]", async (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             await game.dice3d.diceLibrary.duplicate(id);
             this.render(true);
         });
 
-        html.on("click", "[data-action=exportDie]", (ev) => {
-            const id = $(ev.currentTarget).data("die-id");
-            const json = game.dice3d.diceLibrary.export(id);
-            if (!json) return;
-            const die = game.dice3d.diceLibrary.get(id);
-            const blob = new Blob([json], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${die?.name || "custom-die"}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        });
 
-        html.on("click", "[data-action=deleteDie]", async (ev) => {
+        html.on("click.diceLibrary", "[data-action=deleteDie]", async (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             const die = game.dice3d.diceLibrary.get(id);
             const confirmed = await foundry.applications.api.DialogV2.confirm({
@@ -103,11 +93,11 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             this.render(true);
         });
 
-        html.on("click", "[data-action=importDie]", () => {
+        html.on("click.diceLibrary", "[data-action=importDie]", () => {
             html.find("[data-import-file]").trigger("click");
         });
 
-        html.on("change", "[data-import-file]", async (ev) => {
+        html.on("change.diceLibrary", "[data-import-file]", async (ev) => {
             const file = ev.target.files[0];
             if (!file) return;
             try {
