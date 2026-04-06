@@ -418,6 +418,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 this.toggleCustomColors($(ev.target).data("dicetype"));
             });
 
+            $(this.element).on("change", "[data-libraryDie]", (ev) => {
+                this.toggleCustomization($(ev.target).data("dicetype"));
+            });
+
             $(this.element).on("change", "[data-system]", (ev) => {
                 this.toggleCustomization($(ev.target).data("dicetype"));
 
@@ -1036,7 +1040,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         texture: $(element).find('[data-texture]').val(),
                         material: $(element).find('[data-material]').val(),
                         font: $(element).find('[data-font]').val(),
-                        system: $(element).find('[data-system]').val()
+                        system: $(element).find('[data-system]').val(),
+                        libraryDie: $(element).find('[data-libraryDie]').val() || ""
                     };
                     if (index == 1)
                         systemSettingsElement = $(element).find('[data-systemSettings]');
@@ -1105,6 +1110,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             scope = scope.filter(`[data-tab="${dicetype}"]`);
         }
         scope.each((index, element) => {
+            // Skip if a library die is selected — already disabled by toggleCustomization
+            const libraryDieVal = $(element).find('[data-libraryDie]').val();
+            if (libraryDieVal) return;
+
             let colorset = $(element).find('[data-colorset]');
             let disabled = colorset.val() !== 'custom' || colorset.prop("disabled");
             $(element).find('[data-labelColor]').prop("disabled", disabled);
@@ -1129,6 +1138,14 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         container.each((index, element) => {
             let diceType = $(element).data("tab");
             if (diceType != "global") {
+                // When a library die is selected, disable all appearance controls
+                const libraryDieVal = $(element).find('[data-libraryDie]').val();
+                const allAppearanceControls = $(element).find('[data-colorset],[data-texture],[data-material],[data-font],[data-labelColor],[data-diceColor],[data-outlineColor],[data-edgeColor],[data-labelColorSelector],[data-diceColorSelector],[data-outlineColorSelector],[data-edgeColorSelector]');
+                if (libraryDieVal) {
+                    allAppearanceControls.prop("disabled", true);
+                    return;
+                }
+
                 let system = $(element).find('[data-system]').val();
                 let customizationElements = $(element).find('[data-colorset],[data-texture],[data-material],[data-font]');
                 if (system != "standard") {
@@ -1387,6 +1404,20 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         let scopedAppearance = Object.keys(formData.appearance);
         let systemsInUse = new Set();
         for (let scope of scopedAppearance) {
+            // Parse composite library die values (e.g. "userId:dieId") into separate fields
+            if (formData.appearance[scope].libraryDieId) {
+                const parsed = DiceConfig._parseLibraryDieValue(formData.appearance[scope].libraryDieId);
+                formData.appearance[scope].libraryDieId = parsed.libraryDieId || "";
+                if (parsed.libraryDieOwner) {
+                    formData.appearance[scope].libraryDieOwner = parsed.libraryDieOwner;
+                } else {
+                    delete formData.appearance[scope].libraryDieOwner;
+                }
+            } else {
+                delete formData.appearance[scope].libraryDieId;
+                delete formData.appearance[scope].libraryDieOwner;
+            }
+
             if (formData.appearance[scope].colorset != "custom") {
                 delete formData.appearance[scope].labelColor;
                 delete formData.appearance[scope].diceColor;
@@ -1415,10 +1446,20 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         //system settings won't be merged here because insertValues is false
         let appearance = foundry.utils.mergeObject(Dice3D.APPEARANCE(), formData.appearance, { insertKeys: true, insertValues: false, performDeletions: true });
 
-        //So we add back the system settings to the appearance
+        //So we add back the system settings and library die references to the appearance
         for (let scope of scopedAppearance) {
             if (formData.appearance[scope].systemSettings) {
                 appearance[scope].systemSettings = formData.appearance[scope].systemSettings;
+            }
+            // Library die fields are not in DEFAULT_APPEARANCE, so mergeObject drops them
+            if (formData.appearance[scope].libraryDieId) {
+                appearance[scope].libraryDieId = formData.appearance[scope].libraryDieId;
+                if (formData.appearance[scope].libraryDieOwner) {
+                    appearance[scope].libraryDieOwner = formData.appearance[scope].libraryDieOwner;
+                }
+            } else {
+                delete appearance[scope].libraryDieId;
+                delete appearance[scope].libraryDieOwner;
             }
         }
 

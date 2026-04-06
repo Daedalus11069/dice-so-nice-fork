@@ -64,24 +64,45 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
                 : (game.user.getFlag("dice-so-nice", "appearance") || {});
             const resolved = factory.getAppearanceForDice(appearances, dieType);
             this.libraryDie = DiceLibrary.createEmptyDie(dieType, `Custom ${dieType.toUpperCase()}`);
-            this.libraryDie.baseAppearance.diceColor = resolved.background || "#000000";
-            this.libraryDie.baseAppearance.labelColor = resolved.foreground || "#FFFFFF";
-            this.libraryDie.baseAppearance.outlineColor = resolved.outline || "";
-            this.libraryDie.baseAppearance.edgeColor = resolved.edge || "";
+
+            // Themes like bronze/rainbow use arrays for random per-die variation.
+            // Library dice are deterministic — pick one random snapshot.
+            const pick = (val, fallback) => {
+                if (Array.isArray(val)) return val.length > 0 ? val[Math.floor(Math.random() * val.length)] : fallback;
+                return val || fallback;
+            };
+
+            this.libraryDie.baseAppearance.diceColor = pick(resolved.background, "#000000");
+            this.libraryDie.baseAppearance.labelColor = pick(resolved.foreground, "#FFFFFF");
+            this.libraryDie.baseAppearance.outlineColor = pick(resolved.outline, "");
+            this.libraryDie.baseAppearance.edgeColor = pick(resolved.edge, "");
             // When texture is "none" but a themed colorset is active, the actual
             // texture comes from the colorset data (resolved in generateMaterialData).
             // Since the editor forces colorset to "custom", we must resolve it here.
-            let effectiveTexture = resolved.texture || "none";
+            let effectiveTexture = pick(resolved.texture, "none");
             if (effectiveTexture === "none" && resolved.colorset && resolved.colorset !== "custom") {
                 const colorsetData = DiceColors.getColorSet(resolved.colorset);
                 if (colorsetData.texture && colorsetData.texture !== "custom" && colorsetData.texture !== "none") {
-                    effectiveTexture = Array.isArray(colorsetData.texture)
-                        ? colorsetData.texture[0]
+                    let tex = Array.isArray(colorsetData.texture)
+                        ? colorsetData.texture[Math.floor(Math.random() * colorsetData.texture.length)]
                         : colorsetData.texture;
+                    // colorsetData.texture is already resolved to an object by initColorSets;
+                    // we need the string name for storage
+                    effectiveTexture = (typeof tex === "object" && tex.name) ? tex.name : tex;
                 }
             }
+            // effectiveTexture could still be a resolved texture object from the appearance
+            if (typeof effectiveTexture === "object" && effectiveTexture.name) {
+                effectiveTexture = effectiveTexture.name;
+            }
             this.libraryDie.baseAppearance.texture = effectiveTexture;
-            this.libraryDie.baseAppearance.material = resolved.material || "plastic";
+            // Resolve "auto" material from texture (e.g. bronze textures → "metal")
+            let effectiveMaterial = resolved.material || "plastic";
+            if (effectiveMaterial === "auto" && effectiveTexture && effectiveTexture !== "none") {
+                const texData = DiceColors.getTexture(effectiveTexture);
+                if (texData && texData.material) effectiveMaterial = texData.material;
+            }
+            this.libraryDie.baseAppearance.material = effectiveMaterial;
             this.libraryDie.baseAppearance.font = resolved.font || "auto";
             this.libraryDie.baseAppearance.system = resolved.system || "standard";
 

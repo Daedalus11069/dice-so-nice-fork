@@ -1517,9 +1517,26 @@ export class DiceFactory {
 					? diceLibrary.find(d => d.id === appearance.libraryDieId)
 					: null;
 			}
-			if(libraryDie && libraryDie.faces) {
+			if(libraryDie) {
+				// Library die is the sole source of appearance — replace everything
+				const base = libraryDie.baseAppearance || {};
+				materialData.background = base.diceColor || "#000000";
+				materialData.foreground = base.labelColor || "#FFFFFF";
+				materialData.outline = base.outlineColor || "";
+				materialData.edge = base.edgeColor || "";
+				materialData.font = (base.font && base.font !== "auto") ? base.font : colorsetData.font;
+				materialData.texture = DiceColors.getTexture(base.texture || "none");
+				if (base.material && base.material !== "auto") {
+					materialData.material = base.material;
+				} else {
+					// Derive material from texture (e.g. bronze textures → "metal")
+					let libBaseTexture = Array.isArray(materialData.texture) ? materialData.texture[0] : materialData.texture;
+					materialData.material = (libBaseTexture && libBaseTexture.material) ? libBaseTexture.material : "plastic";
+				}
+
+				// Per-face overrides
 				materialData.perFaceOverrides = {};
-				for(const [faceValue, faceData] of Object.entries(libraryDie.faces)) {
+				for(const [faceValue, faceData] of Object.entries(libraryDie.faces || {})) {
 					if(!faceData) continue;
 					const override = {};
 					if(faceData.foreground !== null && faceData.foreground !== undefined) override.foreground = faceData.foreground;
