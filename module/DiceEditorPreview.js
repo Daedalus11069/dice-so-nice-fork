@@ -10,7 +10,7 @@ import { Dice3D } from './Dice3D.js';
 import { DICE_SHAPE } from './DiceModels.js';
 
 /**
- * Dice Editor preview — wraps a DiceBox instance in "editor" mode
+ * Dice Editor preview - wraps a DiceBox instance in "editor" mode
  * and adds manual mesh rotation + face raycasting on top.
  */
 export class DiceEditorPreview {
@@ -30,7 +30,7 @@ export class DiceEditorPreview {
     }
 
     /**
-     * Async initialization — must be called after constructor.
+     * Async initialization - must be called after constructor.
      * Creates and sets up the DiceBox instance.
      */
     async init() {
@@ -230,7 +230,7 @@ export class DiceEditorPreview {
      * Set a new die mesh in the preview scene.
      */
     async setDie(dieType, appearance, diceLibrary = null) {
-        // Guard against concurrent calls — each call gets a unique token;
+        // Guard against concurrent calls - each call gets a unique token;
         // if a newer call starts before we finish, we abandon this one.
         const token = this._setDieToken = {};
 
@@ -298,13 +298,13 @@ export class DiceEditorPreview {
             this._animFrameId = null;
         }
         if (this.box) {
-            // Don't call clearScene() — it uses removeTicker which matches by function
+            // Don't call clearScene() - it uses removeTicker which matches by function
             // reference on the prototype, so it would remove the showcase's animateSelector
             // from the PIXI ticker too. Just clean up the scene children instead.
             while (this.box.scene.children.length > 0) {
                 this.box.scene.remove(this.box.scene.children[0]);
             }
-            // Don't dispose the renderer — it's shared via game.dice3d.dice3dRenderers.editor
+            // Don't dispose the renderer - it's shared via game.dice3d.dice3dRenderers.editor
             if (this.box.renderer.domElement.parentNode) {
                 this.box.renderer.domElement.parentNode.removeChild(this.box.renderer.domElement);
             }

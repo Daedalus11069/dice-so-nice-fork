@@ -9,7 +9,6 @@
                 <button type="button" data-action="createNew" data-die-type="{{this.dieType}}" class="section-create-btn" title="{{localize "DICESONICE.editorCreateNew"}}"><i class="fas fa-plus"></i></button>
             </div>
             <div class="dice-library-section-body">
-                {{! — My Dice — }}
                 <div class="dice-library-subsection">
                     <div class="dice-library-subsection-header">{{localize "DICESONICE.libraryMyDice"}}</div>
                     {{#if this.myDice.length}}
@@ -29,7 +28,6 @@
                     <div class="dice-library-empty-sub">{{localize "DICESONICE.libraryNoDice"}}</div>
                     {{/if}}
                 </div>
-                {{! — Other Users' Dice — }}
                 {{#each this.otherUsers}}
                 <div class="dice-library-subsection dice-library-other-user">
                     <div class="dice-library-subsection-header">{{this.userName}}</div>

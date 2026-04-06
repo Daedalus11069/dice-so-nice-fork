@@ -4,7 +4,7 @@ import { DiceLibrary, LIBRARY_DIE_TYPES } from './DiceLibrary.js';
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 /**
- * Unified library popup — shows all die types in collapsible sections,
+ * Unified library popup - shows all die types in collapsible sections,
  * including other users' dice (duplicate-only).
  */
 export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -60,7 +60,7 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             }
         }
 
-        // Build sections by die type — collect all types that have at least one die
+        // Build sections by die type - collect all types that have at least one die
         const allTypes = new Set();
         for (const d of myDice) allTypes.add(d.dieType);
         for (const u of otherUsersData) {

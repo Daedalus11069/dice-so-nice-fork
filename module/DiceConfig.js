@@ -1165,7 +1165,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             scope = scope.filter(`[data-tab="${dicetype}"]`);
         }
         scope.each((index, element) => {
-            // Skip if a library die is selected — already disabled by toggleCustomization
+            // Skip if a library die is selected - already disabled by toggleCustomization
             const libraryDieVal = $(element).find('[data-libraryDie]').val();
             if (libraryDieVal) return;
 

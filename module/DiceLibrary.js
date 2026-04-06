@@ -13,7 +13,7 @@ export const LIBRARY_DIE_TYPES = ["df", "d2", "d3", "d5", "d6", "d7", "d8", "d10
 
 export class DiceLibrary {
 
-    // Static cache of loaded label images, keyed by URL → {source, frame}
+    // Static cache of loaded label images, keyed by URL => {source, frame}
     static _imageCache = {};
 
     constructor() {

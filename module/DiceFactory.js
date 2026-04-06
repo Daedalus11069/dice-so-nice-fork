@@ -1518,7 +1518,7 @@ export class DiceFactory {
 					: null;
 			}
 			if(libraryDie) {
-				// Library die is the sole source of appearance — replace everything
+				// Library die is the sole source of appearance - replace everything
 				const base = libraryDie.baseAppearance || {};
 				materialData.background = base.diceColor || "#000000";
 				materialData.foreground = base.labelColor || "#FFFFFF";

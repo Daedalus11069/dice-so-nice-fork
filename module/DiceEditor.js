@@ -7,7 +7,7 @@ import { Utils } from './Utils.js';
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 /**
- * Dice Editor — modal popup for creating/editing custom dice face-by-face.
+ * Dice Editor - modal popup for creating/editing custom dice face-by-face.
  */
 export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
 
@@ -66,7 +66,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie = DiceLibrary.createEmptyDie(dieType, `Custom ${dieType.toUpperCase()}`);
 
             // Themes like bronze/rainbow use arrays for random per-die variation.
-            // Library dice are deterministic — pick one random snapshot.
+            // Library dice are deterministic, pick one random snapshot.
             const pick = (val, fallback) => {
                 if (Array.isArray(val)) return val.length > 0 ? val[Math.floor(Math.random() * val.length)] : fallback;
                 return val || fallback;
@@ -201,7 +201,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie.name = ev.target.value;
         });
 
-        // Color selector sync — update the text field live but only trigger
+        // Color selector sync, update the text field live but only trigger
         // the mesh rebuild on "change" (when the picker is closed), not on
         // every "input" frame, since each rebuild recreates the full Canvas2D
         // texture atlas + Three.js materials.
@@ -289,7 +289,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find("[name=faceTexture]").val(faceData.backgroundTexture || "");
             html.find("[name=faceEmissive]").prop("checked", !!faceData.emissive);
             html.find("[name=faceEmissiveColor]").val(faceData.emissiveColor || "");
-            // Sync color pickers — use face override or fall back to base appearance
+            // Sync color pickers, use face override or fall back to base appearance
             const base = this.libraryDie.baseAppearance;
             html.find("[name=faceForegroundSelector]").val(faceData.foreground || base.labelColor || "#FFFFFF");
             html.find("[name=faceBackgroundSelector]").val(faceData.background || base.diceColor || "#000000");
