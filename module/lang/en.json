@@ -289,7 +289,7 @@
     "DICESONICE.editorDieName": "Die Name",
     "DICESONICE.editorDieNamePlaceholder": "Enter a name…",
     "DICESONICE.editorDieType": "Die Type",
-    "DICESONICE.editorPreviewHint": "Right-drag to orbit. Click a face to select it.",
+    "DICESONICE.editorPreviewHint": "Right-drag to orbit. Click a face to select it. Ctrl+click to select multiple.",
     "DICESONICE.editorClickFace": "Click a face on the die to customize it",
     "DICESONICE.editorGlobalProps": "Global Properties",
     "DICESONICE.editorFaceProps": "Per-Face Properties",

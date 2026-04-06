@@ -370,6 +370,9 @@
     flex: 1;
     overflow-y: auto;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
 }
 
 .dice-editor-app .dice-editor-header {
@@ -392,6 +395,7 @@
 .dice-editor-app .dice-editor-preview {
     width: 100%;
     height: 250px;
+    min-height: 250px;
     border: 1px solid var(--color-border-light-2);
     border-radius: 4px;
     overflow: hidden;
@@ -411,26 +415,39 @@
     color: rgba(255, 255, 255, 0.5);
     font-size: 0.85em;
     pointer-events: none;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 .dice-editor-app .dice-editor-face-indicator {
     text-align: center;
     font-weight: bold;
     padding: 4px;
-    background: var(--color-cool-5);
+    background: var(--color-border-light-2);
+    color: var(--color-text-primary);
     border-radius: 3px;
 }
 
-.dice-editor-app .dice-editor-properties fieldset {
-    border: 1px solid var(--color-border-light-2);
-    border-radius: 4px;
-    padding: 8px;
-    margin-bottom: 8px;
+.dice-editor-app .dice-editor-properties h3 {
+    font-size: 1em;
+    font-weight: bold;
+    margin: 8px 0 4px;
+    padding: 0;
+    border: none;
 }
 
-.dice-editor-app .dice-editor-properties legend {
-    font-weight: bold;
-    padding: 0 4px;
+.dice-editor-app .dice-editor-properties h3:first-child {
+    margin-top: 0;
+}
+
+.dice-editor-app .dice-editor-properties .form-group {
+    margin: 3px 0;
+}
+
+.dice-editor-app .dice-editor-face-props,
+.dice-editor-app .face-props-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
 }
 
 /* Dice Library Dialog */

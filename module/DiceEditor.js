@@ -25,7 +25,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         id: "dice-editor",
         position: {
             width: 580,
-            height: 700
+            height: "auto"
         }
     };
 
