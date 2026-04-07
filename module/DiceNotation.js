@@ -17,7 +17,7 @@ export class DiceNotation {
 			//We only are able to handle this list of number of face in 3D for now
 			if([2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 30, 100].includes(die.faces)) {
 				//We flag every single die with a throw number, to queue exploded dice
-				let cnt=die.number;
+				let cnt = die.results.filter(r => !r.rerolled && !r.exploded).length;
 				let countExtraDice = 0;
 				let localNbThrow = 0;
 				for(let i =0; i< die.results.length; i++){
