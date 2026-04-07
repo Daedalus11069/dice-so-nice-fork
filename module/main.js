@@ -458,9 +458,6 @@ Hooks.on("collapseSidebar", (sidebar, collapsed) => {
 
 // Silence https://github.com/foundryvtt/foundryvtt/issues/13090 during v14
 if(!foundry.utils.isNewerVersion(game.version, "15")) {
-    const RegExDataFieldOperator = new RegExp("ForcedDeletion[\\s\\S]*?\\/dice-so-nice\\/");
-    CONFIG.compatibility.excludePatterns.push(RegExDataFieldOperator);
-
-    const RegExDataApplyOperators = new RegExp("applyOperators[\\s\\S]*?\\/dice-so-nice\\/");
-    CONFIG.compatibility.excludePatterns.push(RegExDataApplyOperators);
+    const RegExMergeObject = new RegExp(String.raw`mergeObject.*?/dice-so-nice/`, "gs");
+    CONFIG.compatibility.excludePatterns.push(RegExMergeObject);
 }
