@@ -1,6 +1,7 @@
 import { Dice3D } from './Dice3D.js';
 import { DiceConfig } from './DiceConfig.js';
 import { RollableAreaConfig } from './RollableAreaConfig.js';
+import { DsnSidebarTab } from './DsnSidebarTab.js';
 import { Utils } from './Utils.js';
 
 /**
@@ -46,6 +47,16 @@ Hooks.once('init', () => {
             step: 5
         },
         config: true
+    });
+
+    game.settings.register("dice-so-nice", "hideSidebarTab", {
+        name: "DICESONICE.hideSidebarTab",
+        hint: "DICESONICE.hideSidebarTabHint",
+        scope: "world",
+        type: Boolean,
+        default: false,
+        config: true,
+        requiresReload: true
     });
 
     game.settings.register("dice-so-nice", "globalAnimationSpeed", {
@@ -191,6 +202,16 @@ Hooks.once('init', () => {
         requiresReload: true
     });
 
+    game.settings.register("dice-so-nice", "persistentDice", {
+        name: "DICESONICE.persistentDice",
+        hint: "DICESONICE.persistentDiceHint",
+        scope: "world",
+        type: Boolean,
+        default: false,
+        config: true,
+        requiresReload: true
+    });
+
     game.settings.register("dice-so-nice", "hide3dDiceOnSecretRolls", {
         name: "DICESONICE.hide3dDiceOnSecretRolls",
         hint: "DICESONICE.hide3dDiceOnSecretRollsHint",
@@ -213,6 +234,37 @@ Hooks.once('init', () => {
         default: false,
         config: true
     });
+
+    //register sidebar tab unless GM disabled it
+    if (!game.settings.get("dice-so-nice", "hideSidebarTab")) {
+        CONFIG.ui["dice-so-nice"] = DsnSidebarTab;
+        const sidebarClass = foundry.applications.sidebar.Sidebar;
+        if (sidebarClass?.TABS) {
+            sidebarClass.TABS["dice-so-nice"] = {
+                icon: "fa-solid fa-dice-d20",
+                tooltip: "DICESONICE.sidebarTabTitle"
+            };
+        }
+    }
+
+    //delete key removes selected persistent dice
+    if (game.settings.get("dice-so-nice", "persistentDice")) {
+        game.keybindings.register("dice-so-nice", "deleteSelectedPersistent", {
+            name: "DICESONICE.keybindingDeleteSelected",
+            hint: "DICESONICE.keybindingDeleteSelectedHint",
+            editable: [
+                { key: "Delete" },
+                { key: "Backspace" }
+            ],
+            onDown: () => {
+                const box = game.dice3d?.box;
+                if (!box || box.selectedPersistentDiceIds.size === 0) return false;
+                box.removeSelectedPersistentDice();
+                return true; // Consume so Foundry's canvas delete doesn't also fire.
+            },
+            precedence: foundry.CONST.KEYBINDING_PRECEDENCE?.NORMAL ?? 0
+        });
+    }
 
 });
 
@@ -241,6 +293,9 @@ const setupDiceSoNice = () => {
 };
 
 const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, dsnIndexAddedRoll: 0}) => {
+    //persistent dice handle their own visuals
+    if (chatMessage.getFlag("dice-so-nice", "persistent")) return false;
+
     const hasInlineRoll = game.settings.get("dice-so-nice", "animateInlineRoll") && chatMessage.content.includes('inline-roll');
 
     const hide3dDiceOnSecretRolls = game.settings.get("dice-so-nice", "hide3dDiceOnSecretRolls");
@@ -277,6 +332,13 @@ const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, ds
  * Intercepts all roll-type messages hiding the content until the animation is finished
  */
 Hooks.on('createChatMessage', (chatMessage) => {
+    //suppress core dice sound for persistent rolls too
+    if (chatMessage.getFlag("dice-so-nice", "persistent")
+        && Dice3D.CONFIG().enabled
+        && chatMessage.sound === "sounds/dice.wav") {
+        delete chatMessage.sound;
+    }
+
     if (!shouldInterceptMessage(chatMessage)) return;
     
     let rolls = chatMessage.isRoll ? chatMessage.rolls : null;
@@ -320,7 +382,6 @@ Hooks.on('createChatMessage', (chatMessage) => {
 
     //Remove the chatmessage sound if it is the core dice sound.
     if (Dice3D.CONFIG().enabled && chatMessage.sound == "sounds/dice.wav") {
-        //foundry.utils.mergeObject(chatMessage, { "-=sound": null }, { performDeletions: true });
         delete chatMessage.sound;
     }
     chatMessage._dice3danimating = true;
@@ -442,6 +503,11 @@ Hooks.on("chatCommandsReady", commands => {
         autocompleteCallback: (menu, alias, parameters) => [game.chatCommands.createInfoElement(game.i18n.localize("DICESONICE.ChatCommandCompletionDescription"))],
         closeOnComplete: true
     });
+});
+
+//re-render sidebar tab once dice3d is ready
+Hooks.on("diceSoNiceReady", () => {
+    ui["dice-so-nice"]?.render({ force: false });
 });
 
 Hooks.on("collapseSidebar", (sidebar, collapsed) => {

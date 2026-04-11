@@ -282,7 +282,6 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         let tabsPromises = [];
         data.navAppearance = {};
         tabsList.forEach((diceType) => {
-            // Build library dice groups for this die type (not for global)
             const isPerDie = diceType !== "global";
             let libraryDiceGroups = [];
             if(isPerDie) {
@@ -871,7 +870,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     shadowQuality: "high",
                     glow: true,
                     antialiasing: game.canvas.app.renderer.context.webGLVersion === 2 ? "msaa" : "smaa",
-                    useHighDPI: true
+                    useHighDPI: true,
+                    persistentDiceOutlines: true
                 };
                 switch (event.target.value) {
                     case "low":
@@ -880,6 +880,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         quality.glow = false;
                         quality.antialiasing = "none";
                         quality.useHighDPI = false;
+                        quality.persistentDiceOutlines = false;
                         break;
                     case "medium":
                         quality.bumpMapping = true;
@@ -887,6 +888,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         quality.glow = false;
                         quality.antialiasing = "none";
                         quality.useHighDPI = false;
+                        quality.persistentDiceOutlines = false;
                         break;
                     case "high":
                         quality.bumpMapping = true;
@@ -894,6 +896,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         quality.glow = true;
                         quality.antialiasing = game.canvas.app.renderer.context.webGLVersion === 2 ? "msaa" : "smaa";
                         quality.useHighDPI = true;
+                        quality.persistentDiceOutlines = true;
                         break;
                 }
                 $(this.element).find("[data-bumpMapping]").prop("checked", quality.bumpMapping);
@@ -901,9 +904,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 $(this.element).find("[data-glow]").prop("checked", quality.glow);
                 $(this.element).find("[data-antialiasing]").val(quality.antialiasing);
                 $(this.element).find("[data-useHighDPI]").prop("checked", quality.useHighDPI);
+                $(this.element).find("[data-persistentDiceOutlines]").prop("checked", quality.persistentDiceOutlines);
             });
 
-            $(this.element).on("change", "[data-bumpMapping],[data-shadowQuality],[data-glow],[data-antialiasing],[data-useHighDPI]", (event) => {
+            $(this.element).on("change", "[data-bumpMapping],[data-shadowQuality],[data-glow],[data-antialiasing],[data-useHighDPI],[data-persistentDiceOutlines]", (event) => {
                 $(this.element).find("[data-imageQuality]").val("custom");
             });
         }
@@ -969,7 +973,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             preventRender: true
         });
 
-        // Clone appearance and strip cross-user library die references (not portable)
+        //strip cross-user library die refs (not portable)
         const appearance = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "appearance") || {});
         for (const scope in appearance) {
             if (!appearance.hasOwnProperty(scope)) continue;
@@ -979,7 +983,6 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             }
         }
 
-        // Also strip cross-user refs from saves
         const saves = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "saves") || {});
         for (const saveName in saves) {
             if (!saves.hasOwnProperty(saveName)) continue;
@@ -1026,7 +1029,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     async actionImportFromJSON(json) {
         let data = JSON.parse(json);
 
-        // Handle library-only exports (from "Export my Dice Library" or DiceEditor exports)
+        //library-only export
         if (data.dsnLibraryExport && Array.isArray(data.dice)) {
             await this._importLibraryDice(data.dice);
             return;
@@ -1053,10 +1056,6 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         }
     }
 
-    /**
-     * Import library dice, keeping their original IDs and skipping duplicates.
-     * @param {Array} diceArray - Array of die objects to import.
-     */
     async _importLibraryDice(diceArray) {
         const { imported, skipped } = await game.dice3d.diceLibrary.importArray(diceArray);
         ui.notifications.info(game.i18n.format("DICESONICE.ImportLibrarySuccess", { count: imported, skipped: skipped }));
@@ -1165,7 +1164,6 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             scope = scope.filter(`[data-tab="${dicetype}"]`);
         }
         scope.each((index, element) => {
-            // Skip if a library die is selected - already disabled by toggleCustomization
             const libraryDieVal = $(element).find('[data-libraryDie]').val();
             if (libraryDieVal) return;
 
@@ -1193,7 +1191,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         container.each((index, element) => {
             let diceType = $(element).data("tab");
             if (diceType != "global") {
-                // When a library die is selected, disable all appearance controls
+                //library die selected: disable all appearance controls
                 const libraryDieVal = $(element).find('[data-libraryDie]').val();
                 const allAppearanceControls = $(element).find('[data-colorset],[data-texture],[data-material],[data-font],[data-labelColor],[data-diceColor],[data-outlineColor],[data-edgeColor],[data-labelColorSelector],[data-diceColorSelector],[data-outlineColorSelector],[data-edgeColorSelector]');
                 if (libraryDieVal) {
@@ -1259,10 +1257,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         }
     }
 
-    /**
-     * Parse a library die select value into libraryDieId + libraryDieOwner.
-     * Values are either "dieId" (own die) or "userId:dieId" (other user's die).
-     */
+    //"userId:dieId" => {libraryDieId, libraryDieOwner}
     static _parseLibraryDieValue(val) {
         if (!val) return {};
         if (val.includes(":")) {
@@ -1334,11 +1329,6 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         return config;
     }
 
-    /**
-     * Refresh the library die dropdown(s) in appearance tabs.
-     * Called by DiceLibraryDialog after add/duplicate/delete/import.
-     * @param {string|null} dieType - Refresh only this type's tab, or all tabs if null.
-     */
     refreshLibraryDropdown(dieType = null) {
         const tabs = dieType
             ? $(this.element).find(`.tabAppearance[data-tab="${dieType}"]`)
@@ -1459,7 +1449,6 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         let scopedAppearance = Object.keys(formData.appearance);
         let systemsInUse = new Set();
         for (let scope of scopedAppearance) {
-            // Parse composite library die values (e.g. "userId:dieId") into separate fields
             if (formData.appearance[scope].libraryDieId) {
                 const parsed = DiceConfig._parseLibraryDieValue(formData.appearance[scope].libraryDieId);
                 formData.appearance[scope].libraryDieId = parsed.libraryDieId || "";
@@ -1501,12 +1490,11 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         //system settings won't be merged here because insertValues is false
         let appearance = foundry.utils.mergeObject(Dice3D.APPEARANCE(), formData.appearance, { insertKeys: true, insertValues: false, performDeletions: true });
 
-        //So we add back the system settings and library die references to the appearance
+        //add back system settings and library die refs (mergeObject drops them)
         for (let scope of scopedAppearance) {
             if (formData.appearance[scope].systemSettings) {
                 appearance[scope].systemSettings = formData.appearance[scope].systemSettings;
             }
-            // Library die fields are not in DEFAULT_APPEARANCE, so mergeObject drops them
             if (formData.appearance[scope].libraryDieId) {
                 appearance[scope].libraryDieId = formData.appearance[scope].libraryDieId;
                 if (formData.appearance[scope].libraryDieOwner) {

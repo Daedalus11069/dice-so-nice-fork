@@ -6,9 +6,7 @@ import { Utils } from './Utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-/**
- * Dice Editor - modal popup for creating/editing custom dice face-by-face.
- */
+//dice editor - create/edit custom dice face-by-face
 export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
 
     static DEFAULT_OPTIONS = {
@@ -41,11 +39,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         }
     };
 
-    /**
-     * @param {string} dieType - e.g. "d20"
-     * @param {object|null} libraryDie - Existing library die to edit, or null for new.
-     * @param {object} options - Additional options (onSave callback, etc.)
-     */
     constructor(dieType, libraryDie = null, options = {}) {
         super(options);
         this.dieType = dieType;
@@ -55,8 +48,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie = foundry.utils.deepClone(libraryDie);
             this.isNew = false;
         } else {
-            // Initialize new die from the current appearance for this die type.
-            // Prefer live DiceConfig form values (unsaved) over the persisted flag.
+            //init from current appearance, prefer live DiceConfig form values over persisted flag
             const factory = game.dice3d.box.dicefactory;
             const diceConfig = options.diceConfig || null;
             const appearances = diceConfig
@@ -65,8 +57,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             const resolved = factory.getAppearanceForDice(appearances, dieType);
             this.libraryDie = DiceLibrary.createEmptyDie(dieType, `Custom ${dieType.toUpperCase()}`);
 
-            // Themes like bronze/rainbow use arrays for random per-die variation.
-            // Library dice are deterministic, pick one random snapshot.
+            //themes use arrays for random variation, pick one snapshot
             const pick = (val, fallback) => {
                 if (Array.isArray(val)) return val.length > 0 ? val[Math.floor(Math.random() * val.length)] : fallback;
                 return val || fallback;
@@ -76,9 +67,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie.baseAppearance.labelColor = pick(resolved.foreground, "#FFFFFF");
             this.libraryDie.baseAppearance.outlineColor = pick(resolved.outline, "");
             this.libraryDie.baseAppearance.edgeColor = pick(resolved.edge, "");
-            // When texture is "none" but a themed colorset is active, the actual
-            // texture comes from the colorset data (resolved in generateMaterialData).
-            // Since the editor forces colorset to "custom", we must resolve it here.
+            //editor forces colorset=custom, so resolve texture from colorset data if needed
             let effectiveTexture = pick(resolved.texture, "none");
             if (effectiveTexture === "none" && resolved.colorset && resolved.colorset !== "custom") {
                 const colorsetData = DiceColors.getColorSet(resolved.colorset);
@@ -86,17 +75,14 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
                     let tex = Array.isArray(colorsetData.texture)
                         ? colorsetData.texture[Math.floor(Math.random() * colorsetData.texture.length)]
                         : colorsetData.texture;
-                    // colorsetData.texture is already resolved to an object by initColorSets;
-                    // we need the string name for storage
                     effectiveTexture = (typeof tex === "object" && tex.name) ? tex.name : tex;
                 }
             }
-            // effectiveTexture could still be a resolved texture object from the appearance
             if (typeof effectiveTexture === "object" && effectiveTexture.name) {
                 effectiveTexture = effectiveTexture.name;
             }
             this.libraryDie.baseAppearance.texture = effectiveTexture;
-            // Resolve "auto" material from texture (e.g. bronze textures → "metal")
+            //resolve "auto" material from texture (e.g. bronze => metal)
             let effectiveMaterial = resolved.material || "plastic";
             if (effectiveMaterial === "auto" && effectiveTexture && effectiveTexture !== "none") {
                 const texData = DiceColors.getTexture(effectiveTexture);
@@ -106,13 +92,10 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie.baseAppearance.font = resolved.font || "auto";
             this.libraryDie.baseAppearance.system = resolved.system || "standard";
 
-            // If the preset has emissive maps (e.g. Spectrum, Dot), mark the base
-            // as emissive and pre-populate all faces with emissive: true so that
-            // the per-face glow system preserves preset glow by default.
+            //if preset has emissive maps (Spectrum, Dot), pre-populate faces with glow
             const diceobj = factory.getPresetBySystem(dieType, resolved.system || "standard");
             if (diceobj && diceobj.emissive && diceobj.emissive !== 0x000000) {
                 this.libraryDie.baseAppearance.emissive = true;
-                // Use shape face count: for inherited shapes the shape has more faces than the type
                 const shapeData = DICE_SHAPE[diceobj.shape];
                 const shapeFaceCount = shapeData ? shapeData.faceValues.filter(v => v !== 0).length : diceobj.values.length;
                 for (let f = 1; f <= shapeFaceCount; f++) {
@@ -147,7 +130,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         });
         data.fontList = Utils.prepareFontList();
 
-        // Render face props partial (empty initially, populated on face selection)
         data.facePropsHtml = await foundry.applications.handlebars.renderTemplate(
             "modules/dice-so-nice/templates/dice-editor-face-props.hbs",
             {
@@ -181,10 +163,8 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     _onRender(context, options) {
         const html = $(this.element);
 
-        // Remove previous event handlers to avoid stacking on re-render
         html.off(".diceEditor");
 
-        // Initialize 3D preview
         const previewContainer = html.find("#dice-editor-preview-container")[0];
         if (previewContainer && !this.preview) {
             this.preview = new DiceEditorPreview(previewContainer, game.dice3d.box.dicefactory);
@@ -192,7 +172,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.preview.init().then(() => this._refreshPreview());
         }
 
-        // Global property change handlers
         html.on("change.diceEditor", "[name=baseMaterial]", () => this._onGlobalChange());
         html.on("change.diceEditor", "[name=baseEdgeColor]", () => this._onGlobalChange());
         html.on("change.diceEditor", "[name=baseDiceColor]", () => this._onGlobalChange());
@@ -201,10 +180,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             this.libraryDie.name = ev.target.value;
         });
 
-        // Color selector sync, update the text field live but only trigger
-        // the mesh rebuild on "change" (when the picker is closed), not on
-        // every "input" frame, since each rebuild recreates the full Canvas2D
-        // texture atlas + Three.js materials.
+        //rebuild mesh on "change" (picker closed), not every "input" frame
         html.on("input.diceEditor", "input[type=color]", (ev) => {
             const editTarget = $(ev.target).data("edit");
             if (editTarget) {
@@ -218,15 +194,12 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             }
         });
 
-        // Face property change handlers
         html.on("change.diceEditor", "[name^=face]", () => this._onFacePropertyChange());
-        // Range sliders: update display value on input, trigger property change on release
         html.on("input.diceEditor", "input[type=range]", (ev) => {
             $(ev.target).next(".range-value").text(ev.target.value);
         });
         html.on("click.diceEditor", "[data-face-filepicker]", () => this._onFilePicker());
 
-        // Reset selected faces button (in footer)
         html.on("click.diceEditor", "[data-action=resetFaces]", () => this._onResetFace());
     }
 
@@ -239,9 +212,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         this._refreshPreview();
     }
 
-    /**
-     * Get the display label for a shape face (type value or preset label).
-     */
     _getShapeFaceDisplay(shapeFaceValue) {
         const typeMap = this.preview?._shapeToTypeValue || {};
         const typeLabels = this.preview?._typeValueLabels || {};
@@ -269,7 +239,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         html.find("[data-face-props]").show();
         this._clampToViewport();
 
-        // If single face selected, populate with its values
         if (faces.size === 1) {
             const shapeFace = String(shapeFaces[0]);
             const faceData = this.libraryDie.faces[shapeFace] || {};
@@ -289,13 +258,11 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find("[name=faceTexture]").val(faceData.backgroundTexture || "");
             html.find("[name=faceEmissive]").prop("checked", !!faceData.emissive);
             html.find("[name=faceEmissiveColor]").val(faceData.emissiveColor || "");
-            // Sync color pickers, use face override or fall back to base appearance
             const base = this.libraryDie.baseAppearance;
             html.find("[name=faceForegroundSelector]").val(faceData.foreground || base.labelColor || "#FFFFFF");
             html.find("[name=faceBackgroundSelector]").val(faceData.background || base.diceColor || "#000000");
             html.find("[name=faceOutlineSelector]").val(faceData.outline || base.outlineColor || "#000000");
         } else {
-            // Multi-selection: show "Mixed" placeholder
             html.find("[name=faceLabelText]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
             html.find("[name=faceFont]").val("");
             html.find("[name=faceFontScale]").val(100);
@@ -310,7 +277,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find(".label-image-controls").hide();
             html.find("[name=faceTexture]").val("");
             html.find("[name=faceEmissive]").prop("checked", false);
-            // Color pickers fall back to base appearance
             const base = this.libraryDie.baseAppearance;
             html.find("[name=faceForegroundSelector]").val(base.labelColor || "#FFFFFF");
             html.find("[name=faceBackgroundSelector]").val(base.diceColor || "#000000");
@@ -342,7 +308,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         const backgroundTexture = html.find("[name=faceTexture]").val();
         const emissive = html.find("[name=faceEmissive]").is(":checked");
 
-        // Update range value display
         html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text(fontScale + "%");
 
         if (labelText) faceData.labelText = labelText;
@@ -366,7 +331,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         if (backgroundTexture) faceData.backgroundTexture = backgroundTexture;
         faceData.emissive = emissive;
 
-        // Apply to all selected faces (keyed by shape face index)
         for (const shapeFace of this.selectedFaces) {
             const key = String(shapeFace);
             if (Object.keys(faceData).length > 0) {
@@ -394,7 +358,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         const fp = new foundry.applications.apps.FilePicker({
             type: "image",
             callback: async (path) => {
-                // Pre-load the image into the cache so the preview can use it immediately
                 await DiceLibrary.loadImage(path);
                 html.find("[name=faceLabelImage]").val(path).trigger("change");
             }
@@ -422,7 +385,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     async _refreshPreview() {
         if (!this.preview) return;
         const appearance = this._buildAppearance();
-        // Temporary: store the library die in an array for the preview
         const tempLibrary = this.libraryDie.id
             ? [this.libraryDie]
             : [{ ...this.libraryDie, id: "__editor_temp__" }];
@@ -437,7 +399,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     static async _onSubmit(event, form, formData) {
         const html = $(form);
 
-        // Update name from form
         this.libraryDie.name = html.find("[name=dieName]").val() || `Custom ${this.dieType.toUpperCase()}`;
 
         const library = game.dice3d.diceLibrary;
@@ -447,7 +408,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             await library.update(this.libraryDie.id, this.libraryDie);
         }
 
-        // Invalidate cached materials
         game.dice3d.box.dicefactory.disposeCachedMaterials();
 
         if (this.onSaveCallback) {

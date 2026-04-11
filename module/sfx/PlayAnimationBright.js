@@ -35,10 +35,7 @@ export class PlayAnimationBright extends DiceSFX {
         this.baseColor = this.glowingMesh.material.emissive.clone();
         this.baseMaterial = this.glowingMesh.material;
         this.glowingMesh.material = this.baseMaterial.clone();
-        // If the material has a selective glow map, swap to the full emissive
-        // map so the bright animation lights up all labels, not just glow faces.
-        // Read from the ORIGINAL material's userData, clone() deep-copies userData
-        // via JSON serialization, which destroys CanvasTexture references.
+        //swap to full emissive map so bright SFX lights all labels (read from original, clone destroys CanvasTexture refs)
         if (this.baseMaterial.userData.emissiveMapFull) {
             this.glowingMesh.material.emissiveMap = this.baseMaterial.userData.emissiveMapFull;
         }

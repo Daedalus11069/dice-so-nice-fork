@@ -3,10 +3,7 @@ import { DiceLibrary, LIBRARY_DIE_TYPES } from './DiceLibrary.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-/**
- * Unified library popup - shows all die types in collapsible sections,
- * including other users' dice (duplicate-only).
- */
+//library popup - collapsible sections per die type, including other users' dice
 export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2) {
 
     static DEFAULT_OPTIONS = {
@@ -46,7 +43,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
         const myId = game.user.id;
         const myDice = game.dice3d.diceLibrary.getAll();
 
-        // Collect other users' dice
         const otherUsersData = [];
         for (const user of game.users) {
             if (user.id === myId) continue;
@@ -60,14 +56,12 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             }
         }
 
-        // Build sections by die type - collect all types that have at least one die
         const allTypes = new Set();
         for (const d of myDice) allTypes.add(d.dieType);
         for (const u of otherUsersData) {
             for (const d of u.dice) allTypes.add(d.dieType);
         }
 
-        // Sort die types in canonical order
         const sortedTypes = [...allTypes].sort((a, b) => {
             const ia = LIBRARY_DIE_TYPES.indexOf(a);
             const ib = LIBRARY_DIE_TYPES.indexOf(b);
@@ -93,7 +87,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             };
         });
 
-        // Build die type list for footer create selector
         const dieTypeOptions = LIBRARY_DIE_TYPES.map(t => ({
             value: t,
             label: t.toUpperCase(),
@@ -111,16 +104,13 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
     _onRender(context, options) {
         const html = $(this.element);
 
-        // Remove previous event handlers to avoid stacking on re-render
         html.off(".diceLibrary");
 
-        // Collapse/expand sections
         html.on("click.diceLibrary", "[data-action=toggleSection]", (ev) => {
             const section = $(ev.currentTarget).closest(".dice-library-section");
             section.toggleClass("collapsed");
         });
 
-        // Create new die in a specific section
         html.on("click.diceLibrary", "[data-action=createNew]", (ev) => {
             ev.stopPropagation();
             const dieType = $(ev.currentTarget).data("die-type");
@@ -131,7 +121,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             editor.render(true);
         });
 
-        // Edit own die
         html.on("click.diceLibrary", "[data-action=editDie]", (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             const die = game.dice3d.diceLibrary.get(id);
@@ -142,7 +131,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             editor.render(true);
         });
 
-        // Duplicate own die
         html.on("click.diceLibrary", "[data-action=duplicateDie]", async (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             await game.dice3d.diceLibrary.duplicate(id);
@@ -150,7 +138,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             this._refreshConfigDropdown();
         });
 
-        // Duplicate another user's die into own library
         html.on("click.diceLibrary", "[data-action=duplicateOtherDie]", async (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             const userId = $(ev.currentTarget).data("user-id");
@@ -166,7 +153,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             this._refreshConfigDropdown();
         });
 
-        // Delete own die
         html.on("click.diceLibrary", "[data-action=deleteDie]", async (ev) => {
             const id = $(ev.currentTarget).data("die-id");
             const die = game.dice3d.diceLibrary.get(id);
@@ -181,7 +167,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             this._refreshConfigDropdown();
         });
 
-        // Footer: create die from selected type
         html.on("click.diceLibrary", "[data-action=createFromFooter]", () => {
             const dieType = html.find("[data-footer-dietype]").val();
             if (!dieType) return;
@@ -192,7 +177,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             editor.render(true);
         });
 
-        // Auto-scroll to the expanded section
         if (this.dieType) {
             const target = html.find(`.dice-library-section[data-die-type="${this.dieType}"]`);
             if (target.length) {

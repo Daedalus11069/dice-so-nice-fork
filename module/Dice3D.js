@@ -26,6 +26,7 @@ export class Dice3D {
                 quality.antialiasing = "none";
                 quality.useHighDPI = false;
                 quality.imageQuality = "low";
+                quality.persistentDiceOutlines = false;
                 break;
             case 1:
                 quality.bumpMapping = true;
@@ -34,6 +35,7 @@ export class Dice3D {
                 quality.antialiasing = "none";
                 quality.useHighDPI = false;
                 quality.imageQuality = "medium";
+                quality.persistentDiceOutlines = false;
                 break;
             case 2:
             case 3:
@@ -43,6 +45,7 @@ export class Dice3D {
                 quality.antialiasing = game.canvas.app.renderer.context.webGLVersion === 2 ? "msaa" : "smaa";
                 quality.useHighDPI = true;
                 quality.imageQuality = "high";
+                quality.persistentDiceOutlines = true;
                 break;
         }
         return {
@@ -66,6 +69,7 @@ export class Dice3D {
             useHighDPI: quality.useHighDPI,
             antialiasing: quality.antialiasing,
             glow: quality.glow,
+            persistentDiceOutlines: quality.persistentDiceOutlines,
             showOthersSFX: true,
             immersiveDarkness: true,
             muteSoundSecretRolls: false,
@@ -332,6 +336,9 @@ export class Dice3D {
 
         this.hiddenAnimationQueue = [];
         this.defaultShowExtraDice = Dice3D.DEFAULT_OPTIONS.showExtraDice;
+
+        //local user's persistent dice data, keyed by persistentId
+        this._persistentDiceData = new Map();
     }
 
     init() {
@@ -347,6 +354,8 @@ export class Dice3D {
             await this.diceLibrary.load();
             await DiceLibrary.preloadAssets();
             await this.DiceFactory.preloadPresets();
+            //restore persistent dice from flags
+            await this._restoreAllPersistentDice();
         });
         DiceSFXManager.init();
         this._startQueueHandler();
@@ -356,7 +365,7 @@ export class Dice3D {
     }
 
     get canInteract() {
-        return !this.box.running;
+        return !this.box.running || this.box.persistentDiceList.length > 0;
     }
 
     /**
@@ -412,7 +421,9 @@ export class Dice3D {
         config.dimensions = this._computeDimensions(config.rollingArea);
 
         this.box = new DiceBox(this.canvas[0], this.DiceFactory, config);
-        this.box.initialize();
+        this._boxReady = this.box.initialize();
+        this.box.onPersistentEvent = (type, data) => this._emitPersistentEvent(type, data);
+        this.box.sfxListForUser = (user) => Dice3D.ALL_CUSTOMIZATION(user).specialEffects || [];
     }
 
     _computeDimensions(rollingArea) {
@@ -507,12 +518,36 @@ export class Dice3D {
                         this.DiceFactory.preloadPresets(false, request.user);
                     }
                     break;
+                case "persistent-create":
+                case "persistent-remove":
+                case "persistent-clear":
+                case "persistent-pickup":
+                case "persistent-move":
+                case "persistent-release":
+                case "persistent-preroll":
+                case "persistent-throw":
+                    if (request.user !== game.user.id)
+                        this._handlePersistentMessage(request).catch(err =>
+                            console.error("[Dice So Nice] Persistent sync error:", err));
+                    break;
             }
+        });
+
+        //clean up persistent dice when user disconnects (locked dice would stay stuck otherwise)
+        Hooks.on("userConnected", (user, connected) => {
+            if (!connected) {
+                this._cleanupDisconnectedUser(user.id);
+                this.box.clearPersistentDice({ ownerUserId: user.id });
+                return;
+            }
+            //restore connecting user's persistent dice from their flags
+            this._restorePersistentDiceFromFlags(user.id, false);
         });
 
         const hideCanvasAndClear = () => {
             const config = Dice3D.CONFIG();
             if (!config.hideAfterRoll && this.canvas.is(":visible") && !this.box.rolling) {
+                if (this.box.persistentDiceList.length > 0) return;
                 this.canvas.hide();
                 this.box.clearAll();
             }
@@ -528,30 +563,56 @@ export class Dice3D {
         }
 
         if (game.settings.get("dice-so-nice", "allowInteractivity")) {
-            $(document).on("mousemove.dicesonice", "body", async (event) => {
-                if (!this.canInteract)
-                    return;
-                await this.box.onMouseMove(event, mouseNDC(event));
-            });
-
-            $(document).on("mousedown.dicesonice", "body", async (event) => {
-                if (!this.canInteract)
-                    return;
+            //pointer events + setPointerCapture to avoid dropped drags
+            //capture phase on window so nothing downstream can stopPropagation
+            //TODO: touch/pen input not supported yet for persistent dice
+            this._dsnPointerDown = async (event) => {
+                if (event.pointerType && event.pointerType !== "mouse") return;
+                if (!this.canInteract) return;
+                //temporarily flip pointer-events to auto so elementsFromPoint can see the canvas,
+                //then restore immediately. respects stacking order (modals, dialogs, etc.)
+                //look up fresh each time in case _buildCanvas recreated the div
+                const dsnEl = document.getElementById("dice-box-canvas");
+                if (dsnEl && typeof document.elementFromPoint === "function") {
+                    const prevPE = dsnEl.style.pointerEvents;
+                    let topmost;
+                    dsnEl.style.pointerEvents = "auto";
+                    try {
+                        topmost = document.elementFromPoint(event.clientX, event.clientY);
+                    } finally {
+                        dsnEl.style.pointerEvents = prevPE;
+                    }
+                    if (topmost && topmost !== dsnEl && !dsnEl.contains(topmost)) {
+                        return;
+                    }
+                }
                 let hit = await this.box.onMouseDown(event, mouseNDC(event));
-                if (hit)
+                if (hit) {
+                    try {
+                        document.documentElement.setPointerCapture?.(event.pointerId);
+                    } catch (e) { /* capture is best-effort */ }
                     this._beforeShow();
-                else {
+                } else {
                     hideCanvasAndClear();
                 }
-            });
-
-            $(document).on("mouseup.dicesonice", "body", async (event) => {
-                if (!this.canInteract)
-                    return;
+            };
+            this._dsnPointerMove = async (event) => {
+                if (event.pointerType && event.pointerType !== "mouse") return;
+                if (!this.canInteract) return;
+                await this.box.onMouseMove(event, mouseNDC(event));
+            };
+            this._dsnPointerUp = async (event) => {
+                if (event.pointerType && event.pointerType !== "mouse") return;
+                if (!this.canInteract) return;
                 let hit = await this.box.onMouseUp(event);
-                if (hit)
-                    this._afterShow();
-            });
+                if (hit) this._afterShow();
+            };
+            //no removeEventListener needed, _initListeners runs once per session
+            window.addEventListener("pointerdown", this._dsnPointerDown, true);
+            window.addEventListener("pointermove", this._dsnPointerMove, true);
+            window.addEventListener("pointerup", this._dsnPointerUp, true);
+            //pointercancel = OS took the pointer, treat as release
+            window.addEventListener("pointercancel", this._dsnPointerUp, true);
         } else {
             $(document).on("mousedown.dicesonice", "body", async (event) => {
                 hideCanvasAndClear();
@@ -1039,24 +1100,394 @@ export class Dice3D {
             } else {
                 this.timeoutHandle = setTimeout(() => {
                     if (!this.box.rolling) {
+                        const hasPersistentDice = this.box.persistentDiceList.length > 0;
                         if (Dice3D.CONFIG().hideFX === 'none') {
-                            this.canvas.hide();
+                            if (!hasPersistentDice) {
+                                this.canvas.hide();
+                            }
                             this.box.clearAll();
                         }
                         if (Dice3D.CONFIG().hideFX === 'fadeOut') {
-                            this.canvas.fadeOut({
-                                duration: 1000,
-                                complete: () => {
-                                    this.box.clearAll();
-                                },
-                                fail: () => {
-                                    this.canvas.fadeIn(0);
-                                }
-                            });
+                            if (hasPersistentDice) {
+                                //just clear ephemeral dice, keep canvas visible
+                                this.box.clearAll();
+                            } else {
+                                this.canvas.fadeOut({
+                                    duration: 1000,
+                                    complete: () => {
+                                        this.box.clearAll();
+                                    },
+                                    fail: () => {
+                                        this.canvas.fadeIn(0);
+                                    }
+                                });
+                            }
                         }
                     }
                 }, Dice3D.CONFIG().timeBeforeHide);
             }
         }
+    }
+
+    /**
+     * Spawn a persistent die on the tabletop.
+     */
+    async spawnPersistentDie(type, position = null, opts = {}, synchronize = true) {
+        const user = opts.ownerUserId ? game.users.get(opts.ownerUserId) : game.user;
+        //raw appearances for socket sync and flag persistence
+        const rawAppearances = opts._rawAppearances || Dice3D.APPEARANCE(user);
+        const appearance = opts.appearance || this.DiceFactory.getAppearanceForDice(rawAppearances, type);
+        const diceLibrary = opts.diceLibrary ?? DiceLibrary.getLibraryForUser(user);
+        this._beforeShow();
+        const mesh = await this.box.spawnPersistentDie(type, appearance, position, diceLibrary, opts);
+        if (mesh && synchronize) {
+            this._emitPersistentEvent("create", {
+                data: {
+                    persistentId: mesh.userData.persistentId,
+                    dieType: type,
+                    positionPct: position || this._toPositionPct(
+                        mesh.parent.position.x,
+                        mesh.parent.position.y
+                    ),
+                    linkGroupId: opts.linkGroupId || null,
+                    linkGroupSecondary: opts.linkGroupSecondary || false,
+                    appearances: rawAppearances,
+                    diceLibrary: diceLibrary
+                }
+            });
+        }
+        if (mesh && mesh.userData.ownerUserId === game.user?.id) {
+            this._persistentDiceData.set(mesh.userData.persistentId, {
+                persistentId: mesh.userData.persistentId,
+                dieType: type,
+                appearances: rawAppearances,
+                diceLibrary,
+                linkGroupId: opts.linkGroupId || null,
+                linkGroupSecondary: opts.linkGroupSecondary || false
+            });
+            this._savePersistentDiceToFlags();
+        }
+        return mesh;
+    }
+
+    /**
+     * Set persistent dice visibility mode (not persisted across reloads)
+     */
+    setPersistentDiceVisibility(mode) {
+        this.box?.setPersistentDiceVisibility(mode);
+    }
+
+    /**
+     * Remove a persistent die from the tabletop.
+     */
+    async removePersistentDie(persistentId, synchronize = true) {
+        const wasLocal = this._persistentDiceData.has(persistentId);
+        await this.box.removePersistentDie(persistentId);
+        if (this.box.persistentDiceList.length === 0 && !this.box.rolling) {
+            this._afterShow();
+        }
+        if (synchronize) {
+            this._emitPersistentEvent("remove", {
+                data: { persistentId }
+            });
+        }
+        if (wasLocal) {
+            this._persistentDiceData.delete(persistentId);
+            this._savePersistentDiceToFlags();
+        }
+    }
+
+    /**
+     * Clear persistent dice. Pass { ownerUserId } to limit to one user.
+     */
+    async clearPersistentDice(opts = {}, synchronize = true) {
+        await this.box.clearPersistentDice(opts);
+        if (!this.box.rolling) {
+            this._afterShow();
+        }
+        if (synchronize) {
+            this._emitPersistentEvent("clear", {
+                data: { ownerUserId: opts.ownerUserId || null }
+            });
+        }
+        //update local tracking if we cleared our own dice
+        const clearedLocal = !opts.ownerUserId || opts.ownerUserId === game.user?.id;
+        if (clearedLocal) {
+            this._persistentDiceData.clear();
+            this._savePersistentDiceToFlags();
+        }
+    }
+
+    /**
+     * Remove selected persistent dice (respects ownership).
+     */
+    async removeSelectedPersistentDice() {
+        //collect ids before removal for socket messages
+        const removedPids = [];
+        for (const mesh of this.box.persistentDiceList) {
+            if (this.box.selectedPersistentDiceIds.has(mesh.id)) {
+                removedPids.push(mesh.userData.persistentId);
+                //include link-group siblings
+                if (mesh.userData.linkGroupId) {
+                    for (const other of this.box.persistentDiceList) {
+                        if (other.userData.linkGroupId === mesh.userData.linkGroupId
+                            && !removedPids.includes(other.userData.persistentId)) {
+                            removedPids.push(other.userData.persistentId);
+                        }
+                    }
+                }
+            }
+        }
+        const n = await this.box.removeSelectedPersistentDice();
+        if (!this.box.rolling && this.box.persistentDiceList.length === 0) {
+            this._afterShow();
+        }
+        let localChanged = false;
+        for (const pid of removedPids) {
+            this._emitPersistentEvent("remove", { data: { persistentId: pid } });
+            if (this._persistentDiceData.delete(pid)) localChanged = true;
+        }
+        if (localChanged) this._savePersistentDiceToFlags();
+        return n;
+    }
+
+    //"move" uses volatile delivery, everything else reliable
+    _emitPersistentEvent(type, data) {
+        const msg = { type: `persistent-${type}`, user: game.user.id, ...data };
+        if (type === "move") {
+            game.socket.volatile.emit("module.dice-so-nice", msg);
+        } else {
+            game.socket.emit("module.dice-so-nice", msg);
+        }
+    }
+
+    _findPersistentMeshById(persistentId) {
+        return this.box.persistentDiceList.find(
+            m => m.userData.persistentId === persistentId
+        ) || null;
+    }
+
+    _toPositionPct(worldX, worldY) {
+        return this.box.toPositionPct(worldX, worldY);
+    }
+
+    _fromPositionPct(pct) {
+        return this.box.fromPositionPct(pct);
+    }
+
+    async _handlePersistentMessage(request) {
+        if (!request.data) return;
+        switch (request.type) {
+            case "persistent-create": return this._onRemotePersistentCreate(request);
+            case "persistent-remove": return this._onRemotePersistentRemove(request);
+            case "persistent-clear": return this._onRemotePersistentClear(request);
+            case "persistent-pickup": return this._onRemotePersistentPickup(request);
+            case "persistent-move": return this._onRemotePersistentMove(request);
+            case "persistent-release": return this._onRemotePersistentRelease(request);
+            case "persistent-preroll": return this._onRemotePersistentPreroll(request);
+            case "persistent-throw": return this._onRemotePersistentThrow(request);
+        }
+    }
+
+    _cleanupDisconnectedUser(userId) {
+        let changed = false;
+        for (const mesh of this.box.persistentDiceList) {
+            if (mesh.userData?.lockedBy === userId) {
+                delete mesh.userData.lockedBy;
+                delete mesh.userData.remotePreRoll;
+                delete mesh.userData.preRollRates;
+                delete mesh.userData.remoteMoveTarget;
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.box._updateSelectionOutlines();
+        }
+        this.box._removeRemoteOutlinePass(userId);
+    }
+
+    //save local user's persistent dice to flags
+    _savePersistentDiceToFlags() {
+        if (!game.user || this._restoringDice) return;
+        const data = Array.from(this._persistentDiceData.values());
+        game.user.setFlag("dice-so-nice", "persistentDice", data);
+    }
+
+    //restore a user's persistent dice from flags
+    async _restorePersistentDiceFromFlags(userId, synchronize = false) {
+        const user = game.users.get(userId);
+        if (!user) return;
+        const saved = user.getFlag("dice-so-nice", "persistentDice");
+        if (!Array.isArray(saved) || saved.length === 0) return;
+
+        if (userId !== game.user?.id) {
+            DiceLibrary.preloadAssets(userId);
+            this.DiceFactory.preloadPresets(false, userId);
+        }
+
+        const count = saved.length;
+        for (let i = 0; i < count; i++) {
+            const entry = saved[i];
+            const x = (i + 1) / (count + 1);
+            const y = 0.85;
+            const appearances = entry.appearances || Dice3D.APPEARANCE(user);
+            const appearance = this.DiceFactory.getAppearanceForDice(appearances, entry.dieType);
+            await this.spawnPersistentDie(entry.dieType, { x, y }, {
+                ownerUserId: userId,
+                remotePersistentId: entry.persistentId,
+                appearance,
+                _rawAppearances: appearances,
+                diceLibrary: entry.diceLibrary,
+                linkGroupId: entry.linkGroupId || null,
+                linkGroupSecondary: entry.linkGroupSecondary || false
+            }, synchronize);
+        }
+    }
+
+    //restore all connected users' persistent dice
+    async _restoreAllPersistentDice() {
+        //wait for DiceBox to finish initializing (materials, renderer, etc.)
+        if (this._boxReady) await this._boxReady;
+        this._restoringDice = true;
+        try {
+            for (const user of game.users) {
+                if (!user.active) continue;
+                await this._restorePersistentDiceFromFlags(user.id, user.id === game.user?.id);
+            }
+        } finally {
+            this._restoringDice = false;
+        }
+    }
+
+    async _onRemotePersistentCreate(request) {
+        const { persistentId, dieType, positionPct, linkGroupId, linkGroupSecondary, appearances, diceLibrary } = request.data;
+        const user = game.users.get(request.user);
+        if (!user) return;
+
+        //skip if already restored from flags
+        if (this._findPersistentMeshById(persistentId)) return;
+
+        DiceLibrary.preloadAssets(request.user);
+        this.DiceFactory.preloadPresets(false, request.user);
+
+        const resolvedAppearance = this.DiceFactory.getAppearanceForDice(
+            appearances || Dice3D.APPEARANCE(user), dieType
+        );
+
+        await this.spawnPersistentDie(dieType, positionPct, {
+            ownerUserId: request.user,
+            remotePersistentId: persistentId,
+            linkGroupId,
+            linkGroupSecondary,
+            appearance: resolvedAppearance,
+            _rawAppearances: appearances,
+            diceLibrary
+        }, false);
+    }
+
+    async _onRemotePersistentRemove(request) {
+        const { persistentId } = request.data;
+        await this.removePersistentDie(persistentId, false);
+    }
+
+    async _onRemotePersistentClear(request) {
+        const { ownerUserId } = request.data;
+        await this.clearPersistentDice(ownerUserId ? { ownerUserId } : {}, false);
+    }
+
+    _onRemotePersistentPickup(request) {
+        const { persistentIds } = request.data;
+        if (!Array.isArray(persistentIds)) return;
+        for (const pid of persistentIds) {
+            const mesh = this._findPersistentMeshById(pid);
+            if (mesh) mesh.userData.lockedBy = request.user;
+        }
+        this.box._updateSelectionOutlines();
+    }
+
+    _onRemotePersistentMove(request) {
+        const { positions } = request.data;
+        if (!Array.isArray(positions)) return;
+        //store target position, render loop lerps toward it
+        for (const entry of positions) {
+            if (!entry?.persistentId) continue;
+            const mesh = this._findPersistentMeshById(entry.persistentId);
+            if (!mesh) continue;
+            //ignore late-arriving moves for already-released dice
+            if (!mesh.userData?.lockedBy) continue;
+            const world = this._fromPositionPct(entry);
+            mesh.userData.remoteMoveTarget = { x: world.x, y: world.y };
+        }
+    }
+
+    _onRemotePersistentRelease(request) {
+        const { persistentIds } = request.data;
+        if (!Array.isArray(persistentIds)) return;
+        for (const pid of persistentIds) {
+            const mesh = this._findPersistentMeshById(pid);
+            if (!mesh) continue;
+            delete mesh.userData.lockedBy;
+            delete mesh.userData.remotePreRoll;
+            delete mesh.userData.preRollRates;
+            delete mesh.userData.remoteMoveTarget;
+        }
+        this.box._updateSelectionOutlines();
+    }
+
+    _onRemotePersistentPreroll(request) {
+        const { persistentIds } = request.data;
+        if (!Array.isArray(persistentIds)) return;
+        const rate = () => (Math.random() < 0.5 ? -1 : 1) * (6.3 + Math.random() * 1.8);
+        for (const pid of persistentIds) {
+            const mesh = this._findPersistentMeshById(pid);
+            if (!mesh) continue;
+            mesh.userData.remotePreRoll = true;
+            //random rotation rates for pre-roll animation
+            mesh.userData.preRollRates = {
+                x: rate(),
+                y: rate(),
+                zAmp: 0.35,
+                zFreq: 1.2 + Math.random() * 0.4,
+                t: 0
+            };
+        }
+    }
+
+    async _onRemotePersistentThrow(request) {
+        const { velocityPct, results } = request.data;
+        if (!Array.isArray(results) || !velocityPct) return;
+
+        //look up local meshes and map forced results
+        const heldDice = [];
+        const forcedByMesh = new Map();
+        for (const entry of results) {
+            const mesh = this._findPersistentMeshById(entry.persistentId);
+            if (!mesh) continue;
+            heldDice.push(mesh);
+            forcedByMesh.set(mesh, entry.forcedResult);
+            //unlock and clear pre-roll state
+            delete mesh.userData.lockedBy;
+            delete mesh.userData.remotePreRoll;
+            delete mesh.userData.preRollRates;
+            delete mesh.userData.remoteMoveTarget;
+        }
+        if (heldDice.length === 0) return;
+
+        this.box._updateSelectionOutlines();
+        this._beforeShow();
+
+        //convert velocity from pct to world units
+        const velocity = {
+            x: velocityPct.x * this.box.display.innerWidth,
+            y: velocityPct.y * this.box.display.innerHeight,
+            z: velocityPct.z || 0
+        };
+
+        //thrower's SFX config for remote playback
+        const throwerUser = game.users.get(request.user);
+        const sfxList = throwerUser ? Dice3D.ALL_CUSTOMIZATION(throwerUser).specialEffects || [] : [];
+
+        //simulate + face swap with pre-determined results
+        await this.box._replayRemoteThrow(heldDice, velocity, forcedByMesh, sfxList);
     }
 }

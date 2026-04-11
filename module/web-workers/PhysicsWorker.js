@@ -18,8 +18,13 @@ class PhysicsWorker {
             .operation('createDice', this.createDice.bind(this))
             .operation('removeDice', this.removeDice.bind(this))
             .operation('addDice', this.addDice.bind(this))
+            .operation('applyImpulse', this.applyImpulse.bind(this))
+            .operation('getBodyQuaternion', this.getBodyQuaternion.bind(this))
+            .operation('setBodyPosition', this.setBodyPosition.bind(this))
+            .operation('setBodyPositions', this.setBodyPositions.bind(this))
             .operation('playStep', this.playStep.bind(this))
             .operation('simulateThrow', this.simulateThrow.bind(this))
+            .operation('simulatePersistentThrow', this.simulatePersistentThrow.bind(this))
             .operation('updateBarriers', this.updateBarriers.bind(this))
             .operation('getWorldInfo', this.getWorldInfo.bind(this));
     }
@@ -36,7 +41,8 @@ class PhysicsWorker {
         this.soundDelay = 2; // time between sound effects in worldstep
         this.animstate = 'throw';
 
-        this.mouseConstraint = null;
+        //per-die constraint map: dieId -> { joint, constraint, prevAllowSleep, liftZ }
+        this.diceConstraints = new Map();
 
         this.diceList = new Map();
 
@@ -47,11 +53,14 @@ class PhysicsWorker {
 
         this.muteSoundSecretRolls = data.muteSoundSecretRolls;
 
+        this.framerate = 1 / 60;
+
         this.addContactMaterials();
         this.addDesk();
         this.addBarriers(data.height, data.width, data.margin);
-        this.addJointBody();
         this.reset();
+        //reset sets animstate='simulate' but no sim is running after init, so allow playStep
+        this.animstate = 'throw';
     }
 
     /**
@@ -127,24 +136,23 @@ class PhysicsWorker {
         this.barriers[3].position.set((-width + margin.left * 2) * this.barriersScale, 0, 0);
     }
 
-    /**
-     * Adds a joint body to the world simulation, which can be used to interact
-     * with the dice.
-     */
-    addJointBody() {
+    //create a joint body for a held die, one per addConstraint call
+    _createJointBody() {
         const shape = new Sphere(0.1);
-        this.jointBody = new Body({ mass: 0 });
-        this.jointBody.addShape(shape);
-        this.jointBody.collisionFilterGroup = 0;
-        this.jointBody.collisionFilterMask = 0;
-        this.world.addBody(this.jointBody);
+        const joint = new Body({ mass: 0 });
+        joint.addShape(shape);
+        joint.collisionFilterGroup = 0;
+        joint.collisionFilterMask = 0;
+        this.world.addBody(joint);
+        return joint;
     }
 
     /**
      * Adds a dice to the world simulation with the dice_body_material.
      */
     createDice({id, shape, material, vectordata, mass, startAtIteration, options}) {
-        const body = new Body({ allowSleep: true, sleepSpeedLimit: 75, sleepTimeLimit: 0.9, mass: mass, shape: this.shapeList.get(shape), material: this.dice_body_material });
+        const resolvedShape = this.shapeList.get(shape);
+        const body = new Body({ allowSleep: true, sleepSpeedLimit: 75, sleepTimeLimit: 0.9, mass: mass, shape: resolvedShape, material: this.dice_body_material });
         body.type = Body.DYNAMIC;
         body.position.set(vectordata.pos.x, vectordata.pos.y, vectordata.pos.z);
         body.quaternion.setFromAxisAngle(new Vec3(vectordata.axis.x, vectordata.axis.y, vectordata.axis.z), vectordata.axis.a * Math.PI * 2);
@@ -161,6 +169,7 @@ class PhysicsWorker {
         body.diceShape = shape;
         body.diceMaterial = material;
         body.secretRoll = options?.secret ?? false;
+        body.persistent = options?.persistent ?? false;
         body.startAtIteration = startAtIteration;
 
         this.diceList.set(id, body);
@@ -177,6 +186,49 @@ class PhysicsWorker {
             this.world.removeBody(dice);
 
             this.diceList.delete(id);
+        }
+    }
+
+    //apply impulse to a persistent die body
+    applyImpulse({id, velocity, angularVelocity}) {
+        const dice = this.diceList.get(id);
+        if (!dice) return;
+
+        dice.result = null;
+        dice.wakeUp();
+        dice.type = Body.DYNAMIC;
+        dice.velocity.set(velocity.x, velocity.y, velocity.z);
+        dice.angularVelocity.set(angularVelocity.x, angularVelocity.y, angularVelocity.z);
+    }
+
+    getBodyQuaternion(id) {
+        const dice = this.diceList.get(id);
+        if (!dice) return null;
+        return {
+            x: dice.quaternion.x,
+            y: dice.quaternion.y,
+            z: dice.quaternion.z,
+            w: dice.quaternion.w
+        };
+    }
+
+    //teleport a body to a new position (multiplayer sync for remote-held dice)
+    setBodyPosition({ id, position }) {
+        const dice = this.diceList.get(id);
+        if (!dice) return;
+        dice.position.set(position.x, position.y, position.z);
+        dice.velocity.set(0, 0, 0);
+        dice.angularVelocity.set(0, 0, 0);
+    }
+
+    //batch setBodyPosition — one worker message instead of N per frame
+    setBodyPositions({ updates }) {
+        for (const { id, position } of updates) {
+            const dice = this.diceList.get(id);
+            if (!dice) continue;
+            dice.position.set(position.x, position.y, position.z);
+            dice.velocity.set(0, 0, 0);
+            dice.angularVelocity.set(0, 0, 0);
         }
     }
 
@@ -292,34 +344,85 @@ class PhysicsWorker {
 
     addConstraint({id, pos}){
         const dice = this.diceList.get(id);
-        let v1 = new Vec3(pos.x, pos.y, pos.z).vsub(dice.position);
+        if (!dice) return;
 
-        // Apply anti-quaternion to vector to tranform it into the local body coordinate system
-        let antiRot = dice.quaternion.inverse();
-        let pivot = antiRot.vmult(v1); // pivot is not in local body coordinates
+        //idempotent: already constrained, just reposition
+        if (this.diceConstraints.has(id)) {
+            return this.updateConstraint({ positions: { [id]: pos } });
+        }
 
-        // Move the cannon click marker particle to the click position
-        this.jointBody.position.set(pos.x, pos.y, pos.z + 150);
+        //disable sleep while held so the constraint solver stays active
+        const prevAllowSleep = dice.allowSleep;
+        dice.allowSleep = false;
+        dice.wakeUp();
 
-        // Create a new constraint
-        // The pivot for the jointBody is zero
-        this.mouseConstraint = new PointToPointConstraint(dice, pivot, this.jointBody, new Vec3(0, 0, 0));
+        //persistent dice use center pivot to avoid pendulum swing at high lift
+        //ephemeral dice use click-point pivot for TTS-style grab feel
+        let pivot;
+        let anchorPos;
+        if (dice.persistent) {
+            pivot = new Vec3(0, 0, 0);
+            //anchor at die's XY so it doesn't snap to click location on pickup
+            anchorPos = { x: dice.position.x, y: dice.position.y, z: pos.z };
+        } else {
+            let v1 = new Vec3(pos.x, pos.y, pos.z).vsub(dice.position);
+            // Apply anti-quaternion to vector to tranform it into the local body coordinate system
+            let antiRot = dice.quaternion.inverse();
+            pivot = antiRot.vmult(v1); // pivot is not in local body coordinates
+            anchorPos = pos;
+        }
 
-        // Add the constriant to world
-        this.world.addConstraint(this.mouseConstraint);
+        //persistent dice need more lift (320) to clear chaotic rotation swing
+        const liftZ = dice.persistent ? 320 : 150;
+
+        const joint = this._createJointBody();
+        joint.position.set(anchorPos.x, anchorPos.y, anchorPos.z + liftZ);
+
+        const constraint = new PointToPointConstraint(dice, pivot, joint, new Vec3(0, 0, 0));
+        this.world.addConstraint(constraint);
+
+        this.diceConstraints.set(id, { joint, constraint, prevAllowSleep, liftZ });
     }
 
-    updateConstraint(pos){
-        if (this.mouseConstraint) {
-            this.jointBody.position.set(pos.x, pos.y, pos.z + 150);
-            this.mouseConstraint.update();
+    //update held dice constraints. accepts {positions: {id: pos}} or legacy {pos}
+    updateConstraint(payload){
+        if (this.diceConstraints.size === 0) return;
+
+        let positions = payload?.positions;
+        if (!positions && payload?.pos) {
+            //back-compat: single-die path
+            if (this.diceConstraints.size > 1) {
+                console.warn("[DSN worker] updateConstraint called with single pos but multiple dice held — ignoring");
+                return;
+            }
+            const [onlyId] = this.diceConstraints.keys();
+            positions = { [onlyId]: payload.pos };
+        }
+        if (!positions) return;
+
+        for (const [id, pos] of Object.entries(positions)) {
+            //Object.entries gives string keys, Map uses numbers
+            const entry = this.diceConstraints.get(Number(id)) ?? this.diceConstraints.get(id);
+            if (!entry) continue;
+            entry.joint.position.set(pos.x, pos.y, pos.z + entry.liftZ);
+            entry.constraint.update();
+            //wake to keep solver active even with allowSleep=false
+            const dice = this.diceList.get(Number(id)) ?? this.diceList.get(id);
+            if (dice) dice.wakeUp();
         }
     }
 
-    removeConstraint(){
-        if (this.mouseConstraint) {
-            this.world.removeConstraint(this.mouseConstraint);
-            this.mouseConstraint = null;
+    //remove constraints for given ids (or all), restore sleep policy
+    removeConstraint(payload){
+        const ids = payload?.ids ?? Array.from(this.diceConstraints.keys());
+        for (const id of ids) {
+            const entry = this.diceConstraints.get(id);
+            if (!entry) continue;
+            this.world.removeConstraint(entry.constraint);
+            this.world.removeBody(entry.joint);
+            const dice = this.diceList.get(id);
+            if (dice) dice.allowSleep = entry.prevAllowSleep ?? true;
+            this.diceConstraints.delete(id);
         }
     }
 
@@ -410,6 +513,14 @@ class PhysicsWorker {
         this.framerate = framerate;
         this.canBeFlipped = canBeFlipped;
 
+        //record initial positions at iteration 0
+        for (const [id, dice] of this.diceList) {
+            if (dice.stepPositions) {
+                dice.stepPositions.set([dice.position.x, dice.position.y, dice.position.z], 0);
+                dice.stepQuaternions.set([dice.quaternion.x, dice.quaternion.y, dice.quaternion.z, dice.quaternion.w], 0);
+            }
+        }
+
         this.runPhysicsSimulation();
 
         //return the quaternions and positions of every die at each step
@@ -443,20 +554,155 @@ class PhysicsWorker {
         this.cleanAfterThrow();
 
         return new RegisterPromise.TransferableResponse({
-            ids: ids, 
-            quaternionsBuffers: quaternionsBuffers, 
-            positionsBuffers: positionsBuffers, 
-            detectedCollides: this.detectedCollides, 
+            ids: ids,
+            quaternionsBuffers: quaternionsBuffers,
+            positionsBuffers: positionsBuffers,
+            detectedCollides: this.detectedCollides,
             deads: deads,
             iterationsNeeded: this.iterationsNeeded
         }, [...quaternionsBuffers, ...positionsBuffers]);
     }
     
+    //simulate persistent throw: records trajectories for all awake persistent dice
+    //accepts single {id} or batch {ids, impulses}. impulses applied atomically before stepping
+    simulatePersistentThrow({id, ids, impulses, framerate}) {
+        //normalize to array of throwing ids
+        const throwingIds = Array.isArray(ids) && ids.length > 0 ? ids.slice() : (id != null ? [id] : []);
+        if (throwingIds.length === 0) return null;
+        const throwingDiceRefs = [];
+        for (const tid of throwingIds) {
+            const d = this.diceList.get(tid);
+            if (!d) return null;
+            throwingDiceRefs.push(d);
+        }
+
+        //apply all impulses atomically before stepping to avoid race with playStep
+        if (impulses) {
+            for (const [impId, imp] of Object.entries(impulses)) {
+                const dice = this.diceList.get(Number(impId)) ?? this.diceList.get(impId);
+                if (!dice || !imp) continue;
+                dice.result = null;
+                dice.wakeUp();
+                dice.type = Body.DYNAMIC;
+                dice.velocity.set(imp.velocity.x, imp.velocity.y, imp.velocity.z);
+                dice.angularVelocity.set(imp.angularVelocity.x, imp.angularVelocity.y, imp.angularVelocity.z);
+            }
+        }
+
+        //block playStep and reset collision buffer so eventCollide writes to correct slots
+        this.animstate = 'simulate';
+        this.detectedCollides = new Array(1000);
+        this.iteration = 0;
+        this.lastSoundStep = 0;
+        this.lastSound = 0;
+        this.lastSoundType = '';
+
+        const MAX_FRAMES = 1001;
+        const maxIterations = 1000;
+        const minIterations = 30;
+        const fr = framerate || this.framerate;
+
+        //tracked dice: id -> {dice, posBuffer, quatBuffer}. mid-sim wakes get backfilled
+        const tracked = new Map();
+
+        //snapshot sleeping dice positions before sim so backfill uses pre-collision state
+        const restingSnapshots = new Map();
+        for (const [otherId, otherDice] of this.diceList) {
+            if (!otherDice.persistent) continue;
+            if (otherDice.sleepState >= 2) {
+                restingSnapshots.set(otherId, {
+                    px: otherDice.position.x, py: otherDice.position.y, pz: otherDice.position.z,
+                    qx: otherDice.quaternion.x, qy: otherDice.quaternion.y, qz: otherDice.quaternion.z, qw: otherDice.quaternion.w
+                });
+            }
+        }
+
+        const startTracking = (trackId, dice, frame) => {
+            const posBuffer = new Float32Array(MAX_FRAMES * 3);
+            const quatBuffer = new Float32Array(MAX_FRAMES * 4);
+            //backfill frames with resting state, use pre-sim snapshot if available
+            const snap = restingSnapshots.get(trackId);
+            const bfPos = snap ? [snap.px, snap.py, snap.pz] : [dice.position.x, dice.position.y, dice.position.z];
+            const bfQuat = snap ? [snap.qx, snap.qy, snap.qz, snap.qw] : [dice.quaternion.x, dice.quaternion.y, dice.quaternion.z, dice.quaternion.w];
+            for (let f = 0; f <= frame; f++) {
+                posBuffer.set(bfPos, f * 3);
+                quatBuffer.set(bfQuat, f * 4);
+            }
+            tracked.set(trackId, { dice, posBuffer, quatBuffer });
+        };
+
+        //seed with throwing dice, then any other awake persistent dice
+        for (let i = 0; i < throwingIds.length; i++) {
+            startTracking(throwingIds[i], throwingDiceRefs[i], 0);
+        }
+        for (const [otherId, otherDice] of this.diceList) {
+            if (tracked.has(otherId)) continue;
+            if (!otherDice.persistent) continue;
+            if (otherDice.sleepState >= 2) continue;
+            startTracking(otherId, otherDice, 0);
+        }
+
+        let iteration = 0;
+        while (iteration < maxIterations) {
+            ++iteration;
+            //sync this.iteration for eventCollide frame indexing
+            this.iteration = iteration;
+            this.world.step(fr);
+
+            for (const entry of tracked.values()) {
+                const d = entry.dice;
+                entry.posBuffer.set([d.position.x, d.position.y, d.position.z], iteration * 3);
+                entry.quatBuffer.set([d.quaternion.x, d.quaternion.y, d.quaternion.z, d.quaternion.w], iteration * 4);
+            }
+
+            //pick up any persistent die that woke this frame
+            for (const [otherId, otherDice] of this.diceList) {
+                if (tracked.has(otherId)) continue;
+                if (!otherDice.persistent) continue;
+                if (otherDice.sleepState >= 2) continue;
+                startTracking(otherId, otherDice, iteration);
+            }
+
+            //stop once every throwing die has settled
+            if (iteration >= minIterations) {
+                let allSettled = true;
+                for (const td of throwingDiceRefs) {
+                    if (td.sleepState < 2) { allSettled = false; break; }
+                }
+                if (allSettled) break;
+            }
+        }
+
+        const iterationsNeeded = iteration;
+
+        //invalidate cached results so getDiceValue reads fresh face
+        for (const td of throwingDiceRefs) td.result = null;
+
+        this.animstate = 'throw';
+
+        const diceIds = [];
+        const positionsBuffers = [];
+        const quaternionsBuffers = [];
+        for (const [trackId, entry] of tracked) {
+            diceIds.push(trackId);
+            positionsBuffers.push(entry.posBuffer.buffer);
+            quaternionsBuffers.push(entry.quatBuffer.buffer);
+        }
+
+        return new RegisterPromise.TransferableResponse({
+            diceIds: diceIds,
+            positionsBuffers: positionsBuffers,
+            quaternionsBuffers: quaternionsBuffers,
+            iterationsNeeded: iterationsNeeded,
+            detectedCollides: this.detectedCollides
+        }, [...positionsBuffers, ...quaternionsBuffers]);
+    }
+
     runPhysicsSimulation() {
         while (!this.throwFinished()) {
             //Before each step, we copy the quaternions of every die in an array
             ++this.iteration;
-    
+
             if (!(this.iteration % this.nbIterationsBetweenRolls)) {
                 for(const [id, dice] of this.diceList){
                     if(dice.startAtIteration == this.iteration){
@@ -465,7 +711,8 @@ class PhysicsWorker {
                 }
             }
             this.world.step(this.framerate);
-    
+
+
             for (let i = 0; i < this.world.bodies.length; i++) {
                 if (this.world.bodies[i].stepPositions) {
                     this.world.bodies[i].stepQuaternions.set([this.world.bodies[i].quaternion.x, this.world.bodies[i].quaternion.y, this.world.bodies[i].quaternion.z,this.world.bodies[i].quaternion.w], this.iteration*4);
@@ -480,6 +727,7 @@ class PhysicsWorker {
         if (this.iteration <= this.minIterations) return false;
 
         for(const [id, dice] of this.diceList){
+            if (dice.persistent) continue;
             if (dice.sleepState < 2) {
                 stopped = false;
                 break;
@@ -494,6 +742,7 @@ class PhysicsWorker {
         if (stopped) {
             this.iterationsNeeded = this.iteration;
             for(const [id, dice] of this.diceList){
+                if (dice.persistent) continue;
                 dice.result = this.getDiceValue(id);
                 if(!this.canBeFlipped){
                     //make the current dice on the board STATIC object so they can't be knocked
@@ -510,15 +759,17 @@ class PhysicsWorker {
     playStep({time_diff}) {
         if(this.animstate == 'simulate')
             return;
-        //console.log('playStep', time_diff);
         const ids = [];
         const quaternions = new Float32Array(this.diceList.size * 4);
         const positions = new Float32Array(this.diceList.size * 3);
-        let worldAsleep = true;
-        for (let i = 0; i < this.world.bodies.length; i++) {
-            if (this.world.bodies[i].allowSleep && this.world.bodies[i].sleepState < 2) {
-                worldAsleep = false;
-                break;
+        //if any constraint is active, world can't be asleep (held dice must keep stepping)
+        let worldAsleep = this.diceConstraints.size === 0;
+        if (worldAsleep) {
+            for (let i = 0; i < this.world.bodies.length; i++) {
+                if (this.world.bodies[i].sleepState < 2) {
+                    worldAsleep = false;
+                    break;
+                }
             }
         }
         if (!worldAsleep) {

@@ -9,16 +9,9 @@ import { DiceBox } from './DiceBox.js';
 import { Dice3D } from './Dice3D.js';
 import { DICE_SHAPE } from './DiceModels.js';
 
-/**
- * Dice Editor preview - wraps a DiceBox instance in "editor" mode
- * and adds manual mesh rotation + face raycasting on top.
- */
+//wraps a DiceBox in "editor" mode with manual mesh rotation + face raycasting
 export class DiceEditorPreview {
 
-    /**
-     * @param {HTMLElement} container - The DOM element to render into.
-     * @param {DiceFactory} diceFactory - Reference to the shared DiceFactory.
-     */
     constructor(container, diceFactory) {
         this.container = container;
         this.diceFactory = diceFactory;
@@ -29,15 +22,10 @@ export class DiceEditorPreview {
         this.box = null;
     }
 
-    /**
-     * Async initialization - must be called after constructor.
-     * Creates and sets up the DiceBox instance.
-     */
     async init() {
         const width = this.container.clientWidth || 300;
         const height = this.container.clientHeight || 300;
 
-        // Create a DiceBox in "editor" mode (same pattern as DiceConfig showcase)
         const config = foundry.utils.mergeObject(
             Dice3D.ALL_CONFIG(),
             {
@@ -52,7 +40,6 @@ export class DiceEditorPreview {
         await this.box.initialize();
         this.box.setScene();
 
-        // Override camera for a nice 3/4 angle
         this.box.camera.position.set(150, 200, 540);
         this.box.camera.lookAt(0, 0, 0);
         this.box.camera.updateProjectionMatrix();
@@ -63,8 +50,7 @@ export class DiceEditorPreview {
     }
 
     _initControls() {
-        // Manual right-drag rotation of the mesh (not the camera)
-        // so the HDR lighting changes as you rotate the die
+        //right-drag rotates the mesh (not camera) so HDR lighting changes
         this._isDragging = false;
         this._prevMouse = { x: 0, y: 0 };
         const canvas = this.box.renderer.domElement;
@@ -86,7 +72,7 @@ export class DiceEditorPreview {
             this._prevMouse.x = e.clientX;
             this._prevMouse.y = e.clientY;
 
-            // Rotate using camera-relative axes so drag direction always feels natural
+            //camera-relative axes so drag direction always feels natural
             const speed = 0.01;
             const cameraRight = new Vector3();
             const cameraUp = new Vector3();
@@ -140,17 +126,12 @@ export class DiceEditorPreview {
         });
     }
 
-    /**
-     * Determine the face value at the raycast hit point by comparing
-     * the hit triangle's normal against the known face normals from DICE_SHAPE.
-     */
+    //compare hit triangle normal against known face normals from DICE_SHAPE
     _hitToFaceValue(hit) {
         if (!this._faceNormals) return null;
 
-        // Get the hit triangle's face normal in mesh-local space
         const localNormal = hit.face.normal.clone();
 
-        // Find the closest face normal
         let bestValue = null;
         let bestAngle = Math.PI;
         for (const { normal, value } of this._faceNormals) {
@@ -164,21 +145,15 @@ export class DiceEditorPreview {
         return bestValue;
     }
 
-    /**
-     * Build face normals from DICE_SHAPE vertex/face data.
-     * Each entry: { normal: Vector3, value: number }
-     */
     _buildFaceNormals(diceobj) {
         this._faceNormals = null;
-        // Maps shape face value → diceobj type value
         this._shapeToTypeValue = {};
         const shapeData = DICE_SHAPE[diceobj.shape];
         if (!shapeData) return;
 
         this._faceNormals = [];
 
-        // Map shape face index (1-based) to diceobj value
-        // For inherited shapes (df→d6, d3→d6, d5→d10, d7→d14), values cycle
+        //for inherited shapes (df->d6, d3->d6, etc), values cycle
         const mapToTypeValue = (shapeFaceValue) => {
             return diceobj.values[(shapeFaceValue - 1) % diceobj.values.length];
         };
@@ -209,7 +184,6 @@ export class DiceEditorPreview {
             }
         }
 
-        // Build type value → default label lookup
         this._typeValueLabels = {};
         const labels = Array.isArray(diceobj.labels[0]) ? diceobj.labels[0] : diceobj.labels;
         const edgeOffset = labels.length - diceobj.values.length;
@@ -226,12 +200,8 @@ export class DiceEditorPreview {
         this.box.renderScene();
     }
 
-    /**
-     * Set a new die mesh in the preview scene.
-     */
     async setDie(dieType, appearance, diceLibrary = null) {
-        // Guard against concurrent calls - each call gets a unique token;
-        // if a newer call starts before we finish, we abandon this one.
+        //guard against concurrent calls — newer call supersedes
         const token = this._setDieToken = {};
 
         if (this.dieMesh) {
@@ -243,7 +213,7 @@ export class DiceEditorPreview {
         if (!scopedTextureCache) return;
 
         const mesh = await this.diceFactory.create(scopedTextureCache, dieType, appearance, diceLibrary);
-        if (this._setDieToken !== token) return; // superseded by a newer call
+        if (this._setDieToken !== token) return;
         if (!mesh) return;
 
         this.dieMesh = mesh;
@@ -256,14 +226,11 @@ export class DiceEditorPreview {
         }
     }
 
-    /**
-     * Refresh the die mesh (e.g., after property change).
-     */
     async refresh(dieType, appearance, diceLibrary = null) {
         if (appearance.libraryDieId) {
             this.diceFactory.disposeCachedMaterials();
         }
-        // Preserve the user's current rotation across mesh rebuilds
+        //preserve rotation across mesh rebuilds
         const savedRotation = this.dieMesh ? this.dieMesh.quaternion.clone() : null;
         const savedSelection = new Set(this.selectedFaces);
         this.selectedFaces.clear();
@@ -274,9 +241,6 @@ export class DiceEditorPreview {
         this.selectedFaces = savedSelection;
     }
 
-    /**
-     * Resize the renderer to match the container.
-     */
     resize() {
         const width = this.container.clientWidth || 300;
         const height = this.container.clientHeight || 300;
@@ -285,9 +249,6 @@ export class DiceEditorPreview {
         this.box.renderer.setSize(width, height);
     }
 
-    /**
-     * Clean up resources.
-     */
     dispose() {
         if (this._onWindowMouseUp) {
             window.removeEventListener("mouseup", this._onWindowMouseUp);
@@ -298,13 +259,12 @@ export class DiceEditorPreview {
             this._animFrameId = null;
         }
         if (this.box) {
-            // Don't call clearScene() - it uses removeTicker which matches by function
-            // reference on the prototype, so it would remove the showcase's animateSelector
-            // from the PIXI ticker too. Just clean up the scene children instead.
+            //don't call clearScene() — removeTicker matches by prototype ref and
+            //would kill the showcase's animateSelector ticker too
             while (this.box.scene.children.length > 0) {
                 this.box.scene.remove(this.box.scene.children[0]);
             }
-            // Don't dispose the renderer - it's shared via game.dice3d.dice3dRenderers.editor
+            //renderer is shared via dice3dRenderers.editor, don't dispose it
             if (this.box.renderer.domElement.parentNode) {
                 this.box.renderer.domElement.parentNode.removeChild(this.box.renderer.domElement);
             }

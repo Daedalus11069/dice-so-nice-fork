@@ -734,7 +734,6 @@ export class DiceFactory {
 		let ts = this.calc_texture_size(Math.sqrt(labelsTotal)*sizeTexture, true);
 		
 		canvas.width = canvas.height = canvasBump.width = canvasBump.height = canvasEmissive.width = canvasEmissive.height = ts;
-		// Helper: resolve per-face override for a given shape face index
 		const resolveOverride = (labelIdx, shapeFace) => {
 			let faceMaterialData = materialData;
 			let faceFont = font;
@@ -792,7 +791,7 @@ export class DiceFactory {
 			x += sizeTexture;
 		}
 
-		//Inherited shapes (d3, d5, d7, df): draw repeated face tiles with their own overrides
+		//inherited shapes: draw repeated face tiles with per-face overrides
 		if(isHeritedFromShape){
 			let startI = 2;
 			if(diceobj.shape == "d2" || diceobj.shape == "d10")
@@ -839,13 +838,10 @@ export class DiceFactory {
 				if(this.realisticLighting)
 					mat.emissive.convertLinearToSRGB();
 
-				// For library dice with per-face glow, build a selective emissive map
-				// that only has labels for glow-enabled faces. The full map is kept
-				// in userData for SFX (PlayAnimationBright) to swap in temporarily.
+				//per-face glow: build selective emissive map, keep full map in userData for SFX
 				if(materialData.perFaceOverrides) {
 					const baseHasEmissive = !!materialData.baseEmissive;
 					const glowFaces = new Set();
-					// Determine total shape face count
 					const shapeData = DICE_SHAPE[diceobj.shape];
 					const shapeFaceCount = shapeData ? shapeData.faceValues.filter(v => v !== 0).length : diceobj.values.length;
 					for(const [fv, ov] of Object.entries(materialData.perFaceOverrides)) {
@@ -870,8 +866,7 @@ export class DiceFactory {
 						ctxGlow.fillStyle = "#000000";
 						ctxGlow.fillRect(0, 0, canvasGlow.width, canvasGlow.height);
 
-						// Replay the full tile layout (including inherited repeats)
-						// to match shape face indices to tile positions
+						//replay tile layout to match shape face indices to tile positions
 						let gx = 0, gy = 0, gCount = 0, gShapeFace = 0;
 						for(let gi = 0; gi < labels.length; gi++) {
 							if(gCount == texturesPerLine) { gy += sizeTexture; gx = 0; gCount = 0; }
@@ -1003,19 +998,19 @@ export class DiceFactory {
 			//custom texture face
 			if(text.source instanceof HTMLImageElement){
 				isTexture = true;
-				// Per-face override label image: use the custom image for bump and emissive
+				//per-face override: use custom image for bump and emissive too
 				if(materialData.labelImageObj) {
 					bump = text;
 					emissive = materialData.emissive !== false ? text : null;
 				}
-				// Library die label images support scale, flip, and vertical position
+				//label image with scale, flip and vertical position
 				if(materialData.labelImageScale !== undefined) {
 					const scale = (materialData.labelImageScale ?? 100) / 100;
 					const flip = materialData.labelImageFlip || false;
 					const vpos = (materialData.labelImagePosition ?? 50) / 100;
 					const drawSize = ts * scale;
 					const dx = x + (ts - drawSize) / 2;
-					// vpos 0 = image shifted up by half tile, 0.5 = centered, 1 = shifted down
+					//vpos 0=shifted up, 0.5=centered, 1=shifted down
 					const maxOffset = ts / 2;
 					const dy = y + (ts - drawSize) / 2 + (vpos - 0.5) * 2 * maxOffset;
 					const drawImg = (ctx, src) => {
@@ -1046,7 +1041,7 @@ export class DiceFactory {
 				}
 			}
 			else{
-				// Clip text rendering to the face tile to prevent overflow into adjacent faces
+				//clip text to face tile so it doesn't bleed into neighbours
 				context.save();
 				context.beginPath();
 				context.rect(x, y, ts, ts);
@@ -1502,23 +1497,21 @@ export class DiceFactory {
 
 		materialData.isGhost = appearance.isGhost?appearance.isGhost:false;
 
-		// Per-face overrides from dice library
+		//per-face overrides from dice library
 		if(appearance.libraryDieId) {
 			let libraryDie = null;
 			if(appearance.libraryDieOwner) {
-				// Cross-user reference: load from the owner's library
 				const owner = game.users.get(appearance.libraryDieOwner);
 				if(owner) {
 					libraryDie = DiceLibrary.getFromUser(owner, appearance.libraryDieId);
 				}
 			} else if(diceLibrary) {
-				// Own library: use the passed array (current behavior)
 				libraryDie = Array.isArray(diceLibrary)
 					? diceLibrary.find(d => d.id === appearance.libraryDieId)
 					: null;
 			}
 			if(libraryDie) {
-				// Library die is the sole source of appearance - replace everything
+				//library die overrides the entire appearance
 				const base = libraryDie.baseAppearance || {};
 				materialData.background = base.diceColor || "#000000";
 				materialData.foreground = base.labelColor || "#FFFFFF";
@@ -1529,12 +1522,11 @@ export class DiceFactory {
 				if (base.material && base.material !== "auto") {
 					materialData.material = base.material;
 				} else {
-					// Derive material from texture (e.g. bronze textures → "metal")
+					//derive material from texture (e.g. bronze => metal)
 					let libBaseTexture = Array.isArray(materialData.texture) ? materialData.texture[0] : materialData.texture;
 					materialData.material = (libBaseTexture && libBaseTexture.material) ? libBaseTexture.material : "plastic";
 				}
 
-				// Per-face overrides
 				materialData.perFaceOverrides = {};
 				for(const [faceValue, faceData] of Object.entries(libraryDie.faces || {})) {
 					if(!faceData) continue;
