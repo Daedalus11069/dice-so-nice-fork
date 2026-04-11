@@ -1,6 +1,7 @@
 import { Dice3D } from './Dice3D.js';
-import { DiceBox } from './DiceBox.js';
+import { DiceScene } from './DiceScene.js';
 import { DiceSFXManager } from './DiceSFXManager.js';
+import { ShowcaseView } from './ShowcaseView.js';
 import { Utils } from './Utils.js';
 import { DiceNotation } from './DiceNotation.js';
 import { DiceColors, DICE_SCALE } from './DiceColors.js';
@@ -163,31 +164,43 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         }
 
         this.canvas = $('<div id="dice-configuration-canvas"></div>')[0];
+        this.diceFactory = game.dice3d.box.dicefactory;
         let config = foundry.utils.mergeObject(
             this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(),
-            { dimensions: { width: 634, height: 245 }, autoscale: false, scale: 60, boxType: "showcase" }
+            { dimensions: { width: 634, height: 245 }, autoscale: false, scale: 60 }
         );
 
-        this.box = new DiceBox(this.canvas, game.dice3d.box.dicefactory, config);
-        await this.box.initialize();
+        this.diceScene = new DiceScene(this.canvas, this.diceFactory, {
+            rendererCacheKey: "showcase",
+            dimensions: config.dimensions,
+            scale: config.scale,
+            autoscale: config.autoscale
+        });
+        await this.diceScene.initialize();
+        this.diceFactory.setQualitySettings(config);
+        this.diceScene.setupBloomPipeline();
+
+        this.showcaseView = new ShowcaseView(this.diceScene, this.diceFactory);
+        this.showcaseView.showExtraDice = config.showExtraDice;
+
         if (!game.user.getFlag("dice-so-nice", "appearance")) {
-            if (this.box.dicefactory.preferredSystem != "standard")
-                config.appearance.global.system = this.box.dicefactory.preferredSystem;
-            if (this.box.dicefactory.preferredColorset != "standard")
-                config.appearance.global.colorset = this.box.dicefactory.preferredColorset;
+            if (this.diceFactory.preferredSystem != "standard")
+                config.appearance.global.system = this.diceFactory.preferredSystem;
+            if (this.diceFactory.preferredColorset != "standard")
+                config.appearance.global.colorset = this.diceFactory.preferredColorset;
         }
         config.diceLibrary = DiceLibrary.getLibraryForUser(game.user);
-        await this.box.showcase(config);
+        await this.showcaseView.showcase(config);
 
         this.navOrder = {};
         let triggerTypeList = [{ id: "", name: "" }];
         this.possibleResultList = {};
         let i = 0;
-        this.box.diceList.forEach((el) => {
+        this.showcaseView.diceList.forEach((el) => {
             this.navOrder[el.userData] = i++;
             triggerTypeList.push({ id: el.userData, name: el.userData });
             this.possibleResultList[el.userData] = [];
-            let preset = this.box.dicefactory.systems.get("standard").dice.get(el.userData);
+            let preset = this.diceFactory.systems.get("standard").dice.get(el.userData);
             let termClass = Object.values(CONFIG.Dice.terms).find(term => term.name == preset.term) || foundry.dice.terms.Die;
             let term = new termClass({});
 
@@ -263,8 +276,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         data.appearance[scope].edgeColor = data.appearance.global.edgeColor;
                 }
 
-                if (this.box.dicefactory.systems.has(data.appearance[scope].system)) {
-                    const system = this.box.dicefactory.systems.get(data.appearance[scope].system);
+                if (this.diceFactory.systems.has(data.appearance[scope].system)) {
+                    const system = this.diceFactory.systems.get(data.appearance[scope].system);
 
                     if (system.settings.length > 0) {
                         const dialogContent = system.getSettingsDialogContent(scope);
@@ -428,7 +441,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 const systemSettingsContainer = $(ev.target).parents(".tabAppearance").find('[data-systemsettings-hidden]');
                 systemSettingsContainer.children().remove();
 
-                const system = this.box.dicefactory.systems.get($(ev.target).val());
+                const system = this.diceFactory.systems.get($(ev.target).val());
 
                 if (system.settings.length > 0) {
                     $(ev.target).next("[data-system-options]").removeClass("dsn-hidden");
@@ -468,7 +481,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             $(this.element).on("click", "[data-action=test]", (ev) => {
                 let config = this.getShowcaseAppearance();
                 let denominationList = [];
-                this.box.diceList.forEach((el) => {
+                this.showcaseView.diceList.forEach((el) => {
                     //the d100 will roll the d10 so we remove the d10 from the list
                     if (el.userData != "d10")
                         denominationList.push(el.userData);
@@ -593,7 +606,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 const systemSettingsContainer = $(ev.target).parents(".tabAppearance").find(`[data-systemSettings-hidden]`);
                 const systemSettingsElement = systemSettingsContainer.find("[data-systemSettings]");
                 const systemSelected = $(ev.target).parents(".tabAppearance").find("[data-system]").val();
-                const systemName = this.box.dicefactory.systems.get(systemSelected).name;
+                const systemName = this.diceFactory.systems.get(systemSelected).name;
 
                 foundry.applications.api.DialogV2.wait({
                     window: {
@@ -799,17 +812,17 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     x = 1;
                 let y = - ((event.clientY - rect.top) / rect.height) * 2 + 1;
                 let pos = { x: x, y: y };
-                let dice = this.box.findShowcaseDie(pos);
+                let dice = this.showcaseView.findShowcaseDie(pos);
                 if (dice) {
-                    let diceType = this.box.findRootObject(dice.object).userData;
-                    if (!game.user.getFlag("dice-so-nice", "appearance") && (this.box.dicefactory.preferredSystem != "standard" || this.box.dicefactory.preferredColorset != "custom"))
+                    let diceType = this.showcaseView.findRootObject(dice.object).userData;
+                    if (!game.user.getFlag("dice-so-nice", "appearance") && (this.diceFactory.preferredSystem != "standard" || this.diceFactory.preferredColorset != "custom"))
                         this.getShowcaseAppearance();
                     if ($(this.element).find(`.dsn-appearance-tabs [data-tab="${diceType}"]`).length) {
                         this.activateAppearanceTab(diceType);
                     } else {
                         let newSystemSettings = {};
-                        if (this.box.dicefactory.systems.has(this.currentGlobalAppearance.system)) {
-                            const system = this.box.dicefactory.systems.get(this.currentGlobalAppearance.system);
+                        if (this.diceFactory.systems.has(this.currentGlobalAppearance.system)) {
+                            const system = this.diceFactory.systems.get(this.currentGlobalAppearance.system);
 
                             if (system.settings.length > 0) {
                                 const dialogContent = system.getSettingsDialogContent(diceType);
@@ -1112,7 +1125,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
                     //Check if any of the system settings is different from the default settings
                     if (!hasDiff) {
-                        for (let setting of this.box.dicefactory.systems.get(appearanceArray[1].system).settings) {
+                        for (let setting of this.diceFactory.systems.get(appearanceArray[1].system).settings) {
                             //find the html input value 
                             let settingElement = $(systemSettingsElement).find(`[name="systemSettings[${appearanceArray[1].system}][${setting.id}]"]`);
                             let value;
@@ -1202,7 +1215,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 let system = $(element).find('[data-system]').val();
                 let customizationElements = $(element).find('[data-colorset],[data-texture],[data-material],[data-font]');
                 if (system != "standard") {
-                    let diceobj = this.box.dicefactory.systems.get(system).dice.get(diceType);
+                    let diceobj = this.diceFactory.systems.get(system).dice.get(diceType);
                     if (diceobj) {
                         let colorsetData = {};
                         if (diceobj.colorset) {
@@ -1240,8 +1253,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             let diceType = $(element).data("dicetype");
             if (diceType != "global") {
                 $(element).find("option").each((indexOpt, elementOpt) => {
-                    let model = this.box.dicefactory.systems.get("standard").dice.get(diceType);
-                    if (!this.box.dicefactory.systems.get($(elementOpt).val()).dice.has(diceType) || !this.box.dicefactory.systems.get($(elementOpt).val()).getDiceByShapeAndValues(model.shape, model.values))
+                    let model = this.diceFactory.systems.get("standard").dice.get(diceType);
+                    if (!this.diceFactory.systems.get($(elementOpt).val()).dice.has(diceType) || !this.diceFactory.systems.get($(elementOpt).val()).getDiceByShapeAndValues(model.shape, model.values))
                         $(elementOpt).attr("disabled", "disabled");
                 });
             }
@@ -1250,10 +1263,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
     setPreferredOptions() {
         if (!game.user.getFlag("dice-so-nice", "appearance")) {
-            if (this.box.dicefactory.preferredSystem != "standard")
-                $(this.element).find('.tabAppearance[data-tab="global"] [data-system]').val(this.box.dicefactory.preferredSystem);
-            if (this.box.dicefactory.preferredColorset != "custom")
-                $(this.element).find('.tabAppearance[data-tab="global"] [data-colorset]').val(this.box.dicefactory.preferredColorset);
+            if (this.diceFactory.preferredSystem != "standard")
+                $(this.element).find('.tabAppearance[data-tab="global"] [data-system]').val(this.diceFactory.preferredSystem);
+            if (this.diceFactory.preferredColorset != "custom")
+                $(this.element).find('.tabAppearance[data-tab="global"] [data-colorset]').val(this.diceFactory.preferredColorset);
         }
     }
 
@@ -1314,7 +1327,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 }
             });
 
-            const system = this.box.dicefactory.systems.get(config.appearance[$(element).data("tab")].system);
+            const system = this.diceFactory.systems.get(config.appearance[$(element).data("tab")].system);
             if (system && system.settings.length > 0) {
                 const systemSettingsList = system.settings;
                 const systemSettingsIDs = systemSettingsList.map(setting => setting.id);
@@ -1381,12 +1394,17 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         if (event)
             event.preventDefault();
 
-        setTimeout(() => {
+        setTimeout(async () => {
             let config = this.getShowcaseAppearance();
-            this.box.dicefactory.disposeCachedMaterials("showcase");
-            this.box.update(config).then(() => {
-                this.box.showcase(config);
-            });
+            this.diceFactory.disposeCachedMaterials("showcase");
+
+            //update showcase quality settings
+            this.diceFactory.setQualitySettings(config);
+            this.diceScene.updateRenderSettings();
+            await this.diceFactory.preloadPresets(true, null, config.appearance);
+
+            this.showcaseView.showExtraDice = config.showExtraDice;
+            await this.showcaseView.showcase(config);
         }, 100);
     }
 
@@ -1471,7 +1489,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
             // filter form system settings based on the system settings to remove helpers and selectors
             systemsInUse.add(formData.appearance[scope].system);
-            const system = this.box.dicefactory.systems.get(formData.appearance[scope].system);
+            const system = this.diceFactory.systems.get(formData.appearance[scope].system);
             if (system && system.settings.length > 0) {
                 const systemSettingsList = system.settings;
                 const systemSettingsIDs = systemSettingsList.map(setting => setting.id);
@@ -1519,7 +1537,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         game.socket.emit("module.dice-so-nice", { type: "update", user: game.user.id });
         DiceSFXManager.init();
         for (let system of systemsInUse) {
-            this.box.dicefactory.systems.get(system).loadSettings();
+            this.diceFactory.systems.get(system).loadSettings();
         }
         ui.notifications.info(game.i18n.localize("DICESONICE.saveMessage"));
 
@@ -1534,8 +1552,9 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
     close(options) {
         super.close(options);
-        this.box.clearScene();
-        this.box.dicefactory.disposeCachedMaterials("showcase");
+        this.showcaseView.stopAnimation();
+        this.diceScene.clearScene();
+        this.diceFactory.disposeCachedMaterials("showcase");
     }
 
     static async _onSubmit(event, form, formData) {

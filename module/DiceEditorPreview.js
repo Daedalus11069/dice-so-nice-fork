@@ -5,11 +5,12 @@ import {
     Vector2,
     Vector3
 } from 'three';
-import { DiceBox } from './DiceBox.js';
+import { DiceScene } from './DiceScene.js';
 import { Dice3D } from './Dice3D.js';
 import { DICE_SHAPE } from './DiceModels.js';
+import { removeTicker } from './Utils.js';
 
-//wraps a DiceBox in "editor" mode with manual mesh rotation + face raycasting
+//wraps a DiceScene with manual mesh rotation + face raycasting
 export class DiceEditorPreview {
 
     constructor(container, diceFactory) {
@@ -18,8 +19,7 @@ export class DiceEditorPreview {
         this.dieMesh = null;
         this.selectedFaces = new Set();
         this.onFaceSelect = null;
-        this._animFrameId = null;
-        this.box = null;
+        this.diceScene = null;
     }
 
     async init() {
@@ -29,31 +29,31 @@ export class DiceEditorPreview {
         const config = foundry.utils.mergeObject(
             Dice3D.ALL_CONFIG(),
             {
-                boxType: "editor",
+                rendererCacheKey: "editor",
                 dimensions: { width, height },
                 autoscale: false,
                 scale: 60
             }
         );
 
-        this.box = new DiceBox(this.container, this.diceFactory, config);
-        await this.box.initialize();
-        this.box.setScene();
+        this.diceScene = new DiceScene(this.container, this.diceFactory, config);
+        await this.diceScene.initialize();
+        this.diceScene.setupBloomPipeline();
 
-        this.box.camera.position.set(150, 200, 540);
-        this.box.camera.lookAt(0, 0, 0);
-        this.box.camera.updateProjectionMatrix();
+        this.diceScene.camera.position.set(150, 200, 540);
+        this.diceScene.camera.lookAt(0, 0, 0);
+        this.diceScene.camera.updateProjectionMatrix();
 
         this._initControls();
         this._initRaycasting();
-        this._animate();
+        canvas.app.ticker.add(this._animate, this);
     }
 
     _initControls() {
         //right-drag rotates the mesh (not camera) so HDR lighting changes
         this._isDragging = false;
         this._prevMouse = { x: 0, y: 0 };
-        const canvas = this.box.renderer.domElement;
+        const canvas = this.diceScene.renderer.domElement;
 
         canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -76,8 +76,8 @@ export class DiceEditorPreview {
             const speed = 0.01;
             const cameraRight = new Vector3();
             const cameraUp = new Vector3();
-            cameraRight.setFromMatrixColumn(this.box.camera.matrixWorld, 0);
-            cameraUp.setFromMatrixColumn(this.box.camera.matrixWorld, 1);
+            cameraRight.setFromMatrixColumn(this.diceScene.camera.matrixWorld, 0);
+            cameraUp.setFromMatrixColumn(this.diceScene.camera.matrixWorld, 1);
 
             const qX = new Quaternion().setFromAxisAngle(cameraUp, dx * speed);
             const qY = new Quaternion().setFromAxisAngle(cameraRight, dy * speed);
@@ -94,14 +94,14 @@ export class DiceEditorPreview {
         this.raycaster = new Raycaster();
         this.mouse = new Vector2();
 
-        this.box.renderer.domElement.addEventListener("click", (event) => {
+        this.diceScene.renderer.domElement.addEventListener("click", (event) => {
             if (!this.dieMesh) return;
 
-            const rect = this.box.renderer.domElement.getBoundingClientRect();
+            const rect = this.diceScene.renderer.domElement.getBoundingClientRect();
             this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-            this.raycaster.setFromCamera(this.mouse, this.box.camera);
+            this.raycaster.setFromCamera(this.mouse, this.diceScene.camera);
             const intersects = this.raycaster.intersectObject(this.dieMesh, true);
             if (intersects.length === 0) return;
 
@@ -196,8 +196,7 @@ export class DiceEditorPreview {
     }
 
     _animate() {
-        this._animFrameId = requestAnimationFrame(() => this._animate());
-        this.box.renderScene();
+        this.diceScene.renderScene();
     }
 
     async setDie(dieType, appearance, diceLibrary = null) {
@@ -205,11 +204,11 @@ export class DiceEditorPreview {
         const token = this._setDieToken = {};
 
         if (this.dieMesh) {
-            this.box.scene.remove(this.dieMesh);
+            this.diceScene.scene.remove(this.dieMesh);
             this.dieMesh = null;
         }
 
-        const scopedTextureCache = this.box.renderer.scopedTextureCache;
+        const scopedTextureCache = this.diceScene.renderer.scopedTextureCache;
         if (!scopedTextureCache) return;
 
         const mesh = await this.diceFactory.create(scopedTextureCache, dieType, appearance, diceLibrary);
@@ -218,7 +217,7 @@ export class DiceEditorPreview {
 
         this.dieMesh = mesh;
         this.dieMesh.scale.multiplyScalar(1.7);
-        this.box.scene.add(this.dieMesh);
+        this.diceScene.scene.add(this.dieMesh);
 
         const diceobj = this.diceFactory.getPresetBySystem(dieType, appearance.system || "standard");
         if (diceobj) {
@@ -244,9 +243,9 @@ export class DiceEditorPreview {
     resize() {
         const width = this.container.clientWidth || 300;
         const height = this.container.clientHeight || 300;
-        this.box.camera.aspect = width / height;
-        this.box.camera.updateProjectionMatrix();
-        this.box.renderer.setSize(width, height);
+        this.diceScene.camera.aspect = width / height;
+        this.diceScene.camera.updateProjectionMatrix();
+        this.diceScene.renderer.setSize(width, height);
     }
 
     dispose() {
@@ -254,21 +253,14 @@ export class DiceEditorPreview {
             window.removeEventListener("mouseup", this._onWindowMouseUp);
             this._onWindowMouseUp = null;
         }
-        if (this._animFrameId) {
-            cancelAnimationFrame(this._animFrameId);
-            this._animFrameId = null;
-        }
-        if (this.box) {
-            //don't call clearScene() — removeTicker matches by prototype ref and
-            //would kill the showcase's animateSelector ticker too
-            while (this.box.scene.children.length > 0) {
-                this.box.scene.remove(this.box.scene.children[0]);
-            }
+        removeTicker(this._animate);
+        if (this.diceScene) {
+            this.diceScene.clearScene();
             //renderer is shared via dice3dRenderers.editor, don't dispose it
-            if (this.box.renderer.domElement.parentNode) {
-                this.box.renderer.domElement.parentNode.removeChild(this.box.renderer.domElement);
+            if (this.diceScene.renderer.domElement.parentNode) {
+                this.diceScene.renderer.domElement.parentNode.removeChild(this.diceScene.renderer.domElement);
             }
-            this.box = null;
+            this.diceScene = null;
         }
     }
 }

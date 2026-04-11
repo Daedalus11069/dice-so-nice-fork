@@ -182,6 +182,14 @@ class PhysicsWorker {
 
     removeDice(ids) {
         for (const id of ids) {
+            //clean up any active constraint before removing the body
+            const entry = this.diceConstraints.get(id);
+            if (entry) {
+                this.world.removeConstraint(entry.constraint);
+                this.world.removeBody(entry.joint);
+                this.diceConstraints.delete(id);
+            }
+
             const dice = this.diceList.get(id);
             this.world.removeBody(dice);
 

@@ -1,5 +1,26 @@
 import { TEXTURELIST, COLORSETS } from './DiceColors.js';
 import { DiceLibrary } from './DiceLibrary.js';
+
+//remove a handler from a PIXI ticker even when the context changed
+export function removeTicker(fn) {
+	let ticker = canvas.app.ticker;
+	let listener = ticker._head.next;
+
+	while (listener) {
+		if (listener.fn === fn) {
+			listener = listener.destroy();
+		}
+		else {
+			listener = listener.next;
+		}
+	}
+
+	if (!ticker._head.next) {
+		ticker._cancelIfNeeded();
+	}
+	return ticker;
+}
+
 /**
  * Generic utilities class...
  */

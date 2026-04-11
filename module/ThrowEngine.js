@@ -1,0 +1,498 @@
+import { DICE_MODELS } from './DiceModels.js';
+import { DiceSFXManager } from './DiceSFXManager.js';
+import { DiceSystem } from './DiceSystem.js';
+
+import {
+	Color,
+	Euler,
+	Group,
+	MathUtils,
+	Quaternion
+} from 'three';
+
+//owns throw orchestration: vector computation, physics simulation, face swapping,
+//animation buffer replay, ephemeral dice spawning, SFX triggering on throw completion
+export class ThrowEngine {
+
+	constructor(diceScene, physicsWorker, diceFactory, soundManager) {
+		this.diceScene = diceScene;
+		this.physicsWorker = physicsWorker;
+		this.dicefactory = diceFactory;
+		this.soundManager = soundManager;
+
+		this.diceList = [];
+		this.deadDiceList = [];
+		this.iteration = 0;
+		this.iterationsNeeded = 0;
+		this.minIterations = 0;
+		this.detectedCollides = [];
+		this.framerate = (1 / 60);
+		this.speed = 1;
+		this.throwingForce = "medium";
+		this.nbIterationsBetweenRolls = 15;
+		this.rolling = false;
+		this.running = false;
+
+		this.throws = null;
+		this.callback = null;
+
+		//set by DiceBox to the DiceBox instance — SFX subclasses access box.scene, box.camera, etc.
+		this.sfxContext = null;
+
+		//set by DiceBox — reference to persistent dice array for simulateThrow
+		this.persistentDiceList = [];
+	}
+
+	vectorRand({ x, y }) {
+		let angle = Math.random() * Math.PI / 5 - Math.PI / 5 / 2;
+		let vec = {
+			x: x * Math.cos(angle) - y * Math.sin(angle),
+			y: x * Math.sin(angle) + y * Math.cos(angle)
+		};
+		if (vec.x == 0) vec.x = 0.01;
+		if (vec.y == 0) vec.y = 0.01;
+		return vec;
+	}
+
+	getVectors(notationVectors, vector, boost, dist) {
+
+		for (let i = 0; i < notationVectors.dice.length; i++) {
+
+			const diceobj = this.dicefactory.get(notationVectors.dice[i].type);
+
+			let vec = this.vectorRand(vector);
+
+			vec.x /= dist;
+			vec.y /= dist;
+
+			let W = this.diceScene.display.innerWidth;
+			let H = this.diceScene.display.innerHeight;
+			let pos = {
+				x: W * (vec.x > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
+				y: H * (vec.y > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
+				z: Math.random() * 200 + 200
+			};
+
+			let projector = Math.abs(vec.x / vec.y);
+			if (projector > 1.0) pos.y /= projector; else pos.x *= projector;
+
+
+			let velvec = this.vectorRand(vector);
+
+			velvec.x /= dist;
+			velvec.y /= dist;
+			let velocity, angle, axis;
+
+			if (diceobj.shape != "d2") {
+
+				velocity = {
+					x: velvec.x * boost,
+					y: velvec.y * boost,
+					z: -10
+				};
+
+				angle = {
+					x: -(Math.random() * vec.y * 5 + diceobj.inertia * vec.y),
+					y: Math.random() * vec.x * 5 + diceobj.inertia * vec.x,
+					z: 0
+				};
+
+				axis = {
+					x: Math.random(),
+					y: Math.random(),
+					z: Math.random(),
+					a: Math.random()
+				};
+
+				axis = {
+					x: 0,
+					y: 0,
+					z: 0,
+					a: 0
+				};
+			} else {
+				//coin flip
+				velocity = {
+					x: velvec.x * boost / 10,
+					y: velvec.y * boost / 10,
+					z: 3000
+				};
+
+				angle = {
+					x: 12 * diceobj.inertia,//-(Math.random() * velvec.y * 50 + diceobj.inertia * velvec.y ) ,
+					y: 1 * diceobj.inertia,//Math.random() * velvec.x * 50 + diceobj.inertia * velvec.x ,
+					z: 0
+				};
+
+				axis = {
+					x: 1,//Math.random(),
+					y: 1,//Math.random(),
+					z: Math.random(),
+					a: Math.random()
+				};
+			}
+
+			notationVectors.dice[i].vectors = {
+				type: diceobj.type,
+				pos,
+				velocity,
+				angle,
+				axis
+			};
+		}
+		return notationVectors;
+	}
+
+	// swaps dice faces to match desired result
+	async swapDiceFace(dicemesh) {
+		const diceobj = this.dicefactory.get(dicemesh.notation.type);
+
+		let value = parseInt(await dicemesh.getValue());
+		let result = parseInt(dicemesh.forcedResult);
+
+		if (diceobj.shape == 'd10' && result == 0) result = 10;
+
+		if (diceobj.valueMap) { //die with special values
+			result = diceobj.valueMap[result];
+		}
+
+		if (value == result) return;
+
+		let rotIndex = value > result ? result + "," + value : value + "," + result;
+		let rotationDegrees = DICE_MODELS[dicemesh.shape].rotationCombinations[rotIndex];
+		if (!rotationDegrees) {
+			console.log(`[Dice So Nice] No dice rotation found for ${dicemesh.shape} ${value} ${result}`);
+			rotationDegrees = [0, 0, 0];
+		}
+		let eulerAngle = new Euler(MathUtils.degToRad(rotationDegrees[0]), MathUtils.degToRad(rotationDegrees[1]), MathUtils.degToRad(rotationDegrees[2]));
+		let quaternion = new Quaternion().setFromEuler(eulerAngle);
+		if (value > result)
+			quaternion.invert();
+
+		dicemesh.applyQuaternion(quaternion);
+	}
+
+	bakeSwapIntoQuaternionBuffer(stepQuaternions, swapQuat, iterations) {
+		const tempQuat = new Quaternion();
+		for (let i = 0; i <= iterations; i++) {
+			const offset = i * 4;
+			tempQuat.set(stepQuaternions[offset], stepQuaternions[offset + 1], stepQuaternions[offset + 2], stepQuaternions[offset + 3]);
+			tempQuat.multiply(swapQuat);
+			stepQuaternions[offset] = tempQuat.x;
+			stepQuaternions[offset + 1] = tempQuat.y;
+			stepQuaternions[offset + 2] = tempQuat.z;
+			stepQuaternions[offset + 3] = tempQuat.w;
+		}
+	}
+
+	//create a dice mesh (shared setup for ephemeral and persistent)
+	async createDiceMesh(type, appearance, diceLibrary = null) {
+		const diceobj = this.dicefactory.get(type);
+		if (!diceobj) return null;
+
+		let dicemesh = await this.dicefactory.create(this.diceScene.renderer.scopedTextureCache, diceobj.type, appearance, diceLibrary);
+		if (!dicemesh) return null;
+
+		let mass = diceobj.mass;
+		switch (appearance.material) {
+			case "metal":
+				mass *= 7;
+				break;
+			case "wood":
+				mass *= 0.65;
+				break;
+			case "glass":
+				mass *= 2;
+				break;
+			case "stone":
+				mass *= 1.5;
+				break;
+		}
+
+		dicemesh.castShadow = this.dicefactory.shadows;
+		dicemesh.receiveShadow = this.dicefactory.shadows;
+		dicemesh.userData.system = appearance.system;
+
+		return { dicemesh, diceobj, mass };
+	}
+
+	//spawns one dicemesh object from a single vectordata object
+	async spawnDice(dicedata, appearance, diceLibrary = null) {
+		let vectordata = dicedata.vectors;
+		const result = await this.createDiceMesh(vectordata.type, appearance, diceLibrary);
+		if (!result) return;
+		const { dicemesh, diceobj, mass } = result;
+
+		//todo these should be moved to .userData. old code
+		dicemesh.notation = vectordata;
+		dicemesh.result = null;
+		dicemesh.forcedResult = dicedata.result;
+		dicemesh.startAtIteration = dicedata.startAtIteration;
+		dicemesh.stopped = 0;
+		dicemesh.specialEffects = dicedata.specialEffects;
+		dicemesh.options = dicedata.options;
+		//todo
+
+		// Add the dice to the physics world
+		await this.physicsWorker.exec('createDice', {
+			id: dicemesh.id,
+			shape: diceobj.shape,
+			material: appearance.material,
+			vectordata: vectordata,
+			mass: mass,
+			startAtIteration: dicedata.startAtIteration,
+			options: dicedata.options
+		});
+
+		if (dicemesh.userData.glowingInDarkness) {
+			if (canvas.darknessLevel > 0.5) {
+				//If the darkness level is less than 0.5, we activate the "glowing in the dark" mode
+				//This mode is activated by setting the userData.glowingInDarkness to true on the mesh of the dice
+				dicemesh.material.emissiveIntensity = 0.3;
+				dicemesh.material.emissive = new Color(0xffffff);
+			} else {
+				dicemesh.material.emissiveIntensity = 0;
+				dicemesh.material.emissive = new Color(0x000000);
+			}
+		}
+
+		let objectContainer = new Group();
+		objectContainer.add(dicemesh);
+
+		this.diceList.push(dicemesh);
+		if (dicemesh.startAtIteration == 0) {
+			await this.physicsWorker.exec('addDice', dicemesh.id);
+		}
+	}
+
+	throwFinished() {
+		let stopped = true;
+		if (this.iteration <= this.minIterations) return false;
+		stopped = this.iteration >= this.iterationsNeeded;
+		if (stopped && this.rolling) {
+			//Can't await here because of the PIXI ticker. Hopefully it's not needed.
+			for (let i = 0, len = this.diceList.length; i < len; ++i) {
+				if (!this.diceList[i].sim)
+					continue;
+				this.diceList[i].sim.stepPositions = new Float32Array(1001 * 3);
+				this.diceList[i].sim.stepQuaternions = new Float32Array(1001 * 4);
+				if (this.diceList[i].dead > 0)
+					this.diceList[i].static = true;
+			}
+		}
+		return stopped;
+	}
+
+	async simulateThrow() {
+		this.rolling = true;
+
+		const workerData = {
+			minIterations: this.minIterations,
+			nbIterationsBetweenRolls: this.nbIterationsBetweenRolls,
+			framerate: this.framerate,
+			canBeFlipped: game.settings.get("dice-so-nice", "diceCanBeFlipped")
+		}
+
+		const simResult = await this.physicsWorker.exec('simulateThrow', workerData);
+		if (!simResult) {
+			console.error("[Dice So Nice] simulateThrow returned no result");
+			this.rolling = false;
+			return;
+		}
+		const { ids, quaternionsBuffers, positionsBuffers, detectedCollides, deads, iterationsNeeded } = simResult;
+
+		const quaternions = quaternionsBuffers.map(buffer => new Float32Array(buffer));
+		const positions = positionsBuffers.map(buffer => new Float32Array(buffer));
+
+		this.iterationsNeeded = iterationsNeeded;
+
+		// Create a mapping of IDs to their index in the 'ids' array
+		const idToIndex = new Map();
+		ids.forEach((id, index) => {
+			idToIndex.set(id, index);
+		});
+
+		const combinedDiceList = [...this.diceList, ...this.deadDiceList, ...this.persistentDiceList];
+
+		combinedDiceList.forEach(dice => {
+			const index = idToIndex.get(dice.id);
+			if (index !== undefined) {
+				dice.sim = {
+					dead: deads[index],
+					stepQuaternions: quaternions[index],
+					stepPositions: positions[index]
+				}
+			}
+		});
+
+		this.detectedCollides = this.soundManager.generateCollisionSounds(detectedCollides);
+	}
+
+	addDiceToScene() {
+		for (let i = 0; i < this.diceList.length; i++) {
+			if (this.diceList[i].startAtIteration == this.iteration) {
+				let dicemesh = this.diceList[i];
+				//set initial position from sim to avoid flash at origin
+				if (dicemesh.sim && dicemesh.sim.stepPositions) {
+					dicemesh.parent.position.fromArray(dicemesh.sim.stepPositions, 0);
+					dicemesh.parent.quaternion.fromArray(dicemesh.sim.stepQuaternions, 0);
+				}
+				this.diceScene.scene.add(dicemesh.parent);
+				this.dicefactory.systems.get(dicemesh.userData.system).fire(DiceSystem.DICE_EVENT_TYPE.SPAWN, { dice: dicemesh });
+			}
+		}
+	}
+
+	//per-frame: advance iteration, replay buffer positions/quaternions, play collision sounds
+	updateThrowPlayback(neededSteps) {
+		for (let i = 0; i < neededSteps * this.speed; i++) {
+			++this.iteration;
+			if (!(this.iteration % this.nbIterationsBetweenRolls)) {
+				this.addDiceToScene();
+			}
+		}
+		if (this.iteration > this.iterationsNeeded)
+			this.iteration = this.iterationsNeeded;
+
+		for (const child of this.diceScene.scene.children) {
+			let dicemesh = child.children && child.children.length && child.children[0].sim != undefined && (!child.children[0].sim.dead || child.children[0].sim.dead > this.iteration) ? child.children[0] : null;
+
+			if (dicemesh && dicemesh.sim.stepPositions[this.iteration * 3]) {
+				child.position.fromArray(dicemesh.sim.stepPositions, this.iteration * 3);
+				child.quaternion.fromArray(dicemesh.sim.stepQuaternions, this.iteration * 4);
+			}
+		}
+
+		//Note: if the game is lagging, it means some collisions won't be played. Not sure if it is what we want or not
+		if (this.detectedCollides[this.iteration]) {
+			this.soundManager.playAudioSprite(...this.detectedCollides[this.iteration]);
+		}
+	}
+
+	async start_throw(throws, callback) {
+		if (this.rolling) return;
+		this.throws = null;
+		this.callback = null;
+		let countNewDice = 0;
+		throws.forEach(notation => {
+			let vector = {
+				x: (Math.random() * 2 - 0.5) * this.diceScene.display.innerWidth,
+				y: -(Math.random() * 2 - 0.5) * this.diceScene.display.innerHeight
+			};
+			let dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+			let throwingForceModifier = 0.8;
+			switch (this.throwingForce) {
+				case "weak":
+					throwingForceModifier = 0.5;
+					break;
+				case "strong":
+					throwingForceModifier = 1.8;
+					break;
+			}
+			let boost = ((Math.random() + 3) * throwingForceModifier) * dist;
+
+			notation = this.getVectors(notation, vector, boost, dist);
+			countNewDice += notation.dice.length;
+		});
+
+		let maxDiceNumber = game.settings.get("dice-so-nice", "maxDiceNumber");
+		if (this.deadDiceList.length + this.diceList.length + countNewDice > maxDiceNumber) {
+			if (this.onClearAll) await this.onClearAll();
+		}
+		await this.rollDice(throws, callback);
+	}
+
+	clearDice() {
+		this.running = false;
+		this.deadDiceList = this.deadDiceList.concat(this.diceList);
+		this.diceList = [];
+	}
+
+	async clearAll() {
+		this.clearDice();
+		const diceToRemove = [];
+		let dice;
+		while (dice = this.deadDiceList.pop()) {
+			this.diceScene.scene.remove(dice.parent.type == "Scene" ? dice : dice.parent);
+			diceToRemove.push(dice.id);
+		}
+
+		if (this.physicsWorker)
+			await this.physicsWorker.exec("removeDice", diceToRemove);
+	}
+
+	async rollDice(throws, callback) {
+		this.clearDice();
+
+		this.minIterations = (throws.length - 1) * this.nbIterationsBetweenRolls;
+
+		for (let j = 0; j < throws.length; j++) {
+			let notationVectors = throws[j];
+
+			for (let i = 0, len = notationVectors.dice.length; i < len; ++i) {
+				notationVectors.dice[i].startAtIteration = j * this.nbIterationsBetweenRolls;
+				let appearance = this.dicefactory.getAppearanceForDice(notationVectors.dsnConfig.appearance, notationVectors.dice[i].type, notationVectors.dice[i]);
+				await this.spawnDice(notationVectors.dice[i], appearance, notationVectors.dsnConfig.diceLibrary);
+			}
+		}
+
+		await this.simulateThrow();
+		this.iteration = 0;
+
+		// swap faces if needed based on fvtt roll result
+		for (let i = 0, len = this.diceList.length; i < len; ++i) {
+			let dicemesh = this.diceList[i];
+			if (!dicemesh) continue;
+			await this.swapDiceFace(dicemesh);
+		}
+
+		this.diceScene.animatedDiceDetected = await this.checkForAnimatedDice();
+
+		//reset the result
+		for (let i = 0, len = this.diceList.length; i < len; ++i) {
+			if (!this.diceList[i]) continue;
+			this.diceList[i].result = null;
+		}
+
+		// animate the previously simulated roll
+		this.rolling = true;
+		this.running = (new Date()).getTime();
+
+		this.callback = callback;
+		this.throws = throws;
+	}
+
+	//Check if there's an animated dice to reduce render loop complexity if there's none
+	async checkForAnimatedDice() {
+		let animatedDiceDetected = false;
+		for (let i = 0, len = this.diceList.length; i < len; ++i) {
+			let dicemesh = this.diceList[i];
+			if (!dicemesh) continue;
+			dicemesh.traverse(obj => {
+				if(obj.mixer || obj.material?.mixer){
+					animatedDiceDetected = true;
+				}
+			});
+		}
+
+		return animatedDiceDetected;
+	}
+
+	fireResultEvents() {
+		for (let i = 0; i < this.diceList.length; i++) {
+			this.dicefactory.systems.get(this.diceList[i].userData.system).fire(DiceSystem.DICE_EVENT_TYPE.RESULT, { dice: this.diceList[i] });
+		}
+	}
+
+	async handleSpecialEffectsInit() {
+		let promisesSFX = [];
+		this.diceList.forEach(dice => {
+			if (dice.specialEffects) {
+				dice.specialEffects.forEach(sfx => {
+					promisesSFX.push(DiceSFXManager.playSFX(sfx, this.sfxContext, dice));
+				});
+			}
+		});
+		return Promise.all(promisesSFX);
+	}
+}

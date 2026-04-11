@@ -1301,9 +1301,9 @@ export class Dice3D {
             }
         }
         if (changed) {
-            this.box._updateSelectionOutlines();
+            this.box.updateSelectionOutlines();
         }
-        this.box._removeRemoteOutlinePass(userId);
+        this.box.removeRemoteOutlinePass(userId);
     }
 
     //save local user's persistent dice to flags
@@ -1402,7 +1402,7 @@ export class Dice3D {
             const mesh = this._findPersistentMeshById(pid);
             if (mesh) mesh.userData.lockedBy = request.user;
         }
-        this.box._updateSelectionOutlines();
+        this.box.updateSelectionOutlines();
     }
 
     _onRemotePersistentMove(request) {
@@ -1431,7 +1431,7 @@ export class Dice3D {
             delete mesh.userData.preRollRates;
             delete mesh.userData.remoteMoveTarget;
         }
-        this.box._updateSelectionOutlines();
+        this.box.updateSelectionOutlines();
     }
 
     _onRemotePersistentPreroll(request) {
@@ -1473,7 +1473,7 @@ export class Dice3D {
         }
         if (heldDice.length === 0) return;
 
-        this.box._updateSelectionOutlines();
+        this.box.updateSelectionOutlines();
         this._beforeShow();
 
         //convert velocity from pct to world units
@@ -1488,6 +1488,6 @@ export class Dice3D {
         const sfxList = throwerUser ? Dice3D.ALL_CUSTOMIZATION(throwerUser).specialEffects || [] : [];
 
         //simulate + face swap with pre-determined results
-        await this.box._replayRemoteThrow(heldDice, velocity, forcedByMesh, sfxList);
+        await this.box.replayRemoteThrow(heldDice, velocity, forcedByMesh, sfxList);
     }
 }
