@@ -145,6 +145,15 @@ Hooks.once('init', () => {
         default: false,
         config: true
     });
+
+    game.settings.register("dice-so-nice", "disabledForManualRolls", {
+        name: "DICESONICE.disabledForManualRolls",
+        hint: "DICESONICE.disabledForManualRollsHint",
+        scope: "world",
+        type: Boolean,
+        default: true,
+        config: true
+    });
     
     //Settings for forcing the dice appearance of the character owner during an initative roll instead of the message author
     game.settings.register("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative", {
@@ -320,6 +329,16 @@ const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, ds
     (!hasRollTableFlag || (shouldAnimateRollTable && rollTableFormulaDisplayed)) &&
     //If there's at least one roll with diceterms (could be a deterministic roll without any dice like Roll("5")) or has an inline roll
     (chatMessage.rolls.slice(options.dsnIndexAddedRoll).some(roll => roll.dice.length > 0) || hasInlineRoll);
+
+    //skip animation when every die in the roll was fulfilled through an interactive method (manual input, physical dice trackers, etc.)
+    if (willTrigger3DRoll && chatMessage.isRoll && game.settings.get("dice-so-nice", "disabledForManualRolls")) {
+        const fulfillmentMethods = CONFIG.Dice.fulfillment?.methods ?? {};
+        const rollsWithDice = chatMessage.rolls.slice(options.dsnIndexAddedRoll).filter(roll => roll.dice.length > 0);
+        const allInteractive = rollsWithDice.length > 0 && rollsWithDice.every(roll =>
+            roll.dice.every(term => fulfillmentMethods[term.method]?.interactive === true)
+        );
+        if (allInteractive) willTrigger3DRoll = false;
+    }
 
     const interception = {willTrigger3DRoll: willTrigger3DRoll};
 

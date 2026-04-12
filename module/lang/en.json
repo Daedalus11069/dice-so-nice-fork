@@ -77,6 +77,8 @@
     "DICESONICE.disabledDuringCombatHint": "Disable 3D dice roll animations while a combat is active.",
     "DICESONICE.disabledForInitiative": "Disabled for Initiative rolls",
     "DICESONICE.disabledForInitiativeHint": "Disable 3D dice roll when rolling initiative from the combat tracker.",
+    "DICESONICE.disabledForManualRolls": "Disabled for manually entered rolls",
+    "DICESONICE.disabledForManualRollsHint": "Skip 3D dice animations when every die in a roll was fulfilled interactively (e.g. Foundry's Manual Input mode or physical dice modules).",
     "DICESONICE.forceCharacterOwnerAppearanceForInitiative": "Use owner dice for initiative",
     "DICESONICE.forceCharacterOwnerAppearanceForInitiativeHint": "When enabled, use the character owner's dice appearance when rolling initiative from the combat tracker regardless of the roll author (ie:GM).",
     "DICESONICE.enabledSimultaneousRolls": "Simultaneous rolls are merged",

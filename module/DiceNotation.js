@@ -114,13 +114,16 @@ export class DiceNotation {
 			dsnDie.discarded = true;
 
 
-		//If it is not a standard die ("d"), we need to prepend "d" to the denominator. If it is, we append the number of face
-		dsnDie.type = fvttDie.constructor.DENOMINATION;
-		if(CONFIG.Dice.terms["d"] === fvttDie.constructor || CONFIG.Dice.terms["d"].prototype instanceof fvttDie.constructor)
-			dsnDie.type += isd10of100 ? "10":fvttDie.faces;
-		else {
-			dsnDie.type = "d"+dsnDie.type;
-		}
+		//A Die-family term with the inherited "d" denomination is a numeric die (native Die,
+		//dnd5e BasicDie, daggerheart HopeDie/FearDie, etc) and routes to d{faces}. Everything
+		//else (Coin, FateDie, SWFFG ChallengeDie, Blade Runner's d6/d8/d10/d12 subclasses with
+		//numeric denominations, etc) uses its own denomination as the preset suffix.
+		const Die = foundry.dice.terms.Die;
+		const denomination = fvttDie.constructor.DENOMINATION;
+		if(fvttDie instanceof Die && denomination === Die.DENOMINATION)
+			dsnDie.type = "d" + (isd10of100 ? "10" : fvttDie.faces);
+		else
+			dsnDie.type = "d" + denomination;
 		dsnDie.vectors = [];
 		//Contains optionals flavor (core) and colorset (dsn) infos.
 		dsnDie.options = foundry.utils.duplicate(fvttDie.options);

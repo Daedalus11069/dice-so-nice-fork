@@ -74,12 +74,14 @@ export class DiceFactory {
 
 		for(let i in CONFIG.Dice.terms){
 			let term = CONFIG.Dice.terms[i];
-			//If this is not a core dice type
-			if(![foundry.dice.terms.Coin, foundry.dice.terms.FateDie, foundry.dice.terms.Die].includes(term)){
-				let objTerm = new term({});
-				if([2, 3, 4, 6, 8, 10, 12, 14, 16, 20, 24, 30].includes(objTerm.faces)){
-					this.internalAddDicePreset(objTerm);
-				}
+			//skip the native core classes and any Die subclass: those are modifier-only
+			//extensions (e.g. dnd5e BasicDie) that share the standard d{n} preset and would
+			//otherwise register a phantom "dd" entry. 
+			if([foundry.dice.terms.Coin, foundry.dice.terms.FateDie, foundry.dice.terms.Die].includes(term)) continue;
+			if(term.prototype instanceof foundry.dice.terms.Die) continue;
+			let objTerm = new term({});
+			if([2, 3, 4, 6, 8, 10, 12, 14, 16, 20, 24, 30].includes(objTerm.faces)){
+				this.internalAddDicePreset(objTerm);
 			}
 		}
 	}
