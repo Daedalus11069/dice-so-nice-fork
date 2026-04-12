@@ -670,6 +670,48 @@ export class DiceFactory {
 		let labels = diceobj.labels;
 		if (diceobj.shape == 'd4') {
 			labels = diceobj.labels[0];
+			//d4 per-value overrides: swap the a/b/c/d source refs across all triplets.
+			//editor writes libraryDie.faces keyed by die value (1..4); for d4 value N maps
+			//to source index N-1. we identity-match the source in each triplet slot and
+			//substitute it so every vertex of that value gets the override.
+			const sources = diceobj._d4Sources;
+			const overrides = materialData.perFaceOverrides || {};
+			const hasValueOverride = (ov) => ov && (ov.labelImageObj || ov.labelText !== undefined);
+			const valueKeys = Object.keys(overrides).filter(k => /^[1-4]$/.test(k) && hasValueOverride(overrides[k]));
+			if (sources?.labels && valueKeys.length > 0) {
+				const newLabelSources = [...sources.labels];
+				const newBumpSources = sources.bumps ? [...sources.bumps] : null;
+				const newEmissiveSources = sources.emissiveMaps ? [...sources.emissiveMaps] : null;
+				for (const key of valueKeys) {
+					const idx = parseInt(key, 10) - 1;
+					const ov = overrides[key];
+					//images replace labels, bumps, and (optionally) emissives.
+					//text-only overrides just replace the label — bumps/emissives keep their
+					//original source so the font stroke is drawn from the same canvas path.
+					if (ov.labelImageObj) {
+						newLabelSources[idx] = ov.labelImageObj;
+						if (newBumpSources) newBumpSources[idx] = ov.labelImageObj;
+						if (newEmissiveSources && ov.emissive !== false) newEmissiveSources[idx] = ov.labelImageObj;
+					} else if (ov.labelText !== undefined) {
+						newLabelSources[idx] = ov.labelText;
+					}
+				}
+				const swapTriplet = (triplet, origSources, newSources) => triplet.map(t => {
+					const idx = origSources.indexOf(t);
+					return idx >= 0 ? newSources[idx] : t;
+				});
+				const rebuildFaceEntry = (faceEntry, origSources, newSources) => [
+					faceEntry[0], //background array (not per-value)
+					faceEntry[1], //[0,0,0] placeholder
+					swapTriplet(faceEntry[2], origSources, newSources),
+					swapTriplet(faceEntry[3], origSources, newSources),
+					swapTriplet(faceEntry[4], origSources, newSources),
+					swapTriplet(faceEntry[5], origSources, newSources),
+				];
+				labels = rebuildFaceEntry(diceobj.labels[0], sources.labels, newLabelSources);
+				materialData._d4SwappedBumps = newBumpSources ? rebuildFaceEntry(diceobj.bumps[0], sources.bumps, newBumpSources) : null;
+				materialData._d4SwappedEmissives = newEmissiveSources ? rebuildFaceEntry(diceobj.emissiveMaps[0], sources.emissiveMaps, newEmissiveSources) : null;
+			}
 		}
 		//If the texture is an array of texture (for random face texture), we look at the first element to determine the faces material and the edge texture
 		let dice_texture = Array.isArray(materialData.texture) ? materialData.texture[0] : materialData.texture;
@@ -741,27 +783,42 @@ export class DiceFactory {
 		let ts = this.calc_texture_size(Math.sqrt(labelsTotal)*sizeTexture, true);
 		
 		canvas.width = canvas.height = canvasBump.width = canvasBump.height = canvasEmissive.width = canvasEmissive.height = ts;
+		//on d4 the editor stores overrides keyed by the click-reported die value, and the
+		//glTF atlas UV maps tile N-1 onto the physical face whose click reports value N.
+		//so shapeFace doubles as the lookup key directly — no faceValues translation needed.
 		const resolveOverride = (labelIdx, shapeFace) => {
 			let faceMaterialData = materialData;
 			let faceFont = font;
 			let faceLabels = labels;
-			if(materialData.perFaceOverrides && materialData.perFaceOverrides[shapeFace]) {
-				const faceOverride = materialData.perFaceOverrides[shapeFace];
+			const lookupKey = String(shapeFace);
+			if(materialData.perFaceOverrides && materialData.perFaceOverrides[lookupKey]) {
+				const faceOverride = materialData.perFaceOverrides[lookupKey];
 				faceMaterialData = foundry.utils.deepClone(materialData);
-				delete faceMaterialData.perFaceOverrides;
-				foundry.utils.mergeObject(faceMaterialData, faceOverride, {overwrite: true});
-				if(faceOverride.font) {
-					faceFont = {type: faceOverride.font, scale: font.scale};
-				}
-				if(faceOverride.fontScale) {
-					faceFont = {...faceFont, scale: (faceFont.scale || font.scale) * (faceOverride.fontScale / 100)};
-				}
-				if(faceOverride.labelImageObj) {
-					faceLabels = [...labels];
-					faceLabels[labelIdx] = faceOverride.labelImageObj;
-				} else if(faceOverride.labelText !== undefined) {
-					faceLabels = [...labels];
-					faceLabels[labelIdx] = faceOverride.labelText;
+				//keep perFaceOverrides on the clone so the d4 triplet draw loop can do
+				//per-vertex lookups below.
+				faceMaterialData.perFaceOverrides = materialData.perFaceOverrides;
+				if(diceobj.shape == 'd4') {
+					//d4: only diceColor (background) / edge / texture are per-face.
+					//label color, outline, font, text, image, and glow are per-label and
+					//resolved per-vertex inside the d4 draw loop.
+					if(faceOverride.background !== undefined) faceMaterialData.background = faceOverride.background;
+					if(faceOverride.edge !== undefined) faceMaterialData.edge = faceOverride.edge;
+					if(faceOverride.texture !== undefined) faceMaterialData.texture = faceOverride.texture;
+				} else {
+					foundry.utils.mergeObject(faceMaterialData, faceOverride, {overwrite: true});
+					if(faceOverride.font) {
+						faceFont = {type: faceOverride.font, scale: font.scale};
+					}
+					if(faceOverride.fontScale) {
+						faceFont = {...faceFont, scale: (faceFont.scale || font.scale) * (faceOverride.fontScale / 100)};
+					}
+					if(faceOverride.labelImageObj) {
+						faceLabels = [...labels];
+						faceLabels[labelIdx] = faceOverride.labelImageObj;
+					} else if(faceOverride.labelText !== undefined) {
+						faceLabels = [...labels];
+						faceLabels[labelIdx] = faceOverride.labelText;
+					}
 				}
 			}
 			return { faceMaterialData, faceFont, faceLabels };
@@ -863,7 +920,17 @@ export class DiceFactory {
 							}
 						}
 					}
-					if(glowFaces.size > 0 && glowFaces.size < shapeFaceCount) {
+					//d4 per-vertex glow: inner loop already skipped contextEmissive for
+					//non-glow vertices, so canvasEmissive is the selective glow map.
+					if(diceobj.shape == 'd4' && glowFaces.size > 0) {
+						mat.userData.emissiveMapFull = emissiveMap;
+						mat.userData.emissiveMapGlow = emissiveMap;
+						mat.emissiveMap = emissiveMap;
+						mat.emissive = new Color(0xffffff);
+						if(this.realisticLighting)
+							mat.emissive.convertLinearToSRGB();
+						mat.emissiveIntensity = baseHasEmissive ? (diceobj.emissiveIntensity || 1) : 0.7;
+					} else if(glowFaces.size > 0 && glowFaces.size < shapeFaceCount) {
 						mat.userData.emissiveMapFull = emissiveMap;
 
 						let canvasGlow = document.createElement("canvas");
@@ -953,9 +1020,11 @@ export class DiceFactory {
 		let text = labels[index];
 		let bump = diceobj.bumps[index];
 		if (diceobj.shape == 'd4') {
-			bump = diceobj.bumps?.[0]?.[index];
+			bump = (materialData._d4SwappedBumps || diceobj.bumps?.[0])?.[index];
 		}
-		let emissive = diceobj.emissiveMaps[index];
+		let emissive = (diceobj.shape == 'd4' && materialData._d4SwappedEmissives)
+			? materialData._d4SwappedEmissives[index]
+			: diceobj.emissiveMaps[index];
 		let isTexture = false;
 		let margin = 1.0;
 
@@ -1207,12 +1276,47 @@ export class DiceFactory {
 
 			var hw = (ts / 2);
 			var hh = (ts / 2);
-			let fontsize = (ts / 128 * 24);
+			const baseFontSize = (ts / 128 * 24);
+			let fontsize = baseFontSize;
 			if(font.scale)
 				fontsize *= font.scale;
 			context.font =  fontsize+'pt '+font.type;
 			contextBump.font =  fontsize+'pt '+font.type;
 			contextEmissive.font =  fontsize+'pt '+font.type;
+
+			//d4 triplet → original vertex values. each tile shows 3 digits; these are the
+			//values at each vertex before override substitution. used to apply per-value
+			//font / image / glow overrides on the matching vertices during the draw loop.
+			const D4_TRIPLET_VALUES = [[2,4,3],[1,3,4],[2,1,4],[1,2,3]];
+			const d4ShapeFace = diceobj.shape == 'd4' ? (index - 1) : 0;
+			const d4VertexValues = diceobj.shape == 'd4' ? D4_TRIPLET_VALUES[d4ShapeFace - 1] : null;
+			const d4Overrides = diceobj.shape == 'd4' ? (materialData.perFaceOverrides || null) : null;
+			//glow control only kicks in when emissive is explicitly set per value or a base
+			//glow is on — otherwise default #999999 emissive rendering applies to all vertices.
+			const d4GlowControl = d4Overrides && (
+				!!materialData.baseEmissive ||
+				Object.values(d4Overrides).some(ov => ov?.emissive !== undefined)
+			);
+			const isD4VertexGlowing = (vertexValue) => {
+				const ov = d4Overrides?.[String(vertexValue)];
+				if (ov?.emissive === true) return true;
+				if (ov?.emissive === false) return false;
+				return !!materialData.baseEmissive;
+			};
+
+			//clip d4 face tile so vertex labels and backgrounds don't bleed into neighbours
+			context.save();
+			context.beginPath();
+			context.rect(x, y, ts, ts);
+			context.clip();
+			contextBump.save();
+			contextBump.beginPath();
+			contextBump.rect(x, y, ts, ts);
+			contextBump.clip();
+			contextEmissive.save();
+			contextEmissive.beginPath();
+			contextEmissive.rect(x, y, ts, ts);
+			contextEmissive.clip();
 
 			if (index > 1) {
 				// Apply background textures
@@ -1246,26 +1350,89 @@ export class DiceFactory {
 					}
 					let destX = hw*wShift+x;
 					let destY = (hh - ts * 0.3)*hShift+y;
+
+					//d4 per-vertex override lookup: font, image options, glow gating.
+					//overrides are keyed by the value the vertex originally shows, so every
+					//instance of that label across the die inherits the same settings.
+					let vertexOv = null;
+					let vertexValue = null;
+					let vertexDrawEmissive = true;
+					if (d4VertexValues) {
+						vertexValue = d4VertexValues[i];
+						vertexOv = d4Overrides?.[String(vertexValue)] || null;
+						vertexDrawEmissive = d4GlowControl ? isD4VertexGlowing(vertexValue) : true;
+						let vertexFontType = font.type;
+						let vertexFontSize = fontsize;
+						if (vertexOv) {
+							if (vertexOv.font) vertexFontType = vertexOv.font;
+							if (vertexOv.fontScale) vertexFontSize = baseFontSize * (font.scale || 1) * (vertexOv.fontScale / 100);
+						}
+						context.font = vertexFontSize + 'pt ' + vertexFontType;
+						contextBump.font = vertexFontSize + 'pt ' + vertexFontType;
+						contextEmissive.font = vertexFontSize + 'pt ' + vertexFontType;
+					}
 					//custom texture face
 					if(text[i].source instanceof HTMLImageElement){
 						isTexture = true;
-						let textureSize = 60 / (text[i].frame.w / ts);
+						let baseTextureSize = 60 / (text[i].frame.w / ts);
 						if (diceobj.labelScale) {
-							textureSize = 120 * diceobj.labelScale;
+							baseTextureSize = 120 * diceobj.labelScale;
 						}
-						context.drawImage(text[i].source,text[i].frame.x, text[i].frame.y, text[i].frame.w, text[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
+						//d4 per-value image options: scale, flip, vertical offset along the
+						//local y axis (which points from center toward the vertex after rotation)
+						let scaleFactor = 1;
+						let flipImg = false;
+						let vOffset = 0;
+						if (vertexOv) {
+							if (vertexOv.labelImageScale !== undefined) scaleFactor = (vertexOv.labelImageScale ?? 100) / 100;
+							if (vertexOv.labelImageFlip) flipImg = true;
+							if (vertexOv.labelImagePosition !== undefined) {
+								//0 = pulled toward vertex, 0.5 = default, 1 = pushed toward face center
+								vOffset = ((vertexOv.labelImagePosition ?? 50) / 100 - 0.5) * (ts / 2);
+							}
+						}
+						const textureSize = baseTextureSize * scaleFactor;
+						const imgCenterY = destY + vOffset;
+
+						const drawVertexImg = (ctx, src, frameX, frameY) => {
+							if (flipImg) {
+								ctx.save();
+								ctx.translate(destX, imgCenterY);
+								ctx.scale(1, -1);
+								ctx.drawImage(src.source, frameX, frameY, src.frame.w, src.frame.h,
+									-textureSize/2, -textureSize/2, textureSize, textureSize);
+								ctx.restore();
+							} else {
+								ctx.drawImage(src.source, frameX, frameY, src.frame.w, src.frame.h,
+									destX - textureSize/2, imgCenterY - textureSize/2, textureSize, textureSize);
+							}
+						};
+
+						drawVertexImg(context, text[i], text[i].frame.x, text[i].frame.y);
 						if(bump) {
-							contextBump.drawImage(bump[i].source,0,0,bump[i].frame.w,bump[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
+							drawVertexImg(contextBump, bump[i], 0, 0);
 						}
-						if(emissive)
-							contextEmissive.drawImage(text[i].source,text[i].frame.x, text[i].frame.y, text[i].frame.w, text[i].frame.h,destX-(textureSize/2),destY-(textureSize/2),textureSize,textureSize);
+						if(emissive && vertexDrawEmissive)
+							drawVertexImg(contextEmissive, text[i], text[i].frame.x, text[i].frame.y);
 					}
 
 					else{
+						//d4 per-label label color / outline color
+						let vertexForecolor = forecolor;
+						let vertexOutlinecolor = outlinecolor;
+						if (vertexOv) {
+							if (vertexOv.foreground !== undefined && vertexOv.foreground !== null && vertexOv.foreground !== '') {
+								vertexForecolor = vertexOv.foreground;
+							}
+							if (vertexOv.outline !== undefined && vertexOv.outline !== null) {
+								vertexOutlinecolor = vertexOv.outline;
+							}
+						}
+
 						// attempt to outline the text with a meaningful color
-						if (outlinecolor != 'none' && outlinecolor != backcolor) {
-							context.strokeStyle = outlinecolor;
-							
+						if (vertexOutlinecolor != 'none' && vertexOutlinecolor != backcolor) {
+							context.strokeStyle = vertexOutlinecolor;
+
 							context.lineWidth = 5;
 							context.strokeText(text[i], destX, destY);
 
@@ -1273,18 +1440,22 @@ export class DiceFactory {
 							contextBump.lineWidth = 5;
 							contextBump.strokeText(text[i], destX, destY);
 
-							contextEmissive.strokeStyle = "#999999";
-							contextEmissive.lineWidth = 5;
-							contextEmissive.strokeText(text[i], destX, destY);
+							if (vertexDrawEmissive) {
+								contextEmissive.strokeStyle = "#999999";
+								contextEmissive.lineWidth = 5;
+								contextEmissive.strokeText(text[i], destX, destY);
+							}
 						}
 
 						//draw label in top middle section
-						context.fillStyle = forecolor;
+						context.fillStyle = vertexForecolor;
 						context.fillText(text[i], destX, destY);
 						contextBump.fillStyle = "#555555";
 						contextBump.fillText(text[i], destX, destY);
-						contextEmissive.fillStyle = "#999999";
-						contextEmissive.fillText(text[i], destX, destY);
+						if (vertexDrawEmissive) {
+							contextEmissive.fillStyle = "#999999";
+							contextEmissive.fillText(text[i], destX, destY);
+						}
 						//var img    = canvas.toDataURL("image/png");
 						//document.write('<img src="'+img+'"/>');
 					}
@@ -1303,6 +1474,10 @@ export class DiceFactory {
 					contextEmissive.translate(-hw-x, -hh-y);
 				}
 			}
+
+			context.restore();
+			contextBump.restore();
+			contextEmissive.restore();
 		}
 	}
 

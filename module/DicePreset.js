@@ -73,10 +73,11 @@ export class DicePreset {
 	registerFaces(faces) {
 		// Faces is an object with keys: 'labels', 'bumps', and 'emissiveMaps'
 		// Each key points to another object with keys as the texture names and values as the loaded textures
+		if (this.shape == 'd4') this._d4Sources = {};
 		for (let type of ['labels', 'bumps', 'emissiveMaps']) {
 			if (faces[type] && Object.keys(faces[type]).length > 0) {
 				let tab = [];
-	
+
 				if (this.shape == 'd4') {
 					// For d4, specific layout is needed
 					const textures = Object.values(faces[type]); // Convert object to array of textures
@@ -84,6 +85,8 @@ export class DicePreset {
 					let b = textures[1];
 					let c = textures[2];
 					let d = textures[3];
+					//keep identity refs so per-value library overrides can swap a/b/c/d at render time
+					this._d4Sources[type] = [a, b, c, d];
 					let background = [];
 					if (faces.backgrounds?.[type]) {
 						for (let i=0; i<4; i++) {
@@ -91,7 +94,7 @@ export class DicePreset {
 								background.push(faces.backgrounds[type][i]);
 						}
 					}
-	
+
 					tab = [
 						[background, [0, 0, 0], [b, d, c], [a, c, d], [b, a, d], [a, b, c]],
 						[background, [0, 0, 0], [b, c, d], [c, a, d], [b, d, a], [c, b, a]],
