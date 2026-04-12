@@ -42,7 +42,7 @@ export class DiceFactory {
 		this.cache_misses = 0;
 
 		this.realisticLighting = true;
-		this.normalMapStrength = 4.0;
+		this.normalMapStrength = 1.3;
 
 		this.loaderGLTF = new GLTFLoader();
 		this.loaderDRACO = new DRACOLoader();
@@ -962,7 +962,7 @@ export class DiceFactory {
 				//convert the height-field bump canvas into a normal map. better lighting
 				//response than bumpMap (which uses screen-space derivatives) and the
 				//conversion is a one-shot Sobel pass at material build time.
-				let normalCanvas = DiceFactory.heightCanvasToNormalCanvas(canvasBump);
+				let normalCanvas = this.heightCanvasToNormalCanvas(canvasBump);
 				let normalMap = new CanvasTexture(normalCanvas);
 				normalMap.flipY = false;
 				mat.normalMap = normalMap;
