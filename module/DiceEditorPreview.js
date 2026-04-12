@@ -200,7 +200,7 @@ export class DiceEditorPreview {
     }
 
     async setDie(dieType, appearance, diceLibrary = null) {
-        //guard against concurrent calls — newer call supersedes
+        //guard against concurrent calls - newer call supersedes
         const token = this._setDieToken = {};
 
         if (this.dieMesh) {

@@ -104,7 +104,7 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
         });
     }
 
-    //select change needs manual wiring — ApplicationV2 actions only fire on click
+    //select change needs manual wiring - ApplicationV2 actions only fire on click
     _onRender(context, options) {
         super._onRender?.(context, options);
         const select = this.element.querySelector("[data-action=setVisibility]");

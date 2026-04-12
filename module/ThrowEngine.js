@@ -36,10 +36,10 @@ export class ThrowEngine {
 		this.throws = null;
 		this.callback = null;
 
-		//set by DiceBox to the DiceBox instance — SFX subclasses access box.scene, box.camera, etc.
+		//set by DiceBox to the DiceBox instance - SFX subclasses access box.scene, box.camera, etc.
 		this.sfxContext = null;
 
-		//set by DiceBox — reference to persistent dice array for simulateThrow
+		//set by DiceBox - reference to persistent dice array for simulateThrow
 		this.persistentDiceList = [];
 	}
 

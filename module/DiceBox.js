@@ -131,7 +131,7 @@ export class DiceBox {
 			});
 			await this.diceScene.initialize();
 
-			//DiceScene computed display.scale during init — push it to the factory
+			//DiceScene computed display.scale during init - push it to the factory
 			this.dicefactory.setScale(this.display.scale);
 
 			this.stats = null;

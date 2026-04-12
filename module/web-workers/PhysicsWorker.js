@@ -229,7 +229,7 @@ class PhysicsWorker {
         dice.angularVelocity.set(0, 0, 0);
     }
 
-    //batch setBodyPosition — one worker message instead of N per frame
+    //batch setBodyPosition - one worker message instead of N per frame
     setBodyPositions({ updates }) {
         for (const { id, position } of updates) {
             const dice = this.diceList.get(id);
@@ -400,7 +400,7 @@ class PhysicsWorker {
         if (!positions && payload?.pos) {
             //back-compat: single-die path
             if (this.diceConstraints.size > 1) {
-                console.warn("[DSN worker] updateConstraint called with single pos but multiple dice held — ignoring");
+                console.warn("[DSN worker] updateConstraint called with single pos but multiple dice held - ignoring");
                 return;
             }
             const [onlyId] = this.diceConstraints.keys();

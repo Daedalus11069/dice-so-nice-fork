@@ -21,7 +21,7 @@ export class PersistentDiceManager {
 		this.selectedPersistentDiceIds = new Set();
 		this.persistentDiceVisibility = "all";
 
-		//set by DiceBox to the DiceBox instance — SFX subclasses access box.scene, box.camera, etc.
+		//set by DiceBox to the DiceBox instance - SFX subclasses access box.scene, box.camera, etc.
 		this.sfxContext = null;
 
 		//callback for persistent dice multiplayer sync (set by Dice3D via DiceBox)
@@ -378,7 +378,7 @@ export class PersistentDiceManager {
 				//send chat message
 				if (pt.roll) {
 					pt.roll.toMessage({
-						flavor: `${pt.diceType} — Persistent Dice`,
+						flavor: `${pt.diceType} - Persistent Dice`,
 						flags: { "dice-so-nice": { persistent: true } }
 					}).catch(err => {
 						console.error("[Dice So Nice] Failed to create persistent dice chat message:", err);
@@ -552,7 +552,7 @@ export class PersistentDiceManager {
 			if (!diceobj) continue;
 
 			if (!forcedByMesh.has(dicemesh)) {
-				console.warn("[Dice So Nice] Held die has no derived face value — skipping", { id: dicemesh.id });
+				console.warn("[Dice So Nice] Held die has no derived face value - skipping", { id: dicemesh.id });
 				continue;
 			}
 
@@ -599,7 +599,7 @@ export class PersistentDiceManager {
 			if (isChatCarrier) chatCarrierAssigned = true;
 		}
 		if (!chatCarrierAssigned) {
-			console.warn("[Dice So Nice] Persistent batch throw produced no chat carrier — every die was skipped", { ids: heldDice.map(d => d.id) });
+			console.warn("[Dice So Nice] Persistent batch throw produced no chat carrier - every die was skipped", { ids: heldDice.map(d => d.id) });
 		}
 
 		//5b. populate SFX on thrown dice
@@ -701,7 +701,7 @@ export class PersistentDiceManager {
 				rawQuat: rawFinalQuat,
 				iterations: iterationsNeeded,
 				iteration: 0,
-				//no roll/diceType — first die carries collision sounds only
+				//no roll/diceType - first die carries collision sounds only
 				roll: null,
 				diceType: null,
 				detectedCollides: isSoundCarrier ? resolvedCollides : null,

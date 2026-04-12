@@ -16,6 +16,7 @@ import {
 	AnimationMixer,
 	Mesh,
 	Color,
+	Vector2,
 	Vector3,
 	MeshPhongMaterial,
 	MeshStandardMaterial,
@@ -25,7 +26,6 @@ import {
 	SRGBColorSpace,
 	BufferGeometryLoader
 } from 'three';
-
 export class DiceFactory {
 
 	constructor() {
@@ -42,6 +42,7 @@ export class DiceFactory {
 		this.cache_misses = 0;
 
 		this.realisticLighting = true;
+		this.normalMapStrength = 4.0;
 
 		this.loaderGLTF = new GLTFLoader();
 		this.loaderDRACO = new DRACOLoader();
@@ -76,7 +77,7 @@ export class DiceFactory {
 			let term = CONFIG.Dice.terms[i];
 			//skip the native core classes and any Die subclass: those are modifier-only
 			//extensions (e.g. dnd5e BasicDie) that share the standard d{n} preset and would
-			//otherwise register a phantom "dd" entry. 
+			//otherwise register a phantom "dd" entry.
 			if([foundry.dice.terms.Coin, foundry.dice.terms.FateDie, foundry.dice.terms.Die].includes(term)) continue;
 			if(term.prototype instanceof foundry.dice.terms.Die) continue;
 			let objTerm = new term({});
@@ -84,6 +85,10 @@ export class DiceFactory {
 				this.internalAddDicePreset(objTerm);
 			}
 		}
+
+		//build material_options up front so consumers like sanitizeAppearance
+		//can read it before the first scene init re-runs this with quality settings.
+		this.initializeMaterials();
 	}
 
 	initializeMaterials(){
@@ -500,16 +505,80 @@ export class DiceFactory {
 	disposeCachedMaterials(type = null){
 		for (const material in this.baseMaterialCache) {
 			if(type == null || material.substring(0,type.length) == type){
-				if(this.baseMaterialCache[material].map instanceof CanvasTexture)
-					this.baseMaterialCache[material].map.dispose();
-				if(this.baseMaterialCache[material].bumpMap && this.baseMaterialCache[material].bumpMap instanceof CanvasTexture)
-					this.baseMaterialCache[material].bumpMap.dispose();
-				if(this.baseMaterialCache[material].emissiveMap && this.baseMaterialCache[material].emissiveMap instanceof CanvasTexture)
-					this.baseMaterialCache[material].emissiveMap.dispose();
-				this.baseMaterialCache[material].dispose();
+				const mat = this.baseMaterialCache[material];
+				if(mat.map instanceof CanvasTexture)
+					mat.map.dispose();
+				if(mat.normalMap instanceof CanvasTexture)
+					mat.normalMap.dispose();
+				if(mat.emissiveMap instanceof CanvasTexture)
+					mat.emissiveMap.dispose();
+				//chrome/iridescent reuse a height texture for metalnessMap, stored on userData
+				if(mat.userData?.heightMap instanceof CanvasTexture)
+					mat.userData.heightMap.dispose();
+				mat.dispose();
 				delete this.baseMaterialCache[material];
 			}
 		}
+	}
+
+	heightCanvasToNormalCanvas(srcCanvas, strength = this.normalMapStrength){
+		const w = srcCanvas.width;
+		const h = srcCanvas.height;
+		const srcCtx = srcCanvas.getContext("2d");
+		const srcData = srcCtx.getImageData(0, 0, w, h).data;
+
+		//read the red channel as height - bump canvas is grayscale (white = high, dark = engraved)
+		const heights = new Float32Array(w * h);
+		for(let i = 0; i < w * h; i++) {
+			heights[i] = srcData[i * 4] / 255.0;
+		}
+
+		const dstCanvas = document.createElement("canvas");
+		dstCanvas.width = w;
+		dstCanvas.height = h;
+		const dstCtx = dstCanvas.getContext("2d");
+		const dstImage = dstCtx.createImageData(w, h);
+		const out = dstImage.data;
+
+		const sample = (x, y) => {
+			if(x < 0) x = 0; else if(x >= w) x = w - 1;
+			if(y < 0) y = 0; else if(y >= h) y = h - 1;
+			return heights[y * w + x];
+		};
+
+		for(let y = 0; y < h; y++) {
+			for(let x = 0; x < w; x++) {
+				const tl = sample(x - 1, y - 1);
+				const t  = sample(x,     y - 1);
+				const tr = sample(x + 1, y - 1);
+				const l  = sample(x - 1, y);
+				const r  = sample(x + 1, y);
+				const bl = sample(x - 1, y + 1);
+				const b  = sample(x,     y + 1);
+				const br = sample(x + 1, y + 1);
+
+				//Sobel kernels - gx = horizontal slope, gy = vertical slope (canvas-Y down)
+				const gx = (tr + 2 * r + br) - (tl + 2 * l + bl);
+				const gy = (bl + 2 * b + br) - (tl + 2 * t + tr);
+
+				//build tangent-space normal. negate gradients so brighter (higher) regions
+				//point outward; flipY=false on the texture aligns canvas-Y with V down.
+				let nx = -gx * strength;
+				let ny = -gy * strength;
+				let nz = 1.0;
+				const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+				nx /= len; ny /= len; nz /= len;
+
+				const idx = (y * w + x) * 4;
+				out[idx]     = (nx * 0.5 + 0.5) * 255;
+				out[idx + 1] = (ny * 0.5 + 0.5) * 255;
+				out[idx + 2] = (nz * 0.5 + 0.5) * 255;
+				out[idx + 3] = 255;
+			}
+		}
+
+		dstCtx.putImageData(dstImage, 0, 0);
+		return dstCanvas;
 	}
 
 	//Stripped version from the Foundry Core library to avoid reloading fonts
@@ -688,7 +757,7 @@ export class DiceFactory {
 					const idx = parseInt(key, 10) - 1;
 					const ov = overrides[key];
 					//images replace labels, bumps, and (optionally) emissives.
-					//text-only overrides just replace the label — bumps/emissives keep their
+					//text-only overrides just replace the label - bumps/emissives keep their
 					//original source so the font stroke is drawn from the same canvas path.
 					if (ov.labelImageObj) {
 						newLabelSources[idx] = ov.labelImageObj;
@@ -787,7 +856,7 @@ export class DiceFactory {
 		canvas.width = canvas.height = canvasBump.width = canvasBump.height = canvasEmissive.width = canvasEmissive.height = ts;
 		//on d4 the editor stores overrides keyed by the click-reported die value, and the
 		//glTF atlas UV maps tile N-1 onto the physical face whose click reports value N.
-		//so shapeFace doubles as the lookup key directly — no faceValues translation needed.
+		//so shapeFace doubles as the lookup key directly - no faceValues translation needed.
 		const resolveOverride = (labelIdx, shapeFace) => {
 			let faceMaterialData = materialData;
 			let faceFont = font;
@@ -890,9 +959,14 @@ export class DiceFactory {
 			mat.map.anisotropy = game.dice3d.box.anisotropy;
 
 			if(this.realisticLighting){
-				let bumpMap = new CanvasTexture(canvasBump);
-				bumpMap.flipY = false;
-				mat.bumpMap = bumpMap;
+				//convert the height-field bump canvas into a normal map. better lighting
+				//response than bumpMap (which uses screen-space derivatives) and the
+				//conversion is a one-shot Sobel pass at material build time.
+				let normalCanvas = DiceFactory.heightCanvasToNormalCanvas(canvasBump);
+				let normalMap = new CanvasTexture(normalCanvas);
+				normalMap.flipY = false;
+				mat.normalMap = normalMap;
+				mat.normalScale = new Vector2(1, 1);
 
 				let emissiveMap = new CanvasTexture(canvasEmissive);
 				if(this.realisticLighting)
@@ -983,16 +1057,18 @@ export class DiceFactory {
 			}
 		}
 
-		//mat.displacementMap = mat.bumpMap;
-
+		//chrome/iridescent reuse the height field as a metalness mask (engraved areas
+		//read as non-metal). normal map can't stand in for that, so build a separate
+		//height texture from the same canvas and stash it on userData for disposal.
 		switch(materialData.material){
 			case "chrome":
-				if(this.realisticLighting)
-					mat.metalnessMap = mat.bumpMap;
-				break;
 			case "iridescent":
-				if(this.realisticLighting)
-					mat.metalnessMap = mat.bumpMap;
+				if(this.realisticLighting) {
+					let heightMap = new CanvasTexture(canvasBump);
+					heightMap.flipY = false;
+					mat.metalnessMap = heightMap;
+					mat.userData.heightMap = heightMap;
+				}
 				break;
 		}
 		
@@ -1298,7 +1374,7 @@ export class DiceFactory {
 			const d4VertexValues = diceobj.shape == 'd4' ? D4_TRIPLET_VALUES[d4ShapeFace - 1] : null;
 			const d4Overrides = diceobj.shape == 'd4' ? (materialData.perFaceOverrides || null) : null;
 			//glow control only kicks in when emissive is explicitly set per value or a base
-			//glow is on — otherwise default #999999 emissive rendering applies to all vertices.
+			//glow is on - otherwise default #999999 emissive rendering applies to all vertices.
 			const d4GlowControl = d4Overrides && (
 				!!materialData.baseEmissive ||
 				Object.values(d4Overrides).some(ov => ov?.emissive !== undefined)

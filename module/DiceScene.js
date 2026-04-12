@@ -212,7 +212,7 @@ export class DiceScene {
 		if (this.camera) this.scene.remove(this.camera);
 		this.camera = new PerspectiveCamera(20, this.display.currentWidth / this.display.currentHeight, 1, this.cameraHeight.max * 1.3);
 
-		//default to far (board) position — consumers override after calling setScene()
+		//default to far (board) position - consumers override after calling setScene()
 		this.camera.position.z = this.cameraHeight.far;
 		this.camera.near = 10;
 		this.camera.lookAt(new Vector3(0, 0, 0));
@@ -237,7 +237,7 @@ export class DiceScene {
 		this.scene.add(this.light_amb);
 
 		this.light = new DirectionalLight(this.colors.spotlight, intensity);
-		//default to board offset — consumers override after calling setScene()
+		//default to board offset - consumers override after calling setScene()
 		this.light.position.set(-this.display.containerWidth / 20, this.display.containerHeight / 20, maxwidth / 2);
 		this.light.target.position.set(0, 0, 0);
 		this.light.distance = 0;

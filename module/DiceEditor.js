@@ -234,7 +234,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         const isD4 = this.libraryDie.dieType === "d4";
         const faceLabel = shapeFaces.map(sf => {
             const { typeValue } = this._getShapeFaceDisplay(sf);
-            //d4 has no single "face" in the usual sense — each triangle shows three vertex digits,
+            //d4 has no single "face" in the usual sense - each triangle shows three vertex digits,
             //so we edit by die value and let users discover the mapping by trial and error.
             if (isD4) return `Value ${sf}`;
             return typeValue !== sf ? `Face ${sf} (${typeValue})` : `Face ${sf}`;

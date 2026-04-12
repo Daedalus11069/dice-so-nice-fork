@@ -161,7 +161,7 @@ export class InputHandler {
 						}
 					}
 				} else {
-					//ephemeral die — legacy single-pos path
+					//ephemeral die - legacy single-pos path
 					await this.physicsWorker.exec("updateConstraint", { pos });
 				}
 
@@ -298,7 +298,7 @@ export class InputHandler {
 	}
 
 	async onMouseUp(event) {
-		//tentative grab that never promoted — commit selection toggle on release
+		//tentative grab that never promoted - commit selection toggle on release
 		if (this.mouse.pendingGrab && !this.mouse.constraintDown) {
 			const pending = this.mouse.pendingGrab;
 			this.mouse.pendingGrab = null;
@@ -336,7 +336,7 @@ export class InputHandler {
 			this.mouse.dragPositions = [];
 
 			try {
-				//release constraints — pass ids for persistent, empty for ephemeral fallthrough
+				//release constraints - pass ids for persistent, empty for ephemeral fallthrough
 				if (heldDice.length > 0) {
 					await this.physicsWorker.exec("removeConstraint", { ids: heldDice.map(d => d.id) });
 				} else {
@@ -347,7 +347,7 @@ export class InputHandler {
 				if (heldDice.length > 0 && throwVelocity) {
 					await this.persistentDiceManager.throwPersistentDice(heldDice, throwVelocity);
 				} else if (heldDice.length > 0 && this.onPersistentEvent) {
-					//reposition release — notify to unlock
+					//reposition release - notify to unlock
 					this.onPersistentEvent("release", {
 						data: {
 							persistentIds: heldDice.map(d => d.userData.persistentId)
