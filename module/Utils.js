@@ -27,7 +27,7 @@ export function removeTicker(fn) {
 export class Utils {
 
     static DATA_FORMAT_VERSION = "4.2";
-    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "enabled", "rollingArea"];
+    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "enabled", "rollingArea", "advancedGlass"];
 
     /**
      * Check if the user's version is less than a specific target version.

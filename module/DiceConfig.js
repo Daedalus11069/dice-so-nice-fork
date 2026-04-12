@@ -884,7 +884,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     glow: true,
                     antialiasing: game.canvas.app.renderer.context.webGLVersion === 2 ? "msaa" : "smaa",
                     useHighDPI: true,
-                    persistentDiceOutlines: true
+                    persistentDiceOutlines: true,
+                    advancedGlass: true
                 };
                 switch (event.target.value) {
                     case "low":
@@ -894,6 +895,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         quality.antialiasing = "none";
                         quality.useHighDPI = false;
                         quality.persistentDiceOutlines = false;
+                        quality.advancedGlass = false;
                         break;
                     case "medium":
                         quality.bumpMapping = true;
@@ -902,6 +904,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         quality.antialiasing = "none";
                         quality.useHighDPI = false;
                         quality.persistentDiceOutlines = false;
+                        quality.advancedGlass = false;
                         break;
                     case "high":
                         quality.bumpMapping = true;
@@ -910,6 +913,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         quality.antialiasing = game.canvas.app.renderer.context.webGLVersion === 2 ? "msaa" : "smaa";
                         quality.useHighDPI = true;
                         quality.persistentDiceOutlines = true;
+                        quality.advancedGlass = true;
                         break;
                 }
                 $(this.element).find("[data-bumpMapping]").prop("checked", quality.bumpMapping);
@@ -918,9 +922,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 $(this.element).find("[data-antialiasing]").val(quality.antialiasing);
                 $(this.element).find("[data-useHighDPI]").prop("checked", quality.useHighDPI);
                 $(this.element).find("[data-persistentDiceOutlines]").prop("checked", quality.persistentDiceOutlines);
+                $(this.element).find("[data-advancedGlass]").prop("checked", quality.advancedGlass);
             });
 
-            $(this.element).on("change", "[data-bumpMapping],[data-shadowQuality],[data-glow],[data-antialiasing],[data-useHighDPI],[data-persistentDiceOutlines]", (event) => {
+            $(this.element).on("change", "[data-bumpMapping],[data-shadowQuality],[data-glow],[data-antialiasing],[data-useHighDPI],[data-persistentDiceOutlines],[data-advancedGlass]", (event) => {
                 $(this.element).find("[data-imageQuality]").val("custom");
             });
         }
@@ -1292,6 +1297,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             sounds: $('[data-sounds]').is(':checked'),
             throwingForce: $('[data-throwingForce]').val(),
             useHighDPI: $('[data-useHighDPI]').is(':checked'),
+            advancedGlass: $('[data-advancedGlass]').is(':checked'),
             showExtraDice: $('[data-showExtraDice]').is(':checked'),
             muteSoundSecretRolls: $('[data-muteSoundSecretRolls]').is(':checked'),
             enableFlavorColorset: $('[data-enableFlavorColorset]').is(':checked'),

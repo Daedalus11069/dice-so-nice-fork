@@ -27,6 +27,7 @@ export class Dice3D {
                 quality.useHighDPI = false;
                 quality.imageQuality = "low";
                 quality.persistentDiceOutlines = false;
+                quality.advancedGlass = false;
                 break;
             case 1:
                 quality.bumpMapping = true;
@@ -36,6 +37,7 @@ export class Dice3D {
                 quality.useHighDPI = false;
                 quality.imageQuality = "medium";
                 quality.persistentDiceOutlines = false;
+                quality.advancedGlass = false;
                 break;
             case 2:
             case 3:
@@ -46,6 +48,7 @@ export class Dice3D {
                 quality.useHighDPI = true;
                 quality.imageQuality = "high";
                 quality.persistentDiceOutlines = true;
+                quality.advancedGlass = true;
                 break;
         }
         return {
@@ -70,6 +73,7 @@ export class Dice3D {
             antialiasing: quality.antialiasing,
             glow: quality.glow,
             persistentDiceOutlines: quality.persistentDiceOutlines,
+            advancedGlass: quality.advancedGlass,
             showOthersSFX: true,
             immersiveDarkness: true,
             muteSoundSecretRolls: false,

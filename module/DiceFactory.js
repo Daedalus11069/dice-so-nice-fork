@@ -24,6 +24,7 @@ import {
 	MeshPhysicalMaterial,
 	CanvasTexture,
 	SRGBColorSpace,
+	DoubleSide,
 	BufferGeometryLoader
 } from 'three';
 export class DiceFactory {
@@ -43,6 +44,7 @@ export class DiceFactory {
 
 		this.realisticLighting = true;
 		this.normalMapStrength = 1.3;
+		this.advancedGlass = false;
 
 		this.loaderGLTF = new GLTFLoader();
 		this.loaderDRACO = new DRACOLoader();
@@ -128,7 +130,23 @@ export class DiceFactory {
 						envMap : true
 					}
 				},
-				'glass': {
+				'glass': this.advancedGlass ? {
+					'type':'physical',
+					'options': {
+						metalness: 0,
+						roughness: 0.05,
+						transmission: 1.0,
+						ior: 1.5,
+						thickness: 20,
+						attenuationDistance: 10,
+						attenuationColor: new Color(0.95, 0.95, 1.0),
+						envMapIntensity: 1,
+						side: DoubleSide
+					},
+					'scopedOptions':{
+						envMap : true
+					}
+				} : {
 					'type':'standard',
 					'options': {
 						roughness: 0.3,
@@ -296,6 +314,7 @@ export class DiceFactory {
 		this.useHighDPI = config.useHighDPI;
 		this.shadows = config.shadowQuality != "none";
 		this.shadowQuality = config.shadowQuality;
+		this.advancedGlass = !!config.advancedGlass;
 	}
 
 	register(diceobj) {
@@ -512,6 +531,8 @@ export class DiceFactory {
 					mat.normalMap.dispose();
 				if(mat.emissiveMap instanceof CanvasTexture)
 					mat.emissiveMap.dispose();
+				if(mat.transmissionMap instanceof CanvasTexture)
+					mat.transmissionMap.dispose();
 				//chrome/iridescent reuse a height texture for metalnessMap, stored on userData
 				if(mat.userData?.heightMap instanceof CanvasTexture)
 					mat.userData.heightMap.dispose();
@@ -1077,6 +1098,17 @@ export class DiceFactory {
 		mat.depthTest = true;
 		mat.needUpdate = true;
 		mat.userData.materialData = materialData;
+
+		//advanced glass: reuse the bump canvas as a transmissionMap so labels stay readable.
+		//transparent must be false here - alpha blending fights the transmission term.
+		if(this.advancedGlass && materialData.material === 'glass') {
+			let glassMaskMap = new CanvasTexture(canvasBump);
+			glassMaskMap.flipY = false;
+			mat.transmissionMap = glassMaskMap;
+			mat.transparent = false;
+			mat.userData.advancedGlassMask = true;
+		}
+
 		mat.onBeforeCompile = ShaderUtils.applyDiceSoNiceShader;
 
 		// deprecated shader hook

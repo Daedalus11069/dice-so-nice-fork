@@ -100,8 +100,13 @@ export class DiceScene {
 			}
 			else {
 				const preserveDrawingBuffer = game.user.getFlag("dice-so-nice", "preserveDrawingBuffer") || false;
+				//antialias normally stays false - the composer pipeline runs its own AA pass.
+				//advancedGlass forces it on because three.js's internal _transmissionRenderTarget
+				//is allocated with samples = capabilities.samples (WebGLRenderer.js), which
+				//is non-zero only when the context itself was requested with antialias: true.
+				//without it the transmission pass forms a feedback loop (three.js #25990).
 				this.renderer = new WebGLRenderer({
-					antialias: false,
+					antialias: !!this.dicefactory.advancedGlass,
 					alpha: true,
 					powerPreference: "high-performance",
 					preserveDrawingBuffer: preserveDrawingBuffer,

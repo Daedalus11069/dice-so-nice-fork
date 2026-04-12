@@ -20,6 +20,10 @@ export class ShaderUtils {
             ShaderUtils.iridescenceShaderFragment(shader);
         }
 
+        if (this.userData.advancedGlassMask) {
+            ShaderUtils.glassMaskShaderFragment(shader);
+        }
+
 		// deprecated shader hook
         Hooks.callAll("diceSoNiceShaderOnBeforeCompile", shader, this);
 
@@ -101,6 +105,46 @@ export class ShaderUtils {
 			}
 
 			#include <transmission_fragment>`
+		);
+	}
+
+	//advanced glass: inline the transmission_fragment chunk with a contrast curve on
+	//the transmissionMap sample. the bump canvas (white bg / grey #555 labels) is
+	//bound as transmissionMap, so the curve crushes labels to 0 (solid) while the
+	//body stays at 1 (full transmission). everything else matches the stock chunk.
+	static glassMaskShaderFragment(shader) {
+		shader.fragmentShader = shader.fragmentShader.replace(
+			/* glsl */`#include <transmission_fragment>`,
+			/* glsl */`#ifdef USE_TRANSMISSION
+
+				material.transmission = transmission;
+				material.transmissionAlpha = 1.0;
+				material.thickness = thickness;
+				material.attenuationDistance = attenuationDistance;
+				material.attenuationColor = attenuationColor;
+
+				#ifdef USE_TRANSMISSIONMAP
+					material.transmission *= smoothstep( 0.6, 0.9, texture2D( transmissionMap, vTransmissionMapUv ).r );
+				#endif
+
+				#ifdef USE_THICKNESSMAP
+					material.thickness *= texture2D( thicknessMap, vThicknessMapUv ).g;
+				#endif
+
+				vec3 pos = vWorldPosition;
+				vec3 v = normalize( cameraPosition - pos );
+				vec3 n = inverseTransformDirection( normal, viewMatrix );
+
+				vec4 transmitted = getIBLVolumeRefraction(
+					n, v, material.roughness, material.diffuseContribution, material.specularColorBlended, material.specularF90,
+					pos, modelMatrix, viewMatrix, projectionMatrix, material.dispersion, material.ior, material.thickness,
+					material.attenuationColor, material.attenuationDistance );
+
+				material.transmissionAlpha = mix( material.transmissionAlpha, transmitted.a, material.transmission );
+
+				totalDiffuse = mix( totalDiffuse, transmitted.rgb, material.transmission );
+
+			#endif`
 		);
 	}
 }
