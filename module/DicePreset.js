@@ -1,5 +1,12 @@
 import { ShaderUtils } from './ShaderUtils';
 import { AssetsLoader } from './AssetsLoader.js';
+
+//d4 row 0 vertex values (1-based): each triplet is the 3 vertex values shown on
+//one orientation of the d4 face. rows 1-3 of the tab in registerFaces() are
+//hand-written symmetries of this row. DiceFactory imports this to do per-vertex
+//override lookups during the draw loop.
+export const D4_TRIPLET_VALUES = [[2,4,3],[1,3,4],[2,1,4],[1,2,3]];
+
 export class DicePreset {
 
 	constructor(type, shape = '') {
@@ -95,8 +102,13 @@ export class DicePreset {
 						}
 					}
 
+					//row 0 is generated from D4_TRIPLET_VALUES so DiceFactory and DicePreset
+					//cannot drift. rows 1-3 are hand-written symmetries (different vertex
+					//orderings that swapDiceFace picks between based on which face lands up).
+					const d4Sources = [a, b, c, d];
+					const row0Triplets = D4_TRIPLET_VALUES.map(t => t.map(v => d4Sources[v - 1]));
 					tab = [
-						[background, [0, 0, 0], [b, d, c], [a, c, d], [b, a, d], [a, b, c]],
+						[background, [0, 0, 0], ...row0Triplets],
 						[background, [0, 0, 0], [b, c, d], [c, a, d], [b, d, a], [c, b, a]],
 						[background, [0, 0, 0], [d, c, b], [c, d, a], [d, b, a], [c, a, b]],
 						[background, [0, 0, 0], [d, b, c], [a, d, c], [d, a, b], [a, c, b]]
@@ -188,6 +200,9 @@ export class DicePreset {
 							if (this.backgrounds.bumpMaps) {
 								allTextures.backgrounds.bumps = await this.loadTextureType(this.backgrounds.bumpMaps, loadedAtlasTextures, assetsLoader);
 							}
+							if (this.backgrounds.emissiveMaps) {
+								allTextures.backgrounds.emissiveMaps = await this.loadTextureType(this.backgrounds.emissiveMaps, loadedAtlasTextures, assetsLoader);
+							}
                         }
                     } else {
                         // Load each texture type from URLs as no atlas is specified.
@@ -205,6 +220,9 @@ export class DicePreset {
 							}
 							if (this.backgrounds.bumpMaps) {
 								allTextures.backgrounds.bumps = await this.loadTextureType(this.backgrounds.bumpMaps, {}, assetsLoader);
+							}
+							if (this.backgrounds.emissiveMaps) {
+								allTextures.backgrounds.emissiveMaps = await this.loadTextureType(this.backgrounds.emissiveMaps, {}, assetsLoader);
 							}
                         }
                     }
@@ -225,9 +243,14 @@ export class DicePreset {
 
     // Helper function to load textures by type, checking the atlas first, then falling back to direct URLs.
     async loadTextureType(textureList, loadedAtlasTextures, assetsLoader) {
+		//accept plain objects too: callers sometimes pass {key1: url, key2: url}
+		//instead of an array, and silently dropping those entries has burned us.
+		if (textureList && !Array.isArray(textureList)) {
+			textureList = Object.values(textureList);
+		}
 		const textureMap = [];
 		const imageRegex = /\.(png|jpg|jpeg|gif|webp)$/i;
-		
+
 		for (let i = 0; i < textureList.length; i++) {
 			const texture = textureList[i];
 	

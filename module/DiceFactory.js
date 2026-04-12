@@ -1,4 +1,4 @@
-import {DicePreset} from './DicePreset.js';
+import {DicePreset, D4_TRIPLET_VALUES} from './DicePreset.js';
 import {BASE_PRESETS_LIST, EXTRA_PRESETS_LIST} from './DiceDefaultPresets.js';
 import {DiceColors, DICE_SCALE, COLORSETS} from './DiceColors.js';
 import {DICE_MODELS, DICE_SHAPE} from './DiceModels.js';
@@ -1063,12 +1063,6 @@ export class DiceFactory {
 
 		contextBump.textAlign = "center";
 		contextBump.textBaseline = "middle";
-		if (diceobj.shape !== 'd4' && (diceobj.labelScale ?? 1) === 1) { // Avoid shadows on the bump map for d4s (since the images are combined) and scaled labels
-			contextBump.shadowColor = "#000000";
-			contextBump.shadowOffsetX = 1;
-			contextBump.shadowOffsetY = 1;
-			contextBump.shadowBlur = 3;
-		}
 
 		contextEmissive.textAlign = "center";
 		contextEmissive.textBaseline = "middle";
@@ -1077,15 +1071,21 @@ export class DiceFactory {
 			if(materialData.isGhost && labels[index] != "")
 				text = "?";
 			
-			if (index > 1) {
-				// Apply background textures
-				const bkgBump = diceobj.bumps[0]?.[index-2];
-				const bkgLabel = diceobj.labels[0]?.[index-2];
+			//apply background textures (faces only; edge tiles are at index < edgeOffset)
+			const edgeOffset = diceobj.labels.length - diceobj.values.length;
+			if (index >= edgeOffset) {
+				const faceIndex = index - edgeOffset;
+				const bkgBump = diceobj.bumps[0]?.[faceIndex];
+				const bkgLabel = diceobj.labels[0]?.[faceIndex];
+				const bkgEmissive = diceobj.emissiveMaps[0]?.[faceIndex];
 				if (bkgBump && bkgBump.source instanceof HTMLImageElement) {
 					contextBump.drawImage(bkgBump.source, bkgBump.frame.x, bkgBump.frame.y, bkgBump.frame.w, bkgBump.frame.h, x, y, ts, ts);
 				}
 				if (bkgLabel && bkgLabel.source instanceof HTMLImageElement) {
 					context.drawImage(bkgLabel.source, bkgLabel.frame.x, bkgLabel.frame.y, bkgLabel.frame.w, bkgLabel.frame.h, x, y, ts, ts);
+				}
+				if (bkgEmissive && bkgEmissive.source instanceof HTMLImageElement) {
+					contextEmissive.drawImage(bkgEmissive.source, bkgEmissive.frame.x, bkgEmissive.frame.y, bkgEmissive.frame.w, bkgEmissive.frame.h, x, y, ts, ts);
 				}
 			}
 
@@ -1158,6 +1158,12 @@ export class DiceFactory {
 				contextEmissive.beginPath();
 				contextEmissive.rect(x, y, ts, ts);
 				contextEmissive.clip();
+
+				//faux-engraved look: shadow only affects fillText/strokeText on the bump canvas
+				contextBump.shadowColor = "#000000";
+				contextBump.shadowOffsetX = 1;
+				contextBump.shadowOffsetY = 1;
+				contextBump.shadowBlur = 3;
 
 				let fontsize = ts / (1 + 2 * margin);
 				let textstarty = (ts / 2);
@@ -1284,10 +1290,8 @@ export class DiceFactory {
 			contextBump.font =  fontsize+'pt '+font.type;
 			contextEmissive.font =  fontsize+'pt '+font.type;
 
-			//d4 triplet → original vertex values. each tile shows 3 digits; these are the
-			//values at each vertex before override substitution. used to apply per-value
-			//font / image / glow overrides on the matching vertices during the draw loop.
-			const D4_TRIPLET_VALUES = [[2,4,3],[1,3,4],[2,1,4],[1,2,3]];
+			//d4 triplet → original vertex values. shared constant imported from DicePreset
+			//so the row 0 layout used there and the value lookup used here cannot drift.
 			const d4ShapeFace = diceobj.shape == 'd4' ? (index - 1) : 0;
 			const d4VertexValues = diceobj.shape == 'd4' ? D4_TRIPLET_VALUES[d4ShapeFace - 1] : null;
 			const d4Overrides = diceobj.shape == 'd4' ? (materialData.perFaceOverrides || null) : null;
@@ -1318,15 +1322,22 @@ export class DiceFactory {
 			contextEmissive.rect(x, y, ts, ts);
 			contextEmissive.clip();
 
-			if (index > 1) {
-				// Apply background textures
-				const bkgBump = diceobj.bumps[0]?.[0]?.[index-2];
-				const bkgLabel = diceobj.labels[0]?.[0]?.[index-2];
+			//d4 background draw: same edgeOffset convention as non-d4, but derived from the
+			//row structure (labels is diceobj.labels[0], a 6-slot row: [bgArr, placeholder, t1..t4])
+			const d4EdgeOffset = labels.length - diceobj.values.length;
+			if (index >= d4EdgeOffset) {
+				const faceIndex = index - d4EdgeOffset;
+				const bkgBump = diceobj.bumps[0]?.[0]?.[faceIndex];
+				const bkgLabel = diceobj.labels[0]?.[0]?.[faceIndex];
+				const bkgEmissive = diceobj.emissiveMaps[0]?.[0]?.[faceIndex];
 				if (bkgBump && bkgBump.source instanceof HTMLImageElement) {
 					contextBump.drawImage(bkgBump.source, bkgBump.frame.x, bkgBump.frame.y, bkgBump.frame.w, bkgBump.frame.h,x,y,ts,ts);
 				}
 				if (bkgLabel && bkgLabel.source instanceof HTMLImageElement) {
 					context.drawImage(bkgLabel.source, bkgLabel.frame.x, bkgLabel.frame.y, bkgLabel.frame.w, bkgLabel.frame.h,x,y,ts,ts);
+				}
+				if (bkgEmissive && bkgEmissive.source instanceof HTMLImageElement) {
+					contextEmissive.drawImage(bkgEmissive.source, bkgEmissive.frame.x, bkgEmissive.frame.y, bkgEmissive.frame.w, bkgEmissive.frame.h,x,y,ts,ts);
 				}
 			}
 
@@ -1410,7 +1421,7 @@ export class DiceFactory {
 
 						drawVertexImg(context, text[i], text[i].frame.x, text[i].frame.y);
 						if(bump) {
-							drawVertexImg(contextBump, bump[i], 0, 0);
+							drawVertexImg(contextBump, bump[i], bump[i].frame.x, bump[i].frame.y);
 						}
 						if(emissive && vertexDrawEmissive)
 							drawVertexImg(contextEmissive, text[i], text[i].frame.x, text[i].frame.y);
