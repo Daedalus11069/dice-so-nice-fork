@@ -20,6 +20,9 @@ export class DiceNotation {
 				let cnt=die.number;
 				let countExtraDice = 0;
 				let localNbThrow = 0;
+
+				if(die.number === 0 && die.results.length > 0)
+					localNbThrow = 1;
 				for(let i =0; i< die.results.length; i++){
 					if(localNbThrow >= this.throws.length)
 						this.throws.push({dice:[]});
