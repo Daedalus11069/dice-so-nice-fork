@@ -1,6 +1,7 @@
 import { Dice3D } from './Dice3D.js';
 import { DiceConfig } from './DiceConfig.js';
 import { RollableAreaConfig } from './RollableAreaConfig.js';
+import { DamageTypeConfig } from './DamageTypeConfig.js';
 import { DsnSidebarTab } from './DsnSidebarTab.js';
 import { Utils } from './Utils.js';
 
@@ -24,6 +25,15 @@ Hooks.once('init', () => {
         icon: "fas fa-crop-alt",
         type: RollableAreaConfig,
         restricted: false
+    });
+
+    game.settings.registerMenu("dice-so-nice", "damage-type-config", {
+        name: "DICESONICE.DamageTypeConfigMenu",
+        label: "DICESONICE.DamageTypeConfigMenuLabel",
+        hint: "DICESONICE.DamageTypeConfigMenuHint",
+        icon: "fas fa-droplet",
+        type: DamageTypeConfig,
+        restricted: true
     });
 
     //Not used anymore but kept for compatibility with migration
@@ -228,6 +238,15 @@ Hooks.once('init', () => {
         type: Boolean,
         default: true,
         config: true
+    });
+
+    //GM-editable mapping: damage type id → { colorset?, preset?, label? }
+    //ships empty; hardcoded name==colorset fallback handles unmapped entries
+    game.settings.register("dice-so-nice", "damageTypeMap", {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register("dice-so-nice", "showGhostDice", {

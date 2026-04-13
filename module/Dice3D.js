@@ -764,6 +764,16 @@ export class Dice3D {
                         diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
                     }
 
+                    //backfill damage type from roll options so term-level detection catches it
+                    //per-term values always win over whole-roll values
+                    if (roll.options?.type || roll.options?.flavor) {
+                        if (!diceTerm.options) diceTerm.options = {};
+                        if (!diceTerm.options.type && roll.options.type)
+                            diceTerm.options.type = roll.options.type;
+                        if (!diceTerm.options.flavor && roll.options.flavor)
+                            diceTerm.options.flavor = roll.options.flavor;
+                    }
+
                     orderedDiceList[index].push(diceTerm);
                 });
             });
@@ -855,13 +865,25 @@ export class Dice3D {
         const applyAppearance = (roll) => {
             if (roll.rolls) { // Is PoolTerm
                 roll.rolls.forEach(applyAppearance);
-            } else if (roll.options?.appearance) { // Is Roll with appearance
+                return;
+            }
+            if (roll.options?.appearance) { // Is Roll with appearance
                 roll.dice.forEach(diceTerm => {
                     if (!diceTerm.options)
                         diceTerm.options = {};
                     if (!diceTerm.options.appearance)
                         diceTerm.options.appearance = {};
                     diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
+                });
+            }
+            //backfill damage type from roll options so term-level detection catches it
+            if (roll.options?.type || roll.options?.flavor) {
+                roll.dice.forEach(diceTerm => {
+                    if (!diceTerm.options) diceTerm.options = {};
+                    if (!diceTerm.options.type && roll.options.type)
+                        diceTerm.options.type = roll.options.type;
+                    if (!diceTerm.options.flavor && roll.options.flavor)
+                        diceTerm.options.flavor = roll.options.flavor;
                 });
             }
         };

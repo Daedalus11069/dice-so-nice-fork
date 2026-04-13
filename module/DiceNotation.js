@@ -128,11 +128,14 @@ export class DiceNotation {
 		else
 			dsnDie.type = "d" + denomination;
 		dsnDie.vectors = [];
-		//Contains optionals flavor (core) and colorset (dsn) infos.
+		//Contains optionals flavor/type (core) and colorset (dsn) infos.
 		dsnDie.options = foundry.utils.duplicate(fvttDie.options);
 		foundry.utils.mergeObject(dsnDie.options, options);
-		if(this.userConfig && !this.userConfig.enableFlavorColorset && dsnDie.options.flavor)
-			delete dsnDie.options.flavor;
+		//damage type kill switch: drop both flavor and type when user disables the feature
+		if(this.userConfig && !this.userConfig.enableFlavorColorset) {
+			if(dsnDie.options.flavor) delete dsnDie.options.flavor;
+			if(dsnDie.options.type) delete dsnDie.options.type;
+		}
 
 		this.throws[fvttDie.results[index].indexThrow].dice.push(dsnDie);
 	}

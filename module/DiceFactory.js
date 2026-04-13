@@ -646,6 +646,17 @@ export class DiceFactory {
 		}
 		let scopedScale = scopedTextureCache.type == "board" ? this.baseScale : 60;
 		if (!diceobj) return null;
+
+		//ensure the resolved preset is fully loaded. preloadPresets only covers presets
+		//referenced in saved appearance - presets reached via options.appearance override
+		//or damage type mapping never get loaded there, so their labels stay as URL strings
+		//and createMaterial silently draws nothing.
+		if(!diceobj.modelLoaded){
+			if(diceobj.modelFile)
+				await diceobj.loadModel(this.loaderGLTF);
+			else
+				await diceobj.loadTextures();
+		}
 		let dicemesh;
 		
 		let geom = this.geometries[type+scopedScale];
@@ -1673,14 +1684,27 @@ export class DiceFactory {
 		
 		if(dicenotation){
 			let colorset = null;
+			let mappedPreset = null;
 
-			//First we try to find a colorset
-			if (dicenotation.options.colorset)
+			//priority 1: explicit dsn colorset on the term still wins
+			if (dicenotation.options.colorset) {
 				colorset = dicenotation.options.colorset;
-			else if (dicenotation.options.flavor && COLORSETS[dicenotation.options.flavor]) {
-				colorset = dicenotation.options.flavor;
-			} else if(dicenotation.options.appearance?.colorset && COLORSETS[dicenotation.options.appearance.colorset]) {
-				colorset = dicenotation.options.appearance.colorset;
+			} else {
+				//priority 2: damage type detection (type first, then flavor) routed through the map
+				const detected = this.detectDamageType(dicenotation);
+				if (detected) {
+					const mapped = this.resolveDamageTypeMapping(detected);
+					if (mapped?.preset) {
+						//custom preset wins — overrides system for this die only
+						mappedPreset = mapped.preset;
+					} else if (mapped?.colorset) {
+						colorset = mapped.colorset;
+					}
+				}
+				//priority 3: explicit colorset on the appearance payload
+				if (!colorset && !mappedPreset && dicenotation.options.appearance?.colorset && COLORSETS[dicenotation.options.appearance.colorset]) {
+					colorset = dicenotation.options.appearance.colorset;
+				}
 			}
 
 			// If we do, we retrieve the colorset data
@@ -1693,9 +1717,51 @@ export class DiceFactory {
 				appearance = colorsetData;
 			}
 
+			//if the map routed to a custom preset, swap the system for this die
+			if(mappedPreset && this.systems.has(mappedPreset)){
+				const mappedSystem = this.systems.get(mappedPreset);
+				if(mappedSystem.dice.has(dicetype)){
+					appearance.system = mappedPreset;
+					//pull in that system's default settings so rendering doesn't inherit the old system's knobs
+					appearance.systemSettings = foundry.utils.deepClone(mappedSystem.getDefaultSettings());
+					//if the mapped preset has its own colorset, apply it unless another colorset already won
+					const mappedDiceobj = this.getPresetBySystem(dicetype, mappedPreset);
+					if(mappedDiceobj?.colorset && !colorset){
+						let colorsetData = {...DiceColors.getColorSet(mappedDiceobj.colorset)};
+						Object.entries(colorsetData).forEach((opt) => {
+							if(opt[1] == "custom")
+								delete colorsetData[opt[0]];
+						});
+						foundry.utils.mergeObject(appearance, colorsetData,{performDeletions:true});
+						appearance.colorset = mappedDiceobj.colorset;
+					}
+				}
+			}
+
 			// Then we overwrite the colorset data with the appearance to let players override the colorset default colors
 			if(dicenotation.options.appearance){
+				const previousSystem = appearance.system;
 				foundry.utils.mergeObject(appearance, dicenotation.options.appearance,{performDeletions:true});
+				//if the override swapped to a different system, re-resolve its diceobj so the correct
+				//colorset/textures follow (otherwise we'd render the new system's system id with the old system's textures)
+				if(appearance.system && appearance.system !== previousSystem && this.systems.has(appearance.system)){
+					const overrideSystem = this.systems.get(appearance.system);
+					if(overrideSystem.dice.has(dicetype)){
+						//refresh systemSettings unless the caller explicitly set them
+						if(!dicenotation.options.appearance.systemSettings){
+							appearance.systemSettings = foundry.utils.deepClone(overrideSystem.getDefaultSettings());
+						}
+						const overrideDiceobj = this.getPresetBySystem(dicetype, appearance.system);
+						if(overrideDiceobj?.colorset){
+							const colorsetData = {...DiceColors.getColorSet(overrideDiceobj.colorset)};
+							Object.entries(colorsetData).forEach(([k, v]) => { if(v === "custom") delete colorsetData[k]; });
+							foundry.utils.mergeObject(appearance, colorsetData, {performDeletions:true});
+							appearance.colorset = overrideDiceobj.colorset;
+						}
+						//last: re-apply any explicit overrides from dicenotation.options.appearance on top
+						foundry.utils.mergeObject(appearance, dicenotation.options.appearance, {performDeletions:true});
+					}
+				}
 			}
 			if(dicenotation.options.ghost){
 				appearance.isGhost = true;
@@ -1708,6 +1774,36 @@ export class DiceFactory {
 			appearance.libraryDieOwner = settings.libraryDieOwner;
 		}
 		return appearance;
+	}
+
+	//walk the term-level options looking for a damage type signal
+	//roll-level options are merged down into dice terms by Dice3D before we get here
+	//gate is handled in DiceNotation.js — if flavor/type made it here, the user setting allows it
+	detectDamageType(dicenotation){
+		if(!dicenotation?.options) return null;
+		const type = dicenotation.options.type;
+		if(type && typeof type === "string") return type;
+		const flavor = dicenotation.options.flavor;
+		if(flavor && typeof flavor === "string") return flavor;
+		return null;
+	}
+
+	//resolve a damage type id to a mapping entry {colorset?, preset?}
+	//checks the GM-configured damageTypeMap first, then falls back to the legacy name==colorset match
+	resolveDamageTypeMapping(detectedType){
+		if(!detectedType) return null;
+		let map = {};
+		try {
+			map = game.settings.get("dice-so-nice", "damageTypeMap") ?? {};
+		} catch(e) {
+			map = {};
+		}
+		const entry = map[detectedType];
+		if(entry){
+			if(entry.preset || entry.colorset) return entry;
+		}
+		if(COLORSETS[detectedType]) return { colorset: detectedType, preset: null };
+		return null;
 	}
 
 	generateMaterialData(diceobj, appearance, diceLibrary = null) {

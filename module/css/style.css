@@ -807,3 +807,106 @@
     padding-bottom: 0.5rem;
 }
 
+/* Damage type mapping config window */
+.damage-type-config .damage-type-config-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.damage-type-config .damage-type-config-table-wrap {
+    max-height: 55vh;
+    overflow-y: auto;
+    border: 1px solid var(--color-border-light-tertiary, rgba(0, 0, 0, 0.2));
+    border-radius: 4px;
+}
+
+.damage-type-config .damage-type-config-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-14, 14px);
+}
+
+.damage-type-config .damage-type-config-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-bg-alt, rgba(0, 0, 0, 0.05));
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-border-light-tertiary, rgba(0, 0, 0, 0.2));
+}
+
+.damage-type-config .damage-type-config-table td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--color-border-light-tertiary, rgba(0, 0, 0, 0.08));
+    vertical-align: middle;
+}
+
+.damage-type-config .damage-type-config-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.damage-type-config .col-label {
+    width: 32%;
+}
+
+.damage-type-config .col-label .builtin-label {
+    font-weight: 600;
+}
+
+.damage-type-config .col-label .damage-type-id {
+    display: block;
+    font-size: 0.8em;
+    opacity: 0.6;
+    font-family: var(--font-mono, monospace);
+}
+
+.damage-type-config .col-label input[type=text] {
+    width: 100%;
+    margin-bottom: 2px;
+}
+
+.damage-type-config .col-label .damage-type-id-input {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.85em;
+    opacity: 0.85;
+}
+
+.damage-type-config .col-preset,
+.damage-type-config .col-theme {
+    width: 28%;
+}
+
+.damage-type-config .col-preset select,
+.damage-type-config .col-theme select {
+    width: 100%;
+}
+
+.damage-type-config .col-actions {
+    width: 2.5rem;
+    text-align: center;
+}
+
+.damage-type-config .col-actions button {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.damage-type-config .damage-type-config-actions {
+    display: flex;
+    justify-content: flex-start;
+    padding-top: 0.3rem;
+}
+
+.damage-type-config .damage-type-config-actions button {
+    padding: 0.35rem 0.75rem;
+}
+
+.damage-type-config select:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
