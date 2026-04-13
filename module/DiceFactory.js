@@ -326,10 +326,10 @@ export class DiceFactory {
 		}
 	}
 
-	async preloadPresets(waitForLoad = true, userID = null, config = {}){
+	async preloadPresets(waitForLoad = true, userID = null, documentUuid = null, config = {}){
 		let activePresets = [];
-		const preloadPresetsByUser = (user) => {
-			let appearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : null;
+		const preloadPresetsByDocument = (document) => {
+			let appearance = document?.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(document.getFlag("dice-so-nice", "appearance")) : null;
 			if(!appearance){
 				appearance = {global:{}};
 				if(this.preferredSystem != "standard")
@@ -356,12 +356,17 @@ export class DiceFactory {
 				}
 			}
 		};
+		if(documentUuid)
+			preloadPresetsByDocument(await fromUuid(documentUuid));
 		if(userID)
-			preloadPresetsByUser(game.users.get(userID));
-		else
-        	game.users.forEach((user) =>{
-				preloadPresetsByUser(user);
+			preloadPresetsByDocument(game.users.get(userID));
+		else {
+			const docs = game.settings.get("dice-so-nice", "documentsForPreload").map(uuid => fromUuidSync(uuid)).filter(d => d);
+			await game.settings.set("dice-so-nice", "documentsForPreload", docs.map(doc => doc.uuid));
+        	[...game.users, ...docs].forEach((doc) =>{
+				preloadPresetsByDocument(doc);
 			});
+		}
         //remove duplicate
         activePresets = activePresets.filter((v, i, a) => a.indexOf(v) === i);
 		let promiseArray = [];

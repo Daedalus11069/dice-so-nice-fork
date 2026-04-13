@@ -214,6 +214,13 @@ Hooks.once('init', () => {
         config: true
     });
 
+    game.settings.register("dice-so-nice", "documentsForPreload", {
+        scope: "world",
+        type: Array,
+        default: [],
+        config: false
+    });
+
 });
 
 /**
@@ -450,6 +457,14 @@ Hooks.on("collapseSidebar", (sidebar, collapsed) => {
             game.dice3d.resizePlayArea();
         }
     }, { once: true });
+});
+
+Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => {
+    controls.push({
+        icon: "fa-solid fa-dice",
+        label: "DICESONICE.configTitle",
+        onClick: () => new DiceConfig({document: app.document}).render({force: true})
+    });
 });
 
 /** Targeted deprecation warning silencing for future breaking change updates that we'll introduce in the next major version 

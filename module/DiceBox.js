@@ -520,7 +520,7 @@ export class DiceBox {
 		this.renderer.shadowMap.enabled = this.dicefactory.shadows;
 		this.renderer.shadowMap.type = this.dicefactory.shadowQuality == "high" ? PCFSoftShadowMap : PCFShadowMap;
 
-		await this.dicefactory.preloadPresets(true, null, config.appearance);
+		await this.dicefactory.preloadPresets(true, null, null, config.appearance);
 
 		this.throwingForce = config.throwingForce;
 		this.immersiveDarkness = config.immersiveDarkness;

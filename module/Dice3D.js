@@ -103,9 +103,15 @@ export class Dice3D {
         return config;
     }
 
-    static APPEARANCE(user = game.user) {
+    static APPEARANCE(document = game.user) {
+        const user = document instanceof foundry.documents.User ? document : game.user;
         let userAppearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : {};
+        let documentAppearance = {};
+        if (!(document instanceof foundry.documents.User)) {
+            documentAppearance = document.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(document.getFlag("dice-so-nice", "appearance")) : {};
+        }
         let appearance = foundry.utils.mergeObject(Dice3D.DEFAULT_APPEARANCE(user), userAppearance, { performDeletions: true });
+        appearance = foundry.utils.mergeObject(appearance, documentAppearance);
         return foundry.utils.mergeObject(appearance, { "-=dimensions": null }, { performDeletions: true });
     }
 
@@ -136,7 +142,8 @@ export class Dice3D {
     /**
      * Get the full customizations settings for the _showAnimation method 
      */
-    static ALL_CUSTOMIZATION(user = game.user, dicefactory = null) {
+    static ALL_CUSTOMIZATION(document = game.user, dicefactory = null) {
+        const user = document instanceof foundry.documents.User ? document : game.user;
         let specialEffects = Dice3D.SFX(user) || [];
         game.users.forEach((other) => {
             if (other.isGM && other.id != user.id) {
@@ -147,7 +154,7 @@ export class Dice3D {
                 }
             }
         });
-        let config = foundry.utils.mergeObject({ appearance: Dice3D.APPEARANCE(user) }, { specialEffects: specialEffects }, { performDeletions: true });
+        let config = foundry.utils.mergeObject({ appearance: Dice3D.APPEARANCE(document) }, { specialEffects: specialEffects }, { performDeletions: true });
         if (dicefactory && !game.user.getFlag("dice-so-nice", "appearance")) {
             if (dicefactory.preferredSystem != "standard")
                 config.appearance.global.system = dicefactory.preferredSystem;
@@ -157,8 +164,9 @@ export class Dice3D {
         return config;
     }
 
-    static ALL_CONFIG(user = game.user) {
-        let ret = foundry.utils.mergeObject(Dice3D.CONFIG(user), { appearance: Dice3D.APPEARANCE(user) }, { performDeletions: true });
+    static ALL_CONFIG(document = game.user) {
+        const user = document instanceof foundry.documents.User ? document : game.user;
+        let ret = foundry.utils.mergeObject(Dice3D.CONFIG(user), { appearance: Dice3D.APPEARANCE(document) }, { performDeletions: true });
         ret.specialEffects = Dice3D.SFX(user);
         return ret;
     }
@@ -490,13 +498,13 @@ export class Dice3D {
             switch (request.type) {
                 case "show":
                     if (!request.users || request.users.includes(game.user.id))
-                        this.show(request.data, game.users.get(request.user));
+                        this.show(request.data, game.users.get(request.user), false, null, null, request.speaker);
                     break;
                 case "update":
                     if (request.user == game.user.id || Dice3D.CONFIG().showOthersSFX)
                         DiceSFXManager.init();
                     if (request.user != game.user.id) {
-                        this.DiceFactory.preloadPresets(false, request.user);
+                        this.DiceFactory.preloadPresets(false, request.user, request.document);
                     }
                     break;
             }
@@ -821,7 +829,7 @@ export class Dice3D {
         //This is useful for example to show a different roll than the one made by the user without relying on the manual showForRoll method
         let hookedRoll = context.dsnRoll || context.roll;
         let notation = new DiceNotation(hookedRoll, Dice3D.ALL_CONFIG(user), user);
-        return this.show(notation, context.user, synchronize, context.users, context.blind);
+        return this.show(notation, context.user, synchronize, context.users, context.blind, speaker);
     }
 
     /**
@@ -832,9 +840,10 @@ export class Dice3D {
      * @param synchronize
      * @param users list of users or userId who can see the roll, leave it empty if everyone can see.
      * @param blind if the roll is blind for the current user
+     * @param speaker Object based on the ChatSpeakerData data schema related to this roll.
      * @returns {Promise<boolean>} when resolved true if the animation was displayed, false if not.
      */
-    show(data, user = game.user, synchronize = false, users = null, blind) {
+    show(data, user = game.user, synchronize = false, users = null, blind, speaker) {
         return new Promise((resolve, reject) => {
 
             if (!data.throws) throw new Error("Roll data should be not null");
@@ -842,21 +851,23 @@ export class Dice3D {
             if (!data.throws.length || !this.isEnabled()) {
                 resolve(false);
             } else {
+                let document = ChatMessage.getSpeakerActor(speaker) ?? user;
+
                 if (synchronize) {
                     users = users && users.length > 0 ? (users[0]?.id ? users.map(user => user.id) : users) : users;
-                    game.socket.emit("module.dice-so-nice", { type: "show", data: data, user: user.id, users: users });
+                    game.socket.emit("module.dice-so-nice", { type: "show", data, user: user.id, users, speaker });
                 }
 
                 if (!blind) {
-                    if (document.hidden) {
+                    if (window.document.hidden) {
                         this.hiddenAnimationQueue.push({
                             data: data,
-                            config: Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory),
+                            config: Dice3D.ALL_CUSTOMIZATION(document, this.DiceFactory),
                             timestamp: (new Date()).getTime(),
                             resolve: resolve
                         });
                     } else {
-                        this._showAnimation(data, Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory)).then(displayed => {
+                        this._showAnimation(data, Dice3D.ALL_CUSTOMIZATION(document, this.DiceFactory)).then(displayed => {
                             resolve(displayed);
                         });
                     }
