@@ -361,7 +361,19 @@ const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, ds
 
     const interception = {willTrigger3DRoll: willTrigger3DRoll};
 
+    Hooks.callAll("diceSoNiceMessagePreProcess", chatMessage.id, interception);
+
+    const afterPreProcess = interception.willTrigger3DRoll;
     Hooks.callAll("diceSoNiceMessageProcessed", chatMessage.id, interception);
+
+    if (interception.willTrigger3DRoll !== afterPreProcess) {
+        foundry.utils.logCompatibilityWarning(
+            "A module mutated willTrigger3DRoll from the 'diceSoNiceMessageProcessed' hook. " +
+            "This hook is now for observation only. To change DsN's animation decision, " +
+            "listen to 'diceSoNiceMessagePreProcess' instead.",
+            {since: "6.0.0", until: "7.0.0"}
+        );
+    }
 
     return interception.willTrigger3DRoll;
 };
