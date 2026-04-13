@@ -507,10 +507,6 @@ Hooks.on("preUpdateChatMessage", (message, updateData, options) => {
  * Hide and roll new rolls added in a chat message in a update
  */
 Hooks.on("updateChatMessage", (message, updateData, options) => {
-    // mirror preUpdateChatMessage's early exit — without this, every chat
-    // message update (flags, content, etc.) re-runs shouldInterceptMessage
-    // which fires the DsN hooks, which can infinite-loop if a listener
-    // reacts by updating the message again. see issue #478 part 2.
     if (!("rolls" in updateData)) return;
     if(!shouldInterceptMessage(message, options)) return;
 
