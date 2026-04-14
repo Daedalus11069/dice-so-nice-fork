@@ -3,6 +3,7 @@ import { DiceConfig } from './DiceConfig.js';
 import { RollableAreaConfig } from './RollableAreaConfig.js';
 import { DamageTypeConfig } from './DamageTypeConfig.js';
 import { DsnSidebarTab } from './DsnSidebarTab.js';
+import { InitiativeMask } from './InitiativeMask.js';
 import { Utils } from './Utils.js';
 
 /**
@@ -436,7 +437,18 @@ Hooks.on('createChatMessage', (chatMessage) => {
     }
     chatMessage._dice3danimating = true;
 
+    if (isInitiativeRoll && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages"))
+        InitiativeMask.flag(chatMessage);
+
     game.dice3d.renderRolls(chatMessage, rolls);
+});
+
+Hooks.on("renderCombatTracker", (app, html) => InitiativeMask.apply(html));
+Hooks.on("preUpdateCombatant", (combatant, changes) => {
+    if (changes.initiative === undefined) return;
+    if (game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) return;
+    if (game.settings.get("dice-so-nice", "disabledForInitiative")) return;
+    InitiativeMask.snapshot(combatant);
 });
 
 /**

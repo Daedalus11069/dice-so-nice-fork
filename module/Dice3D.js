@@ -11,6 +11,7 @@ import { DiceTourMain } from './tours/DiceTourMain.js';
 import { DiceSFX } from './DiceSFX.js';
 import { DiceSystem } from './DiceSystem.js';
 import { DiceLibrary } from './DiceLibrary.js';
+import { InitiativeMask } from './InitiativeMask.js';
 /**
  * Main class to handle 3D Dice animations.
  */
@@ -730,6 +731,7 @@ export class Dice3D {
                 }
             }
 
+            InitiativeMask.release(chatMessage.id);
             Hooks.callAll("diceSoNiceRollComplete", chatMessage.id);
 
             if (window.ui.chat.isAtBottom || chatMessage.author?.id === game.user.id)

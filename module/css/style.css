@@ -910,3 +910,22 @@
     cursor: not-allowed;
 }
 
+/* mask initiative cells while the 3D roll is still animating */
+.combatant.dsn-initiative-pending .token-initiative {
+    position: relative;
+}
+
+.combatant.dsn-initiative-pending .token-initiative > *:not(.dsn-initiative-pending-icon) {
+    visibility: hidden;
+}
+
+.dsn-initiative-pending-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    pointer-events: none;
+}
+

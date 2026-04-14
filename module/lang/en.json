@@ -106,7 +106,7 @@
     "DICESONICE.enabledSimultaneousRollForMessageHint": "When a single message contains multiple rolls, play all simultaneously",
     "DICESONICE.canvasZIndex": "3D layer position",
     "DICESONICE.immediatelyDisplayChatMessages": "Display chat message immediately",
-    "DICESONICE.immediatelyDisplayChatMessagesHint": "When enabled, do not wait for the 3D roll to finish before showing the roll chat card",
+    "DICESONICE.immediatelyDisplayChatMessagesHint": "When enabled, do not wait for the 3D roll to finish before showing the roll chat card, and do not hide initiative values in the combat tracker while the animation plays",
     "DICESONICE.throwingForce": "Throwing force",
     "DICESONICE.useHighDPI": "UHD resolution support (4K, Retina…)",
     "DICESONICE.showOthersSFX": "Show other players' special effects",
