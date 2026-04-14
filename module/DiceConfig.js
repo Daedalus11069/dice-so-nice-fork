@@ -542,12 +542,13 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 foundry.applications.api.DialogV2.wait({
                     classes: ["dice-so-nice"],
                     window: {
-                        title: "DICESONICE.Options"
+                        title: "DICESONICE.Options",
+                        contentClasses: ["standard-form"]
                     },
                     position: {
-                        width: 400
+                        width: 680
                     },
-                    content: `<form autocomplete="off" onsubmit="event.preventDefault();"></form>`,
+                    content: `<form class="standard-form" autocomplete="off" onsubmit="event.preventDefault();"></form>`,
                     buttons: [{
                         action: "ok",
                         icon: "fa-solid fa-check-circle",

@@ -47,7 +47,8 @@
     padding-right: 0.5em;
 }
 
-.dice-so-nice .settings-list .form-group {
+.dice-so-nice .settings-list .form-group,
+.dice-so-nice.dialog .form-group {
     margin: 3px 0;
 }
 

@@ -307,6 +307,7 @@
     "DICESONICE.TestRoll": "Test Roll",
     "DICESONICE.sfxOptionsIsGlobal": "(GM Only) Enable this SFX for all players",
     "DICESONICE.sfxOptionsCustomSound": "Select a sound file",
+    "DICESONICE.sfxOptionsCustomSoundPlaylist": "Or pick a playlist (random sound)",
     "DICESONICE.sfxOptionsMacro": "Select a macro",
     "DICESONICE.sfxOptionsMuteSound": "Mute sound",
     "DICESONICE.RollableAreaConfig": "Rollable Area Settings",
