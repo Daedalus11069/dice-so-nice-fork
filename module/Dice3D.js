@@ -523,6 +523,14 @@ export class Dice3D {
                         this.DiceFactory.preloadPresets(false, request.user);
                     }
                     break;
+                case "gmPush":
+                    //GM overwrote my flags — reload my own state so new config takes effect without a reload
+                    if (request.targets && request.targets.includes(game.user.id)) {
+                        DiceSFXManager.init();
+                        this.update(Dice3D.CONFIG());
+                        ui.notifications.info(game.i18n.localize("DICESONICE.GMPushReceived"));
+                    }
+                    break;
                 case "persistent-create":
                 case "persistent-remove":
                 case "persistent-clear":

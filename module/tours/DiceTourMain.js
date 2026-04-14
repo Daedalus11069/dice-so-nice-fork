@@ -63,10 +63,10 @@ export class DiceTourMain extends DiceTour {
                 title: game.i18n.localize("DICESONICE.TourMainTitleShowPerformance"),
                 content: game.i18n.localize("DICESONICE.TourMainContentShowPerformance"),
                 action: "click",
-                target: ".dice-so-nice a[data-tab=\"backup\"]"
+                target: ".dice-so-nice a[data-tab=\"data\"]"
             },
             {
-                id: "show-backup",
+                id: "show-data",
                 title: game.i18n.localize("DICESONICE.TourMainTitleShowBackup"),
                 content: game.i18n.localize("DICESONICE.TourMainContentShowBackup")
             },
@@ -141,10 +141,10 @@ export class DiceTourMain extends DiceTour {
                 return ".dice-so-nice div.tab.active[data-tab=\"sfx\"]";
             case "show-performance":
                 return ".dice-so-nice div.tab.active[data-tab=\"performance\"]";
-            case "show-backup":
-                return ".dice-so-nice div.tab.active[data-tab=\"backup\"]";
+            case "show-data":
+                return ".dice-so-nice div.tab.active[data-tab=\"data\"]";
             case "end-tour":
-                return ".dice-so-nice div.tab.active[data-tab=\"backup\"]";
+                return ".dice-so-nice div.tab.active[data-tab=\"data\"]";
         }
         return null;
     }

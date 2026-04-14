@@ -43,7 +43,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 { id: "preferences", icon: "fa-solid fa-cog", label: "DICESONICE.settingsPreferences" },
                 { id: "sfx", icon: "fa-solid fa-meteor", label: "DICESONICE.settingsSpecialEffects" },
                 { id: "performance", icon: "fa-solid fa-tachometer-alt", label: "DICESONICE.settingsPerformance" },
-                { id: "backup", icon: "fa-solid fa-upload", label: "DICESONICE.settingsBackup" }
+                { id: "data", icon: "fa-solid fa-database", label: "DICESONICE.settingsProfilesData" }
             ],
             initial: "general"
         },
@@ -73,8 +73,8 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             template: "modules/dice-so-nice/templates/dice-config-performance.hbs",
             scrollable: [""]
         },
-        backup: {
-            template: "modules/dice-so-nice/templates/dice-config-backup.hbs",
+        data: {
+            template: "modules/dice-so-nice/templates/dice-config-data.hbs",
             scrollable: [""]
         },
         footer: {
@@ -85,6 +85,9 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     async _preparePartContext(partId, context, options) {
         context = await super._preparePartContext(partId, context, options);
         context.tab = context.tabs[partId];
+        if (partId === "data") {
+            context.isGM = game.user.isGM;
+        }
         return context;
     }
 
@@ -805,6 +808,52 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 foundry.utils.saveDataToFile(json, "text/json", filename);
             });
 
+            /**
+             * GM: push my config to all other users (#513)
+             */
+            $(this.element).on("click", "[data-gm-push]", async (ev) => {
+                if (!game.user.isGM) return;
+
+                foundry.applications.api.DialogV2.wait({
+                    classes: ["dice-so-nice"],
+                    window: {
+                        title: "DICESONICE.GMPushDialogTitle"
+                    },
+                    position: {
+                        width: 500
+                    },
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-gm-push.html"),
+                    buttons: [{
+                        action: "push",
+                        icon: "fa-solid fa-share-square",
+                        label: "DICESONICE.GMPushConfirm",
+                        callback: async (event, button, dialog) => {
+                            const form = $(dialog.element).find("form")[0];
+                            const parts = {
+                                appearance: form.elements.appearance.checked,
+                                sfxList: form.elements.sfxList.checked,
+                                settings: form.elements.settings.checked
+                            };
+                            if (!parts.appearance && !parts.sfxList && !parts.settings) {
+                                ui.notifications.warn(game.i18n.localize("DICESONICE.GMPushNone"));
+                                return;
+                            }
+                            //persist whatever the GM edited so the push reflects the current UI
+                            await this.submit({
+                                preventClose: true,
+                                preventRender: true
+                            });
+                            await this.actionGMPushConfig(parts);
+                        }
+                    }, {
+                        action: "cancel",
+                        icon: "fa-solid fa-ban",
+                        label: "DICESONICE.Cancel",
+                        default: true
+                    }]
+                });
+            });
+
             $(this.element).on("click", "#dice-configuration-canvas", (event) => {
                 let rect = event.target.getBoundingClientRect();
                 let x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1072,6 +1121,55 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         if (data.diceLibrary) {
             await this._importLibraryDice(data.diceLibrary);
         }
+    }
+
+    async actionGMPushConfig(parts) {
+        if (!game.user.isGM) return;
+
+        //collect the GM's current flag values once — offline users get written the same payload
+        const payload = {};
+        if (parts.appearance) {
+            const appearance = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "appearance") || {});
+            //strip cross-user library die refs — they point at the GM's library and won't resolve for other users
+            for (const scope in appearance) {
+                if (!appearance.hasOwnProperty(scope)) continue;
+                if (appearance[scope]?.libraryDieOwner) {
+                    delete appearance[scope].libraryDieId;
+                    delete appearance[scope].libraryDieOwner;
+                }
+            }
+            payload.appearance = appearance;
+        }
+        if (parts.sfxList) {
+            payload.sfxList = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "sfxList") || []);
+        }
+        if (parts.settings) {
+            payload.settings = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "settings") || {});
+        }
+
+        //write directly to each non-GM user's flags — works for offline users too, since GMs have permission
+        const targets = game.users.filter(u => !u.isGM && u.id !== game.user.id);
+        const pushedIds = [];
+        for (const user of targets) {
+            try {
+                for (const key of Object.keys(payload)) {
+                    await user.unsetFlag("dice-so-nice", key);
+                    await user.setFlag("dice-so-nice", key, payload[key]);
+                }
+                pushedIds.push(user.id);
+            } catch (err) {
+                console.error(`[Dice So Nice] Failed to push config to ${user.name}:`, err);
+            }
+        }
+
+        //notify connected targets so they reload their in-memory state without a page reload
+        game.socket.emit("module.dice-so-nice", {
+            type: "gmPush",
+            user: game.user.id,
+            targets: pushedIds
+        });
+
+        ui.notifications.info(game.i18n.format("DICESONICE.GMPushSuccess", { count: pushedIds.length }));
     }
 
     async _importLibraryDice(diceArray) {

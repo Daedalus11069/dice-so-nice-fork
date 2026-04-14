@@ -1,4 +1,4 @@
-<div class="tab {{tab.cssClass}}" data-tab="backup" data-group="dsn-main">
+<div class="tab {{tab.cssClass}}" data-tab="data" data-group="dsn-main">
     <div class="settings-list">
         <p class="hint">{{localize "DICESONICE.BackupHint"}}</p>
         <div class="form-group">
@@ -32,6 +32,15 @@
                 <i class="fas fa-file-export"></i> {{localize "DICESONICE.ExportLibrary"}}
             </button>
         </div>
+        {{#if isGM}}
+        <hr />
+        <p class="hint">{{localize "DICESONICE.GMPushHint"}}</p>
+        <div class="form-group">
+            <button type="button" data-gm-push name="gm-push">
+                <i class="fas fa-share-square"></i> {{localize "DICESONICE.GMPushConfig"}}
+            </button>
+        </div>
+        {{/if}}
         <hr />
         <div class="form-group">
             <button type="button" data-reset name="reset">
