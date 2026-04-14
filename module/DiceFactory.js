@@ -1131,6 +1131,9 @@ export class DiceFactory {
 	createTextMaterial(context, contextBump, contextEmissive, x, y, ts, diceobj, labels, font, index, texture, materialData) {
 		if (labels[index] === undefined) return null;
 
+		const FA_PRO_FAMILY = '"Font Awesome 7 Pro"';
+		const buildFontStr = (size, type) => (type === FA_PRO_FAMILY ? '900 ' : '') + size + 'pt ' + type;
+
 		let forecolor = materialData.foreground;
 		let outlinecolor = materialData.outline;
 		let backcolor = index > 0 ? materialData.background : materialData.edge != "" ? materialData.edge:materialData.background;
@@ -1318,9 +1321,10 @@ export class DiceFactory {
 						break;
 				}
 
-				context.font =  fontsize+ 'pt '+font.type;
-				contextBump.font =  fontsize+ 'pt '+font.type;
-				contextEmissive.font =  fontsize+ 'pt '+font.type;
+				let fontStr = buildFontStr(fontsize, font.type);
+				context.font = fontStr;
+				contextBump.font = fontStr;
+				contextEmissive.font = fontStr;
 
 				var lineHeight = fontsize;
 
@@ -1328,9 +1332,10 @@ export class DiceFactory {
 
 				if (textlines.length > 1) {
 					fontsize = fontsize / textlines.length;
-					context.font =  fontsize+ 'pt '+font.type;
-					contextBump.font =  fontsize+ 'pt '+font.type;
-					contextEmissive.font =  fontsize+ 'pt '+font.type;
+					fontStr = buildFontStr(fontsize, font.type);
+					context.font = fontStr;
+					contextBump.font = fontStr;
+					contextEmissive.font = fontStr;
 
 					//to find the correct text height for every possible fonts, we have no choice but to use the great (and complex) pixi method
 					//First we create a PIXI.TextStyle object, to pass later to the measure method
@@ -1407,9 +1412,10 @@ export class DiceFactory {
 			let fontsize = baseFontSize;
 			if(font.scale)
 				fontsize *= font.scale;
-			context.font =  fontsize+'pt '+font.type;
-			contextBump.font =  fontsize+'pt '+font.type;
-			contextEmissive.font =  fontsize+'pt '+font.type;
+			const baseFontStr = buildFontStr(fontsize, font.type);
+			context.font = baseFontStr;
+			contextBump.font = baseFontStr;
+			contextEmissive.font = baseFontStr;
 
 			//d4 triplet → original vertex values. shared constant imported from DicePreset
 			//so the row 0 layout used there and the value lookup used here cannot drift.
@@ -1499,9 +1505,10 @@ export class DiceFactory {
 							if (vertexOv.font) vertexFontType = vertexOv.font;
 							if (vertexOv.fontScale) vertexFontSize = baseFontSize * (font.scale || 1) * (vertexOv.fontScale / 100);
 						}
-						context.font = vertexFontSize + 'pt ' + vertexFontType;
-						contextBump.font = vertexFontSize + 'pt ' + vertexFontType;
-						contextEmissive.font = vertexFontSize + 'pt ' + vertexFontType;
+						const vertexFontStr = buildFontStr(vertexFontSize, vertexFontType);
+						context.font = vertexFontStr;
+						contextBump.font = vertexFontStr;
+						contextEmissive.font = vertexFontStr;
 					}
 					//custom texture face
 					if(text[i].source instanceof HTMLImageElement){
