@@ -408,6 +408,27 @@ export class DiceFactory {
 			await Promise.all(promiseArray);
 	}
 
+	//force-load every preset registered under a system id.
+	//used by the public preloadPresets API so modules/systems that register
+	//internal presets (not selected in any user appearance) don't pay for
+	//texture/model loading on the first roll.
+	async forceLoadPresets(systemId){
+		if(!this.systems.has(systemId)){
+			console.warn(`Dice So Nice | preloadPresets: unknown system "${systemId}"`);
+			return;
+		}
+		const system = this.systems.get(systemId);
+		const promises = [];
+		system.dice.forEach((preset) => {
+			if(!preset) return;
+			if(preset.modelFile)
+				promises.push(preset.loadModel(this.loaderGLTF));
+			else
+				promises.push(preset.loadTextures());
+		});
+		await Promise.all(promises);
+	}
+
 	//{id: 'standard', name: game.i18n.localize("DICESONICE.System.Standard")}
 	//Internal use, legacy
 	//See dice3d.addSystem for public API

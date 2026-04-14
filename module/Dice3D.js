@@ -205,9 +205,25 @@ export class Dice3D {
     }
 
     /**
+     * Force preload of every dice preset registered under a given system id.
+     * Useful for systems/modules that register internal dice presets that
+     * users may never select in their appearance settings — without this,
+     * those presets load lazily on the first roll and cause visible lag.
+     *
+     * Call this once after registering your presets (typically from the
+     * `diceSoNiceReady` hook).
+     *
+     * @param {String} systemId - Id of the system whose presets should be preloaded
+     * @returns {Promise<void>}
+     */
+    async preloadPresets(systemId) {
+        await this.DiceFactory.forceLoadPresets(systemId);
+    }
+
+    /**
      * Add a texture to the list of textures and preload it
-     * @param {String} textureID 
-     * @param {Object} textureData 
+     * @param {String} textureID
+     * @param {Object} textureData
      * @returns {Promise}
      */
     addTexture(textureID, textureData) {
