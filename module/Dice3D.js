@@ -689,13 +689,90 @@ export class Dice3D {
     }
 
     /**
+     * Add metadata to dice with roll dependencies (ie 1d(1d4)) so they can be sorted into the same bucket and
+     * rolled after their dependencies resolve, without dragging those dependencies into the same bucket and causing them to roll together.
+     */
+    _assignDependentRollOrder(rolls) {
+        const DiceTerm = foundry.dice.terms.DiceTerm;
+        const RollClass = foundry.dice.Roll;
+        const ParentheticalTerm = foundry.dice.terms.ParentheticalTerm;
+        const PoolTerm = foundry.dice.terms.PoolTerm;
+        const FunctionTerm = foundry.dice.terms.FunctionTerm;
+
+        //collect the immediate dice contained in a roll-term subtree without descending
+        //into die _number/_faces
+        const collectTopDice = (term, out) => {
+            if (!term) return;
+            if (term instanceof DiceTerm) { out.push(term); return; }
+            if (term instanceof ParentheticalTerm && term.roll) {
+                for (const t of term.roll.terms ?? []) collectTopDice(t, out);
+                return;
+            }
+            if ((term instanceof PoolTerm || term instanceof FunctionTerm) && term.rolls) {
+                for (const r of term.rolls)
+                    for (const t of r.terms ?? []) collectTopDice(t, out);
+            }
+        };
+
+        //recursively visit a die: mark inner dependency dice and return this die depth
+        const visitDie = (die) => {
+            let innerMax = -1;
+            for (const sub of [die._number, die._faces]) {
+                if (sub instanceof RollClass) {
+                    const innerDice = [];
+                    for (const t of sub.terms ?? []) collectTopDice(t, innerDice);
+                    for (const innerDie of innerDice) {
+                        if (!innerDie.options) innerDie.options = {};
+                        innerDie.options.dsnDependentBucket = true;
+                        const d = visitDie(innerDie);
+                        if (d > innerMax) innerMax = d;
+                    }
+                }
+            }
+            const myDepth = innerMax + 1;
+            if (!die.options) die.options = {};
+            if (myDepth > 0) die.options.dsnDependentBucket = true;
+            if (die.options.dsnDependentBucket) {
+                //compose with any pre-existing rollOrder
+                const existing = die.options.hasOwnProperty("rollOrder") ? die.options.rollOrder : 0;
+                die.options.rollOrder = existing + myDepth;
+            }
+            return myDepth;
+        };
+
+        for (const roll of rolls ?? []) {
+            const tops = [];
+            for (const t of roll.terms ?? []) collectTopDice(t, tops);
+            for (const die of tops) visitDie(die);
+        }
+    }
+
+    /**
+     * Returns a die with _number/_faces Roll dependencies that have been collapsed to their primitive values.
+     * Returns the original die unchanged when no dependencies are present.
+     */
+    _stripDependencyRolls(die) {
+        const RollClass = foundry.dice.Roll;
+        if (!(die._number instanceof RollClass) && !(die._faces instanceof RollClass)) return die;
+        //shallow clone preserving prototype so instanceof checks (Die / DiceTerm) still pass
+        const clone = Object.assign(Object.create(Object.getPrototypeOf(die)), die);
+        clone.options = { ...die.options };
+        if (die._number instanceof RollClass) clone._number = die.number;
+        if (die._faces instanceof RollClass) clone._faces = die.faces;
+        return clone;
+    }
+
+    /**
      * Parse, sort and add the dice animation to the queue for a chat message and an array of Roll
      * Used internally by the message Hooks. Not meant to be used outside of the module.
      * Please use the showForRoll method instead.
-     * @param {ChatMessage} chatMessage 
-     * @param {Array<Roll>} rolls 
+     * @param {ChatMessage} chatMessage
+     * @param {Array<Roll>} rolls
      */
     renderRolls(chatMessage, rolls) {
+        //sequence dependent dice like (1d4)d6 so the inner roll resolves before the outer one spawns
+        this._assignDependentRollOrder(rolls);
+
         const showMessage = () => {
             delete chatMessage._dice3danimating;
 
@@ -750,7 +827,11 @@ export class Dice3D {
             rolls.forEach(roll => {
                 roll.dice.forEach(diceTerm => {
                     let index = 0;
-                    if (!game.settings.get("dice-so-nice", "enabledSimultaneousRollForMessage") && diceTerm.options.hasOwnProperty("rollOrder")) {
+                    //dependent dice (parenthetical expressions like (1d4)d6) always sequence,
+                    //even when the user has the simultaneous-rolls setting enabled
+                    const dependentBucket = diceTerm.options?.dsnDependentBucket;
+                    const sequentialEnabled = !game.settings.get("dice-so-nice", "enabledSimultaneousRollForMessage");
+                    if (diceTerm.options?.hasOwnProperty("rollOrder") && (dependentBucket || sequentialEnabled)) {
                         index = diceTerm.options.rollOrder;
                         if (orderedDiceList[index] == null) {
                             orderedDiceList[index] = [];
@@ -790,7 +871,11 @@ export class Dice3D {
             orderedDiceList.forEach(dice => {
                 //add a "plus" between each term
                 if (Array.isArray(dice) && dice.length) {
-                    let termList = [...dice].map((e, i) => i < dice.length - 1 ? [e, plus] : [e]).reduce((a, b) => a.concat(b));
+                    //strip dependency rolls from each die so the per-bucket Roll's flat .dice
+                    //list contains only this bucket's dice — otherwise a (1d4)d6 d6 in bucket 1
+                    //would re-render the d4 alongside it via Roll.dice's recursive walk
+                    const cleanDice = dice.map(this._stripDependencyRolls);
+                    let termList = [...cleanDice].map((e, i) => i < cleanDice.length - 1 ? [e, plus] : [e]).reduce((a, b) => a.concat(b));
                     //We use the Roll class registered in the CONFIG constant in case the system overwrites it (eg: HeXXen)
                     rollList.push(CONFIG.Dice.rolls[0].fromTerms(termList));
                 }
