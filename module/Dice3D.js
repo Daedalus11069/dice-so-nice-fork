@@ -1319,6 +1319,44 @@ export class Dice3D {
     }
 
     /**
+     * Dismiss all ephemeral (non-persistent) dice currently on the board.
+     * If a roll is still animating, the replay is fast-forwarded to its end
+     * so the natural finalization path runs — which fires result events,
+     * runs SFX init, and reveals the chat message — before the dice are cleared.
+     * Persistent dice are left untouched.
+     * @returns {Promise<boolean>} true if something was dismissed, false otherwise.
+     */
+    async dismissEphemeralDice() {
+        const box = this.box;
+        if (!box) return false;
+
+        //a roll in flight needs to finalize naturally so the chat message reveal fires
+        if (box.rolling) {
+            const engine = box.throwEngine;
+            //push iteration past throwFinished's threshold — next animateThrow tick
+            //will run fireResultEvents => handleSpecialEffectsInit => callback => rolling=false
+            engine.iteration = Math.max(engine.iterationsNeeded || 0, engine.minIterations || 0) + 1;
+            await new Promise(resolve => {
+                const poll = () => {
+                    if (!box.rolling) resolve();
+                    else requestAnimationFrame(poll);
+                };
+                poll();
+            });
+        }
+
+        const engine = box.throwEngine;
+        const hasEphemeral = (engine?.diceList?.length > 0) || (engine?.deadDiceList?.length > 0);
+        if (!hasEphemeral) return false;
+
+        await box.clearAll();
+        if (box.persistentDiceList.length === 0 && this.canvas?.is(":visible")) {
+            this.canvas.hide();
+        }
+        return true;
+    }
+
+    /**
      * Clear persistent dice. Pass { ownerUserId } to limit to one user.
      */
     async clearPersistentDice(opts = {}, synchronize = true) {

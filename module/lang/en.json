@@ -144,6 +144,8 @@
     "DICESONICE.persistentDiceToolboxClearAllConfirm": "Remove every persistent die from the scene, including those belonging to other players?",
     "DICESONICE.keybindingDeleteSelected": "Delete selected persistent dice",
     "DICESONICE.keybindingDeleteSelectedHint": "Remove the persistent dice you have currently selected. Non-GM users can only delete their own dice.",
+    "DICESONICE.keybindingDismissEphemeral": "Dismiss visible dice",
+    "DICESONICE.keybindingDismissEphemeralHint": "Instantly clear any non-persistent 3D dice currently on screen.",
     "DICESONICE.hide3dDiceOnSecretRolls": "Hide 3D dice on GM/Blind rolls",
     "DICESONICE.hide3dDiceOnSecretRollsHint": "Do not display 3D dice to other players on GM/Blind rolls unless it is a ghost dice",
     "DICESONICE.showGhostDice": "Show Ghost dice for hidden rolls",

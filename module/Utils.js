@@ -419,4 +419,26 @@ export class Utils {
         }
         return appearance;
     }
+
+    //shortcut to instantly dismiss ephemeral dice
+    static onDismissEphemeralKeydown(event) {
+        if (event.repeat) return;
+        const bindings = game.keybindings?.bindings?.get("dice-so-nice.dismissEphemeralDice");
+        if (!bindings?.length) return;
+        if (!bindings.some(b => Utils._matchesKeybinding(event, b))) return;
+        game.dice3d?.dismissEphemeralDice();
+    }
+
+    //match a keydown event against a Foundry stored binding {key, modifiers[]}
+    static _matchesKeybinding(event, binding) {
+        if (event.code !== binding.key) return false;
+        const mods = binding.modifiers || [];
+        const needsCtrl = mods.includes("Control");
+        const needsShift = mods.includes("Shift");
+        const needsAlt = mods.includes("Alt");
+        if ((event.ctrlKey || event.metaKey) !== needsCtrl) return false;
+        if (event.shiftKey !== needsShift) return false;
+        if (event.altKey !== needsAlt) return false;
+        return true;
+    }
 }

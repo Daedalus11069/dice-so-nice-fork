@@ -295,6 +295,18 @@ Hooks.once('init', () => {
         });
     }
 
+    //unbound-by-default shortcut to instantly dismiss ephemeral dice
+    //We manually register to window because FVTT only triggers key on focused elements, and 
+    //that is the 3D canvas for us, which doesn't work well for dsn since users usually rolls from the chat or character sheets.
+    game.keybindings.register("dice-so-nice", "dismissEphemeralDice", {
+        name: "DICESONICE.keybindingDismissEphemeral",
+        hint: "DICESONICE.keybindingDismissEphemeralHint",
+        editable: [],
+        onDown: () => { game.dice3d?.dismissEphemeralDice(); return true; },
+        precedence: foundry.CONST.KEYBINDING_PRECEDENCE?.NORMAL ?? 0
+    });
+    window.addEventListener("keydown", Utils.onDismissEphemeralKeydown);
+
 });
 
 /**
