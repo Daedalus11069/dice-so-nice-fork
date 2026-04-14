@@ -82,10 +82,14 @@ export class ShowcaseView {
 					break;
 				let appearance = this.dicefactory.getAppearanceForDice(config.appearance, selectordice[count]);
 				let dicemesh = await this.dicefactory.create(this.diceScene.renderer.scopedTextureCache, selectordice[count], appearance, config.diceLibrary || null);
+				//cap oversized custom models at their base size in the showcase
+				const preset = this.dicefactory.getPresetBySystem(selectordice[count], appearance.system);
+				const modifier = preset?.scaleModifier || 1;
+				const showcaseNormalize = modifier > 1 ? 1 / modifier : 1;
 				dicemesh.scale.set(
-					Math.min(dicemesh.scale.x * 5 / columns, dicemesh.scale.x * 2 / rows),
-					Math.min(dicemesh.scale.y * 5 / columns, dicemesh.scale.y * 2 / rows),
-					Math.min(dicemesh.scale.z * 5 / columns, dicemesh.scale.z * 2 / rows)
+					Math.min(dicemesh.scale.x * 5 / columns, dicemesh.scale.x * 2 / rows) * showcaseNormalize,
+					Math.min(dicemesh.scale.y * 5 / columns, dicemesh.scale.y * 2 / rows) * showcaseNormalize,
+					Math.min(dicemesh.scale.z * 5 / columns, dicemesh.scale.z * 2 / rows) * showcaseNormalize
 				);
 
 				dicemesh.position.set(x * this.diceScene.display.containerWidth / columns, -(y * this.diceScene.display.containerHeight / rows), z);

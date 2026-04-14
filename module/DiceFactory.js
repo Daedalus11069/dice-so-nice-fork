@@ -478,7 +478,8 @@ export class DiceFactory {
 			preset.valueMap = dice.valueMap;
 		}
 		preset.mass = model.mass;
-		preset.scale = model.scale;
+		preset.scaleModifier = dice.scaleModifier ?? 1;
+		preset.scale = model.scale * preset.scaleModifier;
 		preset.inertia = model.inertia;
 		preset.system = dice.system;
 		preset.font = dice.font;
@@ -694,7 +695,7 @@ export class DiceFactory {
 
 		if(diceobj.model){
 			dicemesh = diceobj.model.scene.children[0].clone();
-			let scale = scopedScale/100;
+			let scale = (scopedScale/100) * (diceobj.scaleModifier || 1);
 			dicemesh.scale.set(scale,scale,scale);
 			if(!dicemesh.geometry)
 				dicemesh.geometry = {};
@@ -756,6 +757,10 @@ export class DiceFactory {
 			}
 				
 			dicemesh = new Mesh(geom, material);
+			if(diceobj.scaleModifier && diceobj.scaleModifier !== 1){
+				const s = diceobj.scaleModifier;
+				dicemesh.scale.set(s, s, s);
+			}
 
 			//TODO: Find if this entire block is still needed
 			//I think not

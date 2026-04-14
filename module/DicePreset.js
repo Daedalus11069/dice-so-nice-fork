@@ -17,6 +17,7 @@ export class DicePreset {
 		this.term = 'Die';
 		this.shape = shape || type;
 		this.scale = 1;
+		this.scaleModifier = 1;
 		this.labels = [];
 		this.valueMap = null;
 		this.values = [];
