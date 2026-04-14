@@ -929,3 +929,131 @@
     pointer-events: none;
 }
 
+/* glyph picker - FA icons + emoji tabs, launched from the dice editor face panel */
+.dsn-glyph-picker .window-content {
+    padding: 0;
+    overflow: hidden;
+}
+
+.dsn-glyph-picker-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.dsn-glyph-picker-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--color-border-light-tertiary, rgba(255,255,255,0.15));
+    flex: 0 0 auto;
+}
+
+.dsn-glyph-picker-tabs button {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 0.5em 1em;
+    cursor: pointer;
+    color: inherit;
+    border-bottom: 2px solid transparent;
+    font-size: 0.95em;
+}
+
+.dsn-glyph-picker-tabs button:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.dsn-glyph-picker-tabs button.active {
+    border-bottom-color: var(--color-text-hyperlink, #c00);
+    font-weight: bold;
+}
+
+.dsn-glyph-picker-inner .dsn-glyph-search {
+    margin: 0.5em;
+    flex: 0 0 auto;
+}
+
+.dsn-glyph-picker-grid {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.5em;
+    min-height: 0;
+}
+
+.dsn-glyph-picker-grid[hidden] {
+    display: none;
+}
+
+.dsn-glyph-picker-inner .dsn-glyph-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(2.5em, 1fr));
+    gap: 0.25em;
+}
+
+.dsn-emoji-category,
+.dsn-icon-category {
+    margin-bottom: 0.75em;
+}
+
+.dsn-emoji-category h4,
+.dsn-icon-category h4 {
+    margin: 0.25em 0;
+    font-size: 0.85em;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dsn-glyph {
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.4em;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    padding: 0;
+    /* native virtualization for the ~1500-icon FA grid */
+    content-visibility: auto;
+    contain-intrinsic-size: 2.5em 2.5em;
+}
+
+.dsn-glyph:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: var(--color-text-hyperlink, #c00);
+}
+
+.dsn-glyph[hidden] {
+    display: none;
+}
+
+.dsn-glyph-hint {
+    flex: 0 0 auto;
+    padding: 0.5em 1em;
+    font-size: 0.85em;
+    border-top: 1px solid var(--color-border-light-tertiary, rgba(255,255,255,0.15));
+    opacity: 0.8;
+}
+
+.dsn-glyph-hint kbd {
+    font-family: monospace;
+    background: rgba(255,255,255,0.1);
+    padding: 0 0.3em;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.2);
+    font-size: 0.9em;
+}
+
+.dice-editor-app .glyph-pick-btn {
+    flex: 0 0 auto;
+    width: 2em;
+    padding: 0;
+    margin-left: 0.25em;
+}
+
+

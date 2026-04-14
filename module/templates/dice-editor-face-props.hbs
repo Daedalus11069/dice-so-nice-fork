@@ -3,6 +3,9 @@
         <label>{{localize "DICESONICE.editorLabelText"}}</label>
         <div class="form-fields">
             <textarea name="faceLabelText" rows="3" placeholder="{{localize 'DICESONICE.editorDefaultLabel'}}">{{faceLabelText}}</textarea>
+            <button type="button" class="glyph-pick-btn" data-action="openGlyphPicker" title="{{localize 'DICESONICE.glyphPicker.openButton'}}">
+                <i class="fa-solid fa-icons"></i>
+            </button>
         </div>
     </div>
     <div class="form-group">
@@ -12,6 +15,7 @@
                 <option value="">{{localize "DICESONICE.editorInheritBase"}}</option>
                 {{selectOptions fontList selected=faceFont}}
             </select>
+            <input type="hidden" name="faceFontOverride" value="" />
         </div>
     </div>
     <div class="form-group">

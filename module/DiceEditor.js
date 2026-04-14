@@ -3,6 +3,7 @@ import { DiceLibrary } from './DiceLibrary.js';
 import { DiceColors } from './DiceColors.js';
 import { DICE_SHAPE } from './DiceModels.js';
 import { Utils } from './Utils.js';
+import { GlyphPicker } from './glyph-picker/GlyphPicker.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -194,13 +195,40 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             }
         });
 
+        //faceFont dropdown change wins over any stale override from a previous glyph pick -
+        //registered before the generic [name^=face] handler so it runs first in jQuery order
+        html.on("change.diceEditor", "[name=faceFont]", () => {
+            html.find("[name=faceFontOverride]").val("");
+        });
         html.on("change.diceEditor", "[name^=face]", () => this._onFacePropertyChange());
         html.on("input.diceEditor", "input[type=range]", (ev) => {
             $(ev.target).next(".range-value").text(ev.target.value);
         });
         html.on("click.diceEditor", "[data-face-filepicker]", () => this._onFilePicker());
 
+        html.on("click.diceEditor", "[data-action=openGlyphPicker]", (ev) => {
+            ev.preventDefault();
+            this._onOpenGlyphPicker();
+        });
+
         html.on("click.diceEditor", "[data-action=resetFaces]", () => this._onResetFace());
+    }
+
+    _onOpenGlyphPicker() {
+        const html = $(this.element);
+        GlyphPicker.open({
+            onSelect: ({ labelText, font }) => {
+                html.find("[name=faceLabelText]").val(labelText);
+                //FA picks carry a font family that isn't in the font dropdown - stash it in
+                //a hidden override input that _onFacePropertyChange reads preferentially.
+                //emoji picks pass font=null, meaning "leave the face font alone".
+                if (font !== null) {
+                    html.find("[name=faceFontOverride]").val(font);
+                    html.find("[name=faceFont]").val("");
+                }
+                html.find("[name=faceLabelText]").trigger("change");
+            }
+        });
     }
 
     _onGlobalChange() {
@@ -248,7 +276,17 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             const faceData = this.libraryDie.faces[shapeFace] || {};
             const { label: defaultLabel } = this._getShapeFaceDisplay(shapeFaces[0]);
             html.find("[name=faceLabelText]").val(faceData.labelText || "").attr("placeholder", defaultLabel);
+            //if faceData.font isn't in the dropdown (e.g. FA Pro from the glyph picker),
+            //the select silently rejects the assignment - detect that and stash in the
+            //hidden override instead so _onFacePropertyChange round-trips correctly.
             html.find("[name=faceFont]").val(faceData.font || "");
+            const fontAccepted = html.find("[name=faceFont]").val() === (faceData.font || "");
+            if (faceData.font && !fontAccepted) {
+                html.find("[name=faceFontOverride]").val(faceData.font);
+                html.find("[name=faceFont]").val("");
+            } else {
+                html.find("[name=faceFontOverride]").val("");
+            }
             html.find("[name=faceFontScale]").val(faceData.fontScale ?? 100);
             html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text((faceData.fontScale ?? 100) + "%");
             html.find("[name=faceForeground]").val(faceData.foreground || "");
@@ -269,6 +307,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         } else {
             html.find("[name=faceLabelText]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
             html.find("[name=faceFont]").val("");
+            html.find("[name=faceFontOverride]").val("");
             html.find("[name=faceFontScale]").val(100);
             html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text("100%");
             html.find("[name=faceForeground]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
@@ -303,7 +342,10 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
 
         const faceData = {};
         const labelText = html.find("[name=faceLabelText]").val();
-        const font = html.find("[name=faceFont]").val();
+        //hidden override wins over the dropdown - it holds font families that aren't in
+        //prepareFontList (currently only the FA Pro family, set by the glyph picker).
+        const fontOverride = html.find("[name=faceFontOverride]").val();
+        const font = fontOverride || html.find("[name=faceFont]").val();
         const fontScale = parseInt(html.find("[name=faceFontScale]").val()) || 100;
         const foreground = html.find("[name=faceForeground]").val();
         const background = html.find("[name=faceBackground]").val();
