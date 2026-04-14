@@ -221,9 +221,9 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 });
             }
 
-            //add special triggers, like "keep hihest" (kh)
-            this.possibleResultList[el.userData].push({ id: "kh", name: "Keep Highest" });
-            this.possibleResultList[el.userData].push({ id: "kl", name: "Keep Lowest" });
+            //add special triggers, like "keep highest" (kh)
+            this.possibleResultList[el.userData].push({ id: "kh", name: "Keep Highest / Advantage" });
+            this.possibleResultList[el.userData].push({ id: "kl", name: "Keep Lowest / Disadvantage" });
         });
 
         let specialEffectsList = [];

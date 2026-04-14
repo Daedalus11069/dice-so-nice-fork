@@ -175,12 +175,15 @@ export class DiceNotation {
 
 						//if the special effect "onResult" list contains non-numeric value, we manually deal with them here
 						let manualResultTrigger = false;
-						//Keep Highest. Discarded dice are already filtered out
-						if(sfx.onResult.includes("kh"))
-							manualResultTrigger = dsnDie.options?.modifiers?.includes("kh");
-						//Keep Lowest. Discarded dice are already filtered out
-						if(sfx.onResult.includes("kl"))
-							manualResultTrigger = dsnDie.options?.modifiers?.includes("kl");
+						const mods = dsnDie.options?.modifiers;
+						//Keep Highest / Advantage. Discarded dice are already filtered out.
+						//Matches core Foundry kh/khN and adv/advN.
+						if(sfx.onResult.includes("kh") && mods?.some(m => m.startsWith("kh") || m.startsWith("adv")))
+							manualResultTrigger = true;
+						//Keep Lowest / Disadvantage. Discarded dice are already filtered out.
+						//Matches core Foundry kl/klN and dis/disN.
+						if(sfx.onResult.includes("kl") && mods?.some(m => m.startsWith("kl") || m.startsWith("dis")))
+							manualResultTrigger = true;
 
 						if(manualResultTrigger)
 							return true;
