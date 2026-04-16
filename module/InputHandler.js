@@ -1,8 +1,23 @@
 import {
 	Euler,
+	Plane,
 	Quaternion,
-	Vector2
+	Vector2,
+	Vector3
 } from 'three';
+import { LEGACY_TO_METERS, GRAB_LIFT_EPHEMERAL, GRAB_LIFT_PERSISTENT } from './SceneConstants.js';
+
+//drag planes at each lift height (avoids per-frame allocations)
+const DRAG_PLANE_PERSISTENT = new Plane(new Vector3(0, 1, 0), -GRAB_LIFT_PERSISTENT);
+const DRAG_PLANE_EPHEMERAL = new Plane(new Vector3(0, 1, 0), -GRAB_LIFT_EPHEMERAL);
+const _dragPlaneHit = new Vector3();
+
+const MIN_GESTURE_SPEED = 1300 * LEGACY_TO_METERS;
+const MIN_DELTA_MAG = 12 * LEGACY_TO_METERS;
+const REMOTE_SNAP_THRESHOLD = 0.1 * LEGACY_TO_METERS;
+
+const THROW_VELOCITY_THRESHOLD = 800 * LEGACY_TO_METERS;
+const MIN_THROW_VELOCITY = 1200 * LEGACY_TO_METERS;
 
 export class InputHandler {
 
@@ -126,16 +141,18 @@ export class InputHandler {
 
 		if (this.mouse.constraint) {
 			this.diceScene.raycaster.setFromCamera(this.mouse.pos, this.diceScene.camera);
-			const intersects = this.diceScene.raycaster.intersectObjects([this.diceScene.desk]);
-			if (intersects.length) {
-				let pos = intersects[0].point;
+			//raycast at lift height so cursor stays aligned with the held die
+			const dragPlane = this.mouse.heldPersistentDice.length > 0 ? DRAG_PLANE_PERSISTENT : DRAG_PLANE_EPHEMERAL;
+			const hit = this.diceScene.raycaster.ray.intersectPlane(dragPlane, _dragPlaneHit);
+			if (hit) {
+				let pos = _dragPlaneHit;
 				//persistent dice: per-die targets from pickupOffset; ephemeral: legacy single-pos
 				if (this.mouse.heldPersistentDice.length > 0) {
 					const positions = {};
 					for (const d of this.mouse.heldPersistentDice) {
 						const off = d.userData?.pickupOffset;
 						positions[d.id] = off
-							? { x: pos.x + off.x, y: pos.y + off.y, z: pos.z }
+							? { x: pos.x + off.x, y: pos.y, z: pos.z + off.z }
 							: { x: pos.x, y: pos.y, z: pos.z };
 					}
 					await this.physicsWorker.exec("updateConstraint", { positions });
@@ -149,10 +166,10 @@ export class InputHandler {
 							for (const d of this.mouse.heldPersistentDice) {
 								const container = d.parent;
 								const cx = container ? container.position.x : positions[d.id].x;
-								const cy = container ? container.position.y : positions[d.id].y;
+								const cz = container ? container.position.z : positions[d.id].z;
 								movePositions.push({
 									persistentId: d.userData.persistentId,
-									...this.toPositionPct(cx, cy)
+									...this.toPositionPct(cx, cz)
 								});
 							}
 							this.onPersistentEvent("move", {
@@ -170,7 +187,7 @@ export class InputHandler {
 					const DRAG_BUFFER_SIZE = 6;
 					const now = performance.now();
 					const buf = this.mouse.dragPositions;
-					buf.push({ x: pos.x, y: pos.y, z: pos.z, time: now });
+					buf.push({ x: pos.x, z: pos.z, time: now });
 					if (buf.length > DRAG_BUFFER_SIZE) buf.shift();
 
 					//gesture detection: shakes (direction reversals) or spins (rotational sweep)
@@ -178,19 +195,17 @@ export class InputHandler {
 						const p0 = buf[buf.length - 3];
 						const p1 = buf[buf.length - 2];
 						const p2 = buf[buf.length - 1];
-						const d1x = p1.x - p0.x, d1y = p1.y - p0.y;
-						const d2x = p2.x - p1.x, d2y = p2.y - p1.y;
+						const d1x = p1.x - p0.x, d1z = p1.z - p0.z;
+						const d2x = p2.x - p1.x, d2z = p2.z - p1.z;
 						const dt12 = (p2.time - p1.time) / 1000;
-						const mag1 = Math.hypot(d1x, d1y);
-						const mag2 = Math.hypot(d2x, d2y);
+						const mag1 = Math.hypot(d1x, d1z);
+						const mag2 = Math.hypot(d2x, d2z);
 						const instSpeed = dt12 > 0 ? mag2 / dt12 : 0;
 
 						//noise gate: reject sub-pixel jitter, require real gesture speed
-						const MIN_GESTURE_SPEED = 1300;
-						const MIN_DELTA_MAG = 12;
 						if (mag1 > MIN_DELTA_MAG && mag2 > MIN_DELTA_MAG && instSpeed > MIN_GESTURE_SPEED) {
-							const dot = (d1x * d2x + d1y * d2y) / (mag1 * mag2);
-							const cross = (d1x * d2y - d1y * d2x) / (mag1 * mag2);
+							const dot = (d1x * d2x + d1z * d2z) / (mag1 * mag2);
+							const cross = (d1x * d2z - d1z * d2x) / (mag1 * mag2);
 
 							//sharp reversal => shake tick
 							if (dot < -0.35) this.mouse.shakeCount++;
@@ -380,20 +395,18 @@ export class InputHandler {
 
 	//pick up persistent dice as a held group
 	async _beginPersistentGrab(heldDice, pos) {
-		//desk-plane cursor point so pickupOffsets don't jump on first mousemove
 		this.diceScene.raycaster.setFromCamera(this.mouse.pos, this.diceScene.camera);
-		const deskHits = this.diceScene.raycaster.intersectObjects([this.diceScene.desk]);
-		const cursorDesk = deskHits.length > 0 ? deskHits[0].point : pos;
+		const cursorHit = this.diceScene.raycaster.ray.intersectPlane(DRAG_PLANE_PERSISTENT, new Vector3());
+		const cursorDesk = cursorHit || new Vector3(pos.x ?? 0, GRAB_LIFT_PERSISTENT, pos.z ?? 0);
 
-		//anchor z from desk plane (die-surface z caused one-frame vertical jump)
 		const anchorPos = { x: cursorDesk.x, y: cursorDesk.y, z: cursorDesk.z };
 
 		for (const die of heldDice) {
-			//offset from cursor so the group preserves its spatial arrangement
+			//offset from cursor so the group keeps its spatial arrangement
 			const worldPos = die.parent ? die.parent.position : die.position;
 			die.userData.pickupOffset = {
 				x: worldPos.x - cursorDesk.x,
-				y: worldPos.y - cursorDesk.y
+				z: worldPos.z - cursorDesk.z
 			};
 			await this.physicsWorker.exec("addConstraint", { id: die.id, pos: anchorPos });
 		}
@@ -430,7 +443,7 @@ export class InputHandler {
 			};
 			//compact multi-die group under cursor ("cupped in hand")
 			if (this.mouse.heldPersistentDice.length > 1 && d.userData) {
-				d.userData.pickupOffset = { x: 0, y: 0 };
+				d.userData.pickupOffset = { x: 0, z: 0 };
 			}
 		}
 		if (this.onSelectionChanged) this.onSelectionChanged();
@@ -448,17 +461,13 @@ export class InputHandler {
 	_computeThrowVelocity(forceThrow = false) {
 		const positions = this.mouse.dragPositions;
 
-		const THROW_VELOCITY_THRESHOLD = 800;
-		//floor: weak throws get scaled up so the die still tumbles
-		const MIN_THROW_VELOCITY = 1200;
-
-		//fallback: random direction at MIN velocity when buffer is degenerate
+		//fallback: random direction at minimum velocity
 		const randomMinThrow = () => {
 			const angle = Math.random() * Math.PI * 2;
 			return {
 				x: Math.cos(angle) * MIN_THROW_VELOCITY,
-				y: Math.sin(angle) * MIN_THROW_VELOCITY,
-				z: 0
+				y: 0,
+				z: Math.sin(angle) * MIN_THROW_VELOCITY
 			};
 		};
 
@@ -470,8 +479,8 @@ export class InputHandler {
 		if (dt < 0.001) return forceThrow ? randomMinThrow() : null;
 
 		const vx = (last.x - first.x) / dt;
-		const vy = (last.y - first.y) / dt;
-		const speed = Math.sqrt(vx * vx + vy * vy);
+		const vz = (last.z - first.z) / dt;
+		const speed = Math.sqrt(vx * vx + vz * vz);
 
 		if (!forceThrow && speed < THROW_VELOCITY_THRESHOLD) return null;
 
@@ -479,23 +488,24 @@ export class InputHandler {
 		if (speed < MIN_THROW_VELOCITY) {
 			if (speed < 1e-6) return randomMinThrow();
 			const scale = MIN_THROW_VELOCITY / speed;
-			return { x: vx * scale, y: vy * scale, z: 0 };
+			return { x: vx * scale, y: 0, z: vz * scale };
 		}
 
-		return { x: vx, y: vy, z: 0 };
+		return { x: vx, y: 0, z: vz };
 	}
 
-	toPositionPct(worldX, worldY) {
+	//world (x, z) → normalized [0,1] percentage
+	toPositionPct(worldX, worldZ) {
 		return {
 			x: (worldX / this.diceScene.display.innerWidth) + 0.5,
-			y: -(worldY / this.diceScene.display.innerHeight) + 0.5
+			y: -(worldZ / this.diceScene.display.innerHeight) + 0.5
 		};
 	}
 
 	fromPositionPct(pct) {
 		return {
 			x: (pct.x - 0.5) * this.diceScene.display.innerWidth,
-			y: -(pct.y - 0.5) * this.diceScene.display.innerHeight
+			z: -(pct.y - 0.5) * this.diceScene.display.innerHeight
 		};
 	}
 

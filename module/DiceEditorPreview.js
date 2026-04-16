@@ -6,6 +6,7 @@ import {
     Vector3
 } from 'three';
 import { DiceScene } from './DiceScene.js';
+import { LEGACY_TO_METERS } from './SceneConstants.js';
 import { Dice3D } from './Dice3D.js';
 import { DICE_SHAPE } from './DiceModels.js';
 import { removeTicker } from './Utils.js';
@@ -40,7 +41,7 @@ export class DiceEditorPreview {
         await this.diceScene.initialize();
         this.diceScene.setupBloomPipeline();
 
-        this.diceScene.camera.position.set(150, 200, 540);
+        this.diceScene.camera.position.set(150 * LEGACY_TO_METERS, 540 * LEGACY_TO_METERS, 200 * LEGACY_TO_METERS);
         this.diceScene.camera.lookAt(0, 0, 0);
         this.diceScene.camera.updateProjectionMatrix();
 

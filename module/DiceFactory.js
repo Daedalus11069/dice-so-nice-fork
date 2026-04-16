@@ -4,6 +4,7 @@ import {DiceColors, DICE_SCALE, COLORSETS} from './DiceColors.js';
 import {DICE_MODELS, DICE_SHAPE} from './DiceModels.js';
 import {DiceSystem} from './DiceSystem.js';
 import {DiceLibrary} from './DiceLibrary.js';
+import {TARGET_D6_EDGE_METERS} from './SceneConstants.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { ShaderUtils } from './ShaderUtils';
@@ -34,7 +35,8 @@ export class DiceFactory {
 
 		this.physicsWorker = new WebworkerPromise(new PhysicsWorker());
 
-		this.baseScale = 50;
+		this.baseScale = TARGET_D6_EDGE_METERS;
+		this.showcaseScale = TARGET_D6_EDGE_METERS * 1.2;
 
 		this.preferredSystem = "standard";
 		this.preferredColorset = "custom";
@@ -666,7 +668,7 @@ export class DiceFactory {
 		if(diceobj.model && appearance.isGhost){
 			diceobj = this.getPresetBySystem(type, "standard");
 		}
-		let scopedScale = scopedTextureCache.type == "board" ? this.baseScale : 60;
+		let scopedScale = scopedTextureCache.type == "board" ? this.baseScale : this.showcaseScale;
 		if (!diceobj) return null;
 
 		//ensure the resolved preset is fully loaded. preloadPresets only covers presets
@@ -695,7 +697,7 @@ export class DiceFactory {
 
 		if(diceobj.model){
 			dicemesh = diceobj.model.scene.children[0].clone();
-			let scale = (scopedScale/100) * (diceobj.scaleModifier || 1);
+			let scale = (scopedScale / 100) * (diceobj.scaleModifier || 1);
 			dicemesh.scale.set(scale,scale,scale);
 			if(!dicemesh.geometry)
 				dicemesh.geometry = {};
@@ -2071,8 +2073,10 @@ export class DiceFactory {
 	loadGeometry(type, scopedScale) {
 		const loader = new BufferGeometryLoader();
 		const bufferGeometry = loader.parse(DICE_MODELS[type]);
-		bufferGeometry.scale(scopedScale / 100, scopedScale / 100, scopedScale / 100);
-	
+		//raw vertices are ~100 units per edge, normalize to unit then scale
+		const k = scopedScale / 100;
+		bufferGeometry.scale(k, k, k);
+
 		return bufferGeometry;
-	}	
+	}
 }

@@ -32,6 +32,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+import { LEGACY_TO_METERS } from './SceneConstants.js';
 
 //shared rendering foundation: scene, renderer, camera, lighting, shadow plane, display
 export class DiceScene {
@@ -184,42 +185,54 @@ export class DiceScene {
 		this.display.currentWidth = this.container.clientWidth > 0 ? this.container.clientWidth : parseInt(this.container.style.width);
 		this.display.currentHeight = this.container.clientHeight > 0 ? this.container.clientHeight : parseInt(this.container.style.height);
 
+		let containerPxW, containerPxH, marginPx;
 		if (dimensions) {
-			this.display.containerWidth = dimensions.width;
-			this.display.containerHeight = dimensions.height;
-			this.display.containerMargin = dimensions.margin || null;
+			containerPxW = dimensions.width;
+			containerPxH = dimensions.height;
+			marginPx = dimensions.margin || null;
 
 			if (!this.display.currentWidth || !this.display.currentHeight) {
 				this.display.currentWidth = dimensions.width;
 				this.display.currentHeight = dimensions.height;
-				this.display.currentMargin = dimensions.margin || null;
 			}
 		} else {
-			this.display.containerWidth = this.display.currentWidth;
-			this.display.containerHeight = this.display.currentHeight;
-			this.display.containerMargin = this.display.currentMargin;
+			containerPxW = this.display.currentWidth;
+			containerPxH = this.display.currentHeight;
+			marginPx = this.display.containerMarginPx || null;
 		}
+
+		this.display.containerMarginPx = marginPx;
+		this.display.containerWidth = containerPxW * LEGACY_TO_METERS;
+		this.display.containerHeight = containerPxH * LEGACY_TO_METERS;
+		this.display.containerMargin = marginPx ? {
+			top: (marginPx.top || 0) * LEGACY_TO_METERS,
+			bottom: (marginPx.bottom || 0) * LEGACY_TO_METERS,
+			left: (marginPx.left || 0) * LEGACY_TO_METERS,
+			right: (marginPx.right || 0) * LEGACY_TO_METERS
+		} : null;
 
 		this.updateInnerDimensions();
 
-		this.display.aspect = Math.min(this.display.currentWidth / this.display.containerWidth, this.display.currentHeight / this.display.containerHeight);
+		this.display.aspect = Math.min(this.display.currentWidth / containerPxW, this.display.currentHeight / containerPxH);
 
 		this.updateScale(this.config.scale, this.config.autoscale);
 
 		this.renderer.setSize(this.display.currentWidth, this.display.currentHeight);
 
-		this.cameraHeight.max = this.display.currentHeight / this.display.aspect / Math.tan(10 * Math.PI / 180);
+		const cameraFovDeg = 20;
+		this.cameraHeight.max = this.display.containerHeight / this.display.aspect / Math.tan((cameraFovDeg / 2) * Math.PI / 180);
 
 		this.cameraHeight.medium = this.cameraHeight.max / 1.5;
 		this.cameraHeight.far = this.cameraHeight.max;
 		this.cameraHeight.close = this.cameraHeight.max / 2;
 
 		if (this.camera) this.scene.remove(this.camera);
-		this.camera = new PerspectiveCamera(20, this.display.currentWidth / this.display.currentHeight, 1, this.cameraHeight.max * 1.3);
+		this.camera = new PerspectiveCamera(cameraFovDeg, this.display.currentWidth / this.display.currentHeight, 0.01, this.cameraHeight.max * 1.3);
 
-		//default to far (board) position - consumers override after calling setScene()
-		this.camera.position.z = this.cameraHeight.far;
-		this.camera.near = 10;
+		//camera looks down -Y which is singular for the default up=(0,1,0),
+		//so override up to (0,0,-1) for a stable orientation
+		this.camera.up.set(0, 0, -1);
+		this.camera.position.set(0, this.cameraHeight.far, 0);
 		this.camera.lookAt(new Vector3(0, 0, 0));
 
 		const maxwidth = Math.max(this.display.containerWidth / 2, this.display.containerHeight / 2);
@@ -242,15 +255,14 @@ export class DiceScene {
 		this.scene.add(this.light_amb);
 
 		this.light = new DirectionalLight(this.colors.spotlight, intensity);
-		//default to board offset - consumers override after calling setScene()
-		this.light.position.set(-this.display.containerWidth / 20, this.display.containerHeight / 20, maxwidth / 2);
+		this.light.position.set(-this.display.containerWidth / 20, maxwidth / 2, -this.display.containerHeight / 20);
 		this.light.target.position.set(0, 0, 0);
 		this.light.distance = 0;
 		this.light.castShadow = this.dicefactory.shadows;
 		this.light.shadow.camera.near = maxwidth / 10;
 		this.light.shadow.camera.far = maxwidth * 5;
 		this.light.shadow.camera.fov = 50;
-		this.light.shadow.bias = -0.0001;
+		this.light.shadow.bias = -0.00005;
 		const shadowMapSize = this.dicefactory.shadowQuality == "high" ? 2048 : 1024;
 		this.light.shadow.mapSize.width = shadowMapSize;
 		this.light.shadow.mapSize.height = shadowMapSize;
@@ -271,9 +283,11 @@ export class DiceScene {
 		let shadowplane = new ShadowMaterial();
 		shadowplane.opacity = 0.5;
 		shadowplane.depthWrite = false;
+		//PlaneGeometry defaults to XY, rotate to XZ so it lies flat
 		this.desk = new Mesh(new PlaneGeometry(this.display.containerWidth * 3, this.display.containerHeight * 3, 1, 1), shadowplane);
 		this.desk.receiveShadow = this.dicefactory.shadows;
-		this.desk.position.set(0, 0, -1);
+		this.desk.rotation.x = -Math.PI / 2;
+		this.desk.position.set(0, 0, 0);
 		this.scene.add(this.desk);
 
 		this.renderScene();
@@ -321,25 +335,39 @@ export class DiceScene {
 	}
 
 	updateBoundaries(dimensions) {
-		const newDimensions = {
-			width: dimensions.width ?? this.display.containerWidth,
-			height: dimensions.height ?? this.display.containerHeight,
+		const prevPxW = this.display.containerWidth / LEGACY_TO_METERS;
+		const prevPxH = this.display.containerHeight / LEGACY_TO_METERS;
+		const prevMarginPx = this.display.containerMarginPx || { top:0, bottom:0, left:0, right:0 };
+
+		const newPxDimensions = {
+			width: dimensions.width ?? prevPxW,
+			height: dimensions.height ?? prevPxH,
 			margin: {
-				top: dimensions.margin?.top ?? this.display.containerMargin?.top ?? 0,
-				bottom: dimensions.margin?.bottom ?? this.display.containerMargin?.bottom ?? 0,
-				left: dimensions.margin?.left ?? this.display.containerMargin?.left ?? 0,
-				right: dimensions.margin?.right ?? this.display.containerMargin?.right ?? 0
+				top: dimensions.margin?.top ?? prevMarginPx.top ?? 0,
+				bottom: dimensions.margin?.bottom ?? prevMarginPx.bottom ?? 0,
+				left: dimensions.margin?.left ?? prevMarginPx.left ?? 0,
+				right: dimensions.margin?.right ?? prevMarginPx.right ?? 0
 			}
 		};
 
-		this.display.containerWidth = newDimensions.width;
-		this.display.containerHeight = newDimensions.height;
-		this.display.containerMargin = newDimensions.margin;
+		this.display.containerMarginPx = newPxDimensions.margin;
+		this.display.containerWidth = newPxDimensions.width * LEGACY_TO_METERS;
+		this.display.containerHeight = newPxDimensions.height * LEGACY_TO_METERS;
+		this.display.containerMargin = {
+			top: newPxDimensions.margin.top * LEGACY_TO_METERS,
+			bottom: newPxDimensions.margin.bottom * LEGACY_TO_METERS,
+			left: newPxDimensions.margin.left * LEGACY_TO_METERS,
+			right: newPxDimensions.margin.right * LEGACY_TO_METERS
+		};
 
 		this.updateInnerDimensions();
 		this.updateScale(this.config.scale, this.config.autoscale);
 
-		return newDimensions;
+		return {
+			width: this.display.containerWidth,
+			height: this.display.containerHeight,
+			margin: this.display.containerMargin
+		};
 	}
 
 	//update shadow and renderer quality after dicefactory settings change

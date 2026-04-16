@@ -2,6 +2,7 @@ import { AdditiveBlending, Box3, Sprite, SpriteMaterial, Vector3 } from 'three';
 import { DiceSFX } from '../DiceSFX.js';
 import { Proton } from '../libs/three.proton.js';
 import { DiceSFXManager } from './../DiceSFXManager';
+import { LEGACY_TO_METERS } from '../SceneConstants.js';
 
 export class PlayAnimationParticleSparkles extends DiceSFX {
     static id = "PlayAnimationParticleSparkles";
@@ -34,14 +35,14 @@ export class PlayAnimationParticleSparkles extends DiceSFX {
         this.emitter.addInitialize(new Proton.Life(1,3));
         this.emitter.addInitialize(new Proton.Body(PlayAnimationParticleSparkles.sprite));
         this.emitter.addInitialize(new Proton.Radius(100 * scale, 60 * scale));
-        this.emitter.addInitialize(new Proton.Position(new Proton.SphereZone(0,0,0,30)));
+        this.emitter.addInitialize(new Proton.Position(new Proton.SphereZone(0,0,0,30 * LEGACY_TO_METERS)));
         this.emitter.addInitialize(new Proton.Velocity(200, new Proton.Vector3D(0, 0, 0), 0));
 
-        this.emitter.addBehaviour(new Proton.RandomDrift(10,10,5,0.1,Infinity,Proton.easeOutQuart));
+        this.emitter.addBehaviour(new Proton.RandomDrift(10 * LEGACY_TO_METERS, 5 * LEGACY_TO_METERS, 10 * LEGACY_TO_METERS, 0.1, Infinity, Proton.easeOutQuart));
         this.emitter.addBehaviour(new Proton.Alpha(1, 0));
         this.emitter.addBehaviour(new Proton.Scale(1, 0.5));
 
-        this.emitter.addBehaviour(new Proton.Force(0, 0, 1));
+        this.emitter.addBehaviour(new Proton.Force(0, 1 * LEGACY_TO_METERS, 0));
 
         let parent = null;
         if(this.dicemesh.isMesh){
@@ -52,12 +53,12 @@ export class PlayAnimationParticleSparkles extends DiceSFX {
         }
 
         this.emitter.p.x = parent.position.x;
-        this.emitter.p.y = parent.position.y;
 
         let boundingBox = new Vector3();
         new Box3().setFromObject(parent).getSize(boundingBox);
 
-        this.emitter.p.z = boundingBox.z/2;
+        this.emitter.p.y = boundingBox.y/2;
+        this.emitter.p.z = parent.position.z;
         this.emitter.emit('once',true);
         this.proton.addEmitter(this.emitter);
         this.proton.addRender(new Proton.SpriteRender(this.box.scene));

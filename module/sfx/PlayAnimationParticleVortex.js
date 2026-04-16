@@ -2,6 +2,7 @@ import { Mesh, MeshBasicMaterial, NormalBlending, PlaneGeometry } from 'three';
 import { DiceSFX } from '../DiceSFX.js';
 import { Proton } from '../libs/three.proton.js';
 import { DiceSFXManager } from './../DiceSFXManager';
+import { LEGACY_TO_METERS } from '../SceneConstants.js';
 
 export class PlayAnimationParticleVortex extends DiceSFX {
     static id = "PlayAnimationParticleVortex";
@@ -19,6 +20,8 @@ export class PlayAnimationParticleVortex extends DiceSFX {
             transparent:true
         });
         let geometry = new PlaneGeometry(140,140);
+        //bake into XZ since Proton overwrites mesh rotation each frame
+        geometry.rotateX(-Math.PI / 2);
         PlayAnimationParticleVortex.sprite = new Mesh(geometry,material);
         
         game.audio.pending.push(function(){
@@ -34,19 +37,18 @@ export class PlayAnimationParticleVortex extends DiceSFX {
         this.emitter.addInitialize(new Proton.Mass(1));
         this.emitter.addInitialize(new Proton.Life(0.8,2.4));
         this.emitter.addInitialize(new Proton.Body(PlayAnimationParticleVortex.sprite));
-        this.emitter.addInitialize(new Proton.Velocity(50, new Proton.Vector3D(0,0,1), 0));
+        this.emitter.addInitialize(new Proton.Velocity(50 * LEGACY_TO_METERS, new Proton.Vector3D(0,1,0), 0));
         let scale = this.computeScale();
         this.emitter.addInitialize(new Proton.Radius(scale));
 
         this.emitter.addBehaviour(new Proton.Color(['#1f0e26','#462634','#290088'],'#060206'));
         this.emitter.addBehaviour(new Proton.Alpha(0.7, 0, Infinity, Proton.easeInQuart));
         this.emitter.addBehaviour(new Proton.Scale(0.7, 1.3, Infinity, Proton.easeInSine));
-        this.emitter.addBehaviour(new Proton.Rotate(0,0,-3));
+        this.emitter.addBehaviour(new Proton.Rotate(0,-3,0));
 
         this.emitter.p.x = this.dicemesh.parent.position.x;
-        this.emitter.p.y = this.dicemesh.parent.position.y;
-
-        this.emitter.p.z = -5;
+        this.emitter.p.y = -5 * LEGACY_TO_METERS;
+        this.emitter.p.z = this.dicemesh.parent.position.z;
         this.emitter.emit(1.25,true);
 
         this.proton.addEmitter(this.emitter);

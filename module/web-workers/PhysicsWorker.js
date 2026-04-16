@@ -1,7 +1,12 @@
 import { World, Material, NaiveBroadphase, ContactMaterial, Body, Plane, Vec3, Sphere, PointToPointConstraint, Cylinder, ConvexPolyhedron } from 'cannon-es';
 import { DICE_SHAPE } from '../DiceModels.js';
 import { Vector3 } from 'three';
+import { LEGACY_TO_METERS } from '../SceneConstants.js';
 import RegisterPromise from 'webworker-promise/lib/register';
+
+//cannon-es only behaves well at legacy scale (~1000x meters), so the worker
+//runs internally at legacy scale. callers speak meters, conversion at I/O boundary.
+const METERS_TO_LEGACY = 1 / LEGACY_TO_METERS;
 
 const DEBUG_SIMULATION_PERF = false;
 
@@ -41,12 +46,11 @@ class PhysicsWorker {
         this.soundDelay = 2; // time between sound effects in worldstep
         this.animstate = 'throw';
 
-        //per-die constraint map: dieId -> { joint, constraint, prevAllowSleep, liftZ }
         this.diceConstraints = new Map();
 
         this.diceList = new Map();
 
-        this.world.gravity.set(0, 0, -9.8 * 800);
+        this.world.gravity.set(0, -9.8 * 800, 0);
         this.world.broadphase = new NaiveBroadphase();
         this.world.solver.iterations = 14;
         this.world.allowSleep = true;
@@ -57,7 +61,16 @@ class PhysicsWorker {
 
         this.addContactMaterials();
         this.addDesk();
-        this.addBarriers(data.height, data.width, data.margin);
+        this.addBarriers(
+            data.height * METERS_TO_LEGACY,
+            data.width * METERS_TO_LEGACY,
+            {
+                top: data.margin.top * METERS_TO_LEGACY,
+                bottom: data.margin.bottom * METERS_TO_LEGACY,
+                left: data.margin.left * METERS_TO_LEGACY,
+                right: data.margin.right * METERS_TO_LEGACY
+            }
+        );
         this.reset();
         //reset sets animstate='simulate' but no sim is running after init, so allow playStep
         this.animstate = 'throw';
@@ -85,27 +98,23 @@ class PhysicsWorker {
      */
     addDesk() {
         const desk = new Body({ allowSleep: false, mass: 0, shape: new Plane(), material: this.desk_body_material });
+        //rotate default +Z normal to +Y so the plane lies flat
+        desk.quaternion.setFromAxisAngle(new Vec3(1, 0, 0), -Math.PI / 2);
         this.world.addBody(desk);
     }
 
     /**
      * Adds barriers around the world simulation to keep dice within bounds.
-     * @param {number} height - The height of the world.
-     * @param {number} width - The width of the world.
-     * @param {object} margin - The margin to apply to the barriers.
-     * @param {number} margin.top - The top margin.
-     * @param {number} margin.bottom - The bottom margin.
-     * @param {number} margin.left - The left margin.
-     * @param {number} margin.right - The right margin.
      */
     addBarriers(height, width, margin) {
         this.barriers = [];
         this.barriersScale = 0.97;
+        //four walls around the desk: +Z, -Z, +X, -X
         const barriersConfig = [
-            { axis: new Vec3(1, 0, 0), angle: Math.PI / 2, position: new Vec3(0, (height - margin.top * 2) * this.barriersScale, 0) }, // top
-            { axis: new Vec3(1, 0, 0), angle: -Math.PI / 2, position: new Vec3(0, (-height + margin.bottom * 2) * this.barriersScale, 0) }, // bottom
-            { axis: new Vec3(0, 1, 0), angle: -Math.PI / 2, position: new Vec3((width - margin.right * 2) * this.barriersScale, 0, 0) }, // right
-            { axis: new Vec3(0, 1, 0), angle: Math.PI / 2, position: new Vec3((-width + margin.left * 2) * this.barriersScale, 0, 0) } // left
+            { axis: new Vec3(1, 0, 0), angle: Math.PI, position: new Vec3(0, 0, (height - margin.top * 2) * this.barriersScale) },
+            { axis: new Vec3(1, 0, 0), angle: 0, position: new Vec3(0, 0, (-height + margin.bottom * 2) * this.barriersScale) },
+            { axis: new Vec3(0, 1, 0), angle: -Math.PI / 2, position: new Vec3((width - margin.right * 2) * this.barriersScale, 0, 0) },
+            { axis: new Vec3(0, 1, 0), angle: Math.PI / 2, position: new Vec3((-width + margin.left * 2) * this.barriersScale, 0, 0) }
         ];
 
         for (const { axis, angle, position } of barriersConfig) {
@@ -119,21 +128,18 @@ class PhysicsWorker {
 
     /**
      * Updates the positions of the barriers based on new world dimensions.
-     * Currently only called when the sidebar is collapsed or expanded.
-     * @param {Object} param0 - The new world dimensions.
-     * @param {number} param0.height - The height of the world.
-     * @param {number} param0.width - The width of the world.
-     * @param {Object} param0.margin - The margin to apply to the barriers.
-     * @param {number} param0.margin.top - The top margin.
-     * @param {number} param0.margin.bottom - The bottom margin.
-     * @param {number} param0.margin.left - The left margin.
-     * @param {number} param0.margin.right - The right margin.
      */
     updateBarriers({height, width, margin}) {
-        this.barriers[0].position.set(0, (height - margin.top * 2) * this.barriersScale, 0);
-        this.barriers[1].position.set(0, (-height + margin.bottom * 2) * this.barriersScale, 0);
-        this.barriers[2].position.set((width - margin.right * 2) * this.barriersScale, 0, 0);
-        this.barriers[3].position.set((-width + margin.left * 2) * this.barriersScale, 0, 0);
+        const h = height * METERS_TO_LEGACY;
+        const w = width * METERS_TO_LEGACY;
+        const mt = margin.top * METERS_TO_LEGACY;
+        const mb = margin.bottom * METERS_TO_LEGACY;
+        const mr = margin.right * METERS_TO_LEGACY;
+        const ml = margin.left * METERS_TO_LEGACY;
+        this.barriers[0].position.set(0, 0, (h - mt * 2) * this.barriersScale);
+        this.barriers[1].position.set(0, 0, (-h + mb * 2) * this.barriersScale);
+        this.barriers[2].position.set((w - mr * 2) * this.barriersScale, 0, 0);
+        this.barriers[3].position.set((-w + ml * 2) * this.barriersScale, 0, 0);
     }
 
     //create a joint body for a held die, one per addConstraint call
@@ -154,10 +160,10 @@ class PhysicsWorker {
         const resolvedShape = this.shapeList.get(shape);
         const body = new Body({ allowSleep: true, sleepSpeedLimit: 75, sleepTimeLimit: 0.9, mass: mass, shape: resolvedShape, material: this.dice_body_material });
         body.type = Body.DYNAMIC;
-        body.position.set(vectordata.pos.x, vectordata.pos.y, vectordata.pos.z);
+        body.position.set(vectordata.pos.x * METERS_TO_LEGACY, vectordata.pos.y * METERS_TO_LEGACY, vectordata.pos.z * METERS_TO_LEGACY);
         body.quaternion.setFromAxisAngle(new Vec3(vectordata.axis.x, vectordata.axis.y, vectordata.axis.z), vectordata.axis.a * Math.PI * 2);
         body.angularVelocity.set(vectordata.angle.x, vectordata.angle.y, vectordata.angle.z);
-        body.velocity.set(vectordata.velocity.x, vectordata.velocity.y, vectordata.velocity.z);
+        body.velocity.set(vectordata.velocity.x * METERS_TO_LEGACY, vectordata.velocity.y * METERS_TO_LEGACY, vectordata.velocity.z * METERS_TO_LEGACY);
         body.linearDamping = 0.1;
         body.angularDamping = 0.1;
         body.addEventListener('collide', this.eventCollide.bind(this));
@@ -197,7 +203,6 @@ class PhysicsWorker {
         }
     }
 
-    //apply impulse to a persistent die body
     applyImpulse({id, velocity, angularVelocity}) {
         const dice = this.diceList.get(id);
         if (!dice) return;
@@ -205,7 +210,7 @@ class PhysicsWorker {
         dice.result = null;
         dice.wakeUp();
         dice.type = Body.DYNAMIC;
-        dice.velocity.set(velocity.x, velocity.y, velocity.z);
+        dice.velocity.set(velocity.x * METERS_TO_LEGACY, velocity.y * METERS_TO_LEGACY, velocity.z * METERS_TO_LEGACY);
         dice.angularVelocity.set(angularVelocity.x, angularVelocity.y, angularVelocity.z);
     }
 
@@ -220,21 +225,20 @@ class PhysicsWorker {
         };
     }
 
-    //teleport a body to a new position (multiplayer sync for remote-held dice)
     setBodyPosition({ id, position }) {
         const dice = this.diceList.get(id);
         if (!dice) return;
-        dice.position.set(position.x, position.y, position.z);
+        dice.position.set(position.x * METERS_TO_LEGACY, position.y * METERS_TO_LEGACY, position.z * METERS_TO_LEGACY);
         dice.velocity.set(0, 0, 0);
         dice.angularVelocity.set(0, 0, 0);
     }
 
-    //batch setBodyPosition - one worker message instead of N per frame
+    //batch setBodyPosition to avoid N worker messages per frame
     setBodyPositions({ updates }) {
         for (const { id, position } of updates) {
             const dice = this.diceList.get(id);
             if (!dice) continue;
-            dice.position.set(position.x, position.y, position.z);
+            dice.position.set(position.x * METERS_TO_LEGACY, position.y * METERS_TO_LEGACY, position.z * METERS_TO_LEGACY);
             dice.velocity.set(0, 0, 0);
             dice.angularVelocity.set(0, 0, 0);
         }
@@ -272,9 +276,6 @@ class PhysicsWorker {
 
     /**
      * Determines if the sound should be skipped based on the current world step and sound type.
-     * @param {number} now - The current world step number.
-     * @param {string} currentSoundType - The type of sound ('dice' or 'table').
-     * @returns {boolean} - True if the sound should be skipped, false otherwise.
      */
     shouldSkipSound(now, currentSoundType) {
         const soundPlayedThisStep = this.lastSoundStep === now;
@@ -289,12 +290,10 @@ class PhysicsWorker {
 
     /**
      * Handles dice to dice collision and plays appropriate sound.
-     * @param {Object} body - The body involved in the collision.
-     * @param {Object} target - The target involved in the collision.
      */
     handleDiceCollision(body, target) {
         const speed = body.velocity.length();
-        if (speed < 250) return; // Don't play at low speeds
+        if (speed < 250) return;
 
         const strength = this.calculateStrength(speed, 550, 0.2);
         const shouldMute = this.muteSoundSecretRolls && (body.secretRoll || target.secretRoll);
@@ -310,12 +309,10 @@ class PhysicsWorker {
 
     /**
      * Handles dice to table collision and plays appropriate sound.
-     * @param {Object} body - The body involved in the collision.
-     * @param {Object} target - The target involved in the collision.
      */
     handleTableCollision(body, target) {
         const speed = target.velocity.length();
-        if (speed < 100) return; // Don't play at low speeds
+        if (speed < 100) return;
 
         const strength = this.calculateStrength(speed, 500, 0.2);
         const shouldMute = this.muteSoundSecretRolls && (body.secretRoll || target.secretRoll);
@@ -332,10 +329,6 @@ class PhysicsWorker {
 
     /**
      * Calculates the strength of the sound based on the speed, max speed, and minimum strength.
-     * @param {number} speed - The speed of the object involved in the collision.
-     * @param {number} maxSpeed - The maximum speed for calculating strength.
-     * @param {number} minStrength - The minimum strength value.
-     * @returns {number} - The calculated strength value.
      */
     calculateStrength(speed, maxSpeed, minStrength) {
         return Math.max(Math.min(speed / maxSpeed, 1), minStrength);
@@ -343,7 +336,6 @@ class PhysicsWorker {
 
     /**
      * Updates the last sound step and last sound properties based on the current world step.
-     * @param {number} now - The current world step number.
      */
     updateLastSound(now) {
         this.lastSoundStep = now;
@@ -364,35 +356,34 @@ class PhysicsWorker {
         dice.allowSleep = false;
         dice.wakeUp();
 
-        //persistent dice use center pivot to avoid pendulum swing at high lift
-        //ephemeral dice use click-point pivot for TTS-style grab feel
+        const lx = pos.x * METERS_TO_LEGACY;
+        const ly = pos.y * METERS_TO_LEGACY;
+        const lz = pos.z * METERS_TO_LEGACY;
+
+        //persistent = center pivot, ephemeral = click-point pivot
         let pivot;
         let anchorPos;
         if (dice.persistent) {
             pivot = new Vec3(0, 0, 0);
-            //anchor at die's XY so it doesn't snap to click location on pickup
-            anchorPos = { x: dice.position.x, y: dice.position.y, z: pos.z };
+            //keep current xz so pickup doesn't teleport, lift to caller's y
+            anchorPos = { x: dice.position.x, y: ly, z: dice.position.z };
         } else {
-            let v1 = new Vec3(pos.x, pos.y, pos.z).vsub(dice.position);
+            let v1 = new Vec3(lx, ly, lz).vsub(dice.position);
             // Apply anti-quaternion to vector to tranform it into the local body coordinate system
             let antiRot = dice.quaternion.inverse();
             pivot = antiRot.vmult(v1); // pivot is not in local body coordinates
-            anchorPos = pos;
+            anchorPos = { x: lx, y: ly, z: lz };
         }
 
-        //persistent dice need more lift (320) to clear chaotic rotation swing
-        const liftZ = dice.persistent ? 320 : 150;
-
         const joint = this._createJointBody();
-        joint.position.set(anchorPos.x, anchorPos.y, anchorPos.z + liftZ);
+        joint.position.set(anchorPos.x, anchorPos.y, anchorPos.z);
 
         const constraint = new PointToPointConstraint(dice, pivot, joint, new Vec3(0, 0, 0));
         this.world.addConstraint(constraint);
 
-        this.diceConstraints.set(id, { joint, constraint, prevAllowSleep, liftZ });
+        this.diceConstraints.set(id, { joint, constraint, prevAllowSleep });
     }
 
-    //update held dice constraints. accepts {positions: {id: pos}} or legacy {pos}
     updateConstraint(payload){
         if (this.diceConstraints.size === 0) return;
 
@@ -412,7 +403,7 @@ class PhysicsWorker {
             //Object.entries gives string keys, Map uses numbers
             const entry = this.diceConstraints.get(Number(id)) ?? this.diceConstraints.get(id);
             if (!entry) continue;
-            entry.joint.position.set(pos.x, pos.y, pos.z + entry.liftZ);
+            entry.joint.position.set(pos.x * METERS_TO_LEGACY, pos.y * METERS_TO_LEGACY, pos.z * METERS_TO_LEGACY);
             entry.constraint.update();
             //wake to keep solver active even with allowSleep=false
             const dice = this.diceList.get(Number(id)) ?? this.diceList.get(id);
@@ -435,13 +426,14 @@ class PhysicsWorker {
     }
 
     createShape({type, radius}){
+        const legacyRadius = radius * METERS_TO_LEGACY;
         const data = DICE_SHAPE[type];
         switch(data.type){
             case "ConvexPolyhedron":
-                this.shapeList.set(type, this.loadGeom(data.vertices, data.faces, radius, data.skipLastFaceIndex));
+                this.shapeList.set(type, this.loadGeom(data.vertices, data.faces, legacyRadius, data.skipLastFaceIndex));
                 break;
             case "Cylinder":
-                this.shapeList.set(type, new Cylinder(radius*data.radiusTop, radius*data.radiusBottom, radius*data.height, data.numSegments));
+                this.shapeList.set(type, new Cylinder(legacyRadius*data.radiusTop, legacyRadius*data.radiusBottom, legacyRadius*data.height, data.numSegments));
                 break;
             default:
                 throw new Error("Unknown shape type: " + data.type);
@@ -451,25 +443,25 @@ class PhysicsWorker {
     loadShape(vertices, faces, radius, skipLastFaceIndex = false) {
         const cv = new Array(vertices.length);
         const cf = new Array(faces.length);
-    
+
         for (let i = 0; i < vertices.length; ++i) {
             const v = vertices[i];
             cv[i] = new Vec3(v.x * radius, v.y * radius, v.z * radius);
         }
-    
+
         for (let i = 0; i < faces.length; ++i) {
             cf[i] = skipLastFaceIndex ? faces[i].slice(0, faces[i].length - 1) : faces[i];
         }
         return new ConvexPolyhedron({ vertices: cv, faces: cf });
     }
-    
+
     loadGeom(vertices, faces, radius, skipLastFaceIndex = false) {
         const vectors = new Array(vertices.length);
-    
+
         for (let i = 0; i < vertices.length; ++i) {
             vectors[i] = (new Vector3).fromArray(vertices[i]).normalize();
         }
-    
+
         return this.loadShape(vectors, faces, radius, skipLastFaceIndex);
     }
 
@@ -481,14 +473,15 @@ class PhysicsWorker {
         if(dice.result)
             return dice.result;
 
-        const vector = new Vector3(0, 0, dice.diceShape == 'd4' ? -1 : 1);
+        //d4 reads from bottom face, everything else from top
+        const vector = new Vector3(0, dice.diceShape == 'd4' ? -1 : 1, 0);
         const faceCannon = new Vector3();
         let closest_face, closest_angle = Math.PI * 2;
         for (let i = 0, l = dice.shapes[0].faceNormals.length; i < l; ++i) {
             if(DICE_SHAPE[dice.diceShape].faceValues[i] == 0)
                 continue;
             faceCannon.copy(dice.shapes[0].faceNormals[i]);
-            
+
             const angle = faceCannon.applyQuaternion(dice.quaternion).angleTo(vector);
             if (angle < closest_angle) {
                 closest_angle = angle;
@@ -524,7 +517,7 @@ class PhysicsWorker {
         //record initial positions at iteration 0
         for (const [id, dice] of this.diceList) {
             if (dice.stepPositions) {
-                dice.stepPositions.set([dice.position.x, dice.position.y, dice.position.z], 0);
+                dice.stepPositions.set([dice.position.x * LEGACY_TO_METERS, dice.position.y * LEGACY_TO_METERS, dice.position.z * LEGACY_TO_METERS], 0);
                 dice.stepQuaternions.set([dice.quaternion.x, dice.quaternion.y, dice.quaternion.z, dice.quaternion.w], 0);
             }
         }
@@ -570,7 +563,7 @@ class PhysicsWorker {
             iterationsNeeded: this.iterationsNeeded
         }, [...quaternionsBuffers, ...positionsBuffers]);
     }
-    
+
     //simulate persistent throw: records trajectories for all awake persistent dice
     //accepts single {id} or batch {ids, impulses}. impulses applied atomically before stepping
     simulatePersistentThrow({id, ids, impulses, framerate}) {
@@ -592,7 +585,7 @@ class PhysicsWorker {
                 dice.result = null;
                 dice.wakeUp();
                 dice.type = Body.DYNAMIC;
-                dice.velocity.set(imp.velocity.x, imp.velocity.y, imp.velocity.z);
+                dice.velocity.set(imp.velocity.x * METERS_TO_LEGACY, imp.velocity.y * METERS_TO_LEGACY, imp.velocity.z * METERS_TO_LEGACY);
                 dice.angularVelocity.set(imp.angularVelocity.x, imp.angularVelocity.y, imp.angularVelocity.z);
             }
         }
@@ -628,9 +621,9 @@ class PhysicsWorker {
         const startTracking = (trackId, dice, frame) => {
             const posBuffer = new Float32Array(MAX_FRAMES * 3);
             const quatBuffer = new Float32Array(MAX_FRAMES * 4);
-            //backfill frames with resting state, use pre-sim snapshot if available
             const snap = restingSnapshots.get(trackId);
-            const bfPos = snap ? [snap.px, snap.py, snap.pz] : [dice.position.x, dice.position.y, dice.position.z];
+            const rawPos = snap ? [snap.px, snap.py, snap.pz] : [dice.position.x, dice.position.y, dice.position.z];
+            const bfPos = [rawPos[0] * LEGACY_TO_METERS, rawPos[1] * LEGACY_TO_METERS, rawPos[2] * LEGACY_TO_METERS];
             const bfQuat = snap ? [snap.qx, snap.qy, snap.qz, snap.qw] : [dice.quaternion.x, dice.quaternion.y, dice.quaternion.z, dice.quaternion.w];
             for (let f = 0; f <= frame; f++) {
                 posBuffer.set(bfPos, f * 3);
@@ -659,7 +652,8 @@ class PhysicsWorker {
 
             for (const entry of tracked.values()) {
                 const d = entry.dice;
-                entry.posBuffer.set([d.position.x, d.position.y, d.position.z], iteration * 3);
+
+                entry.posBuffer.set([d.position.x * LEGACY_TO_METERS, d.position.y * LEGACY_TO_METERS, d.position.z * LEGACY_TO_METERS], iteration * 3);
                 entry.quatBuffer.set([d.quaternion.x, d.quaternion.y, d.quaternion.z, d.quaternion.w], iteration * 4);
             }
 
@@ -724,12 +718,13 @@ class PhysicsWorker {
             for (let i = 0; i < this.world.bodies.length; i++) {
                 if (this.world.bodies[i].stepPositions) {
                     this.world.bodies[i].stepQuaternions.set([this.world.bodies[i].quaternion.x, this.world.bodies[i].quaternion.y, this.world.bodies[i].quaternion.z,this.world.bodies[i].quaternion.w], this.iteration*4);
-                    this.world.bodies[i].stepPositions.set([this.world.bodies[i].position.x, this.world.bodies[i].position.y, this.world.bodies[i].position.z], this.iteration*3);
+    
+                    this.world.bodies[i].stepPositions.set([this.world.bodies[i].position.x * LEGACY_TO_METERS, this.world.bodies[i].position.y * LEGACY_TO_METERS, this.world.bodies[i].position.z * LEGACY_TO_METERS], this.iteration*3);
                 }
             }
         }
     }
-    
+
     throwFinished() {
         let stopped = true;
         if (this.iteration <= this.minIterations) return false;
@@ -786,7 +781,8 @@ class PhysicsWorker {
                 if(!dice.dead){
                     ids.push(id);
                     quaternions.set([dice.quaternion.x, dice.quaternion.y, dice.quaternion.z,dice.quaternion.w], ids.length*4-4);
-                    positions.set([dice.position.x, dice.position.y, dice.position.z], ids.length*3-3);
+
+                    positions.set([dice.position.x * LEGACY_TO_METERS, dice.position.y * LEGACY_TO_METERS, dice.position.z * LEGACY_TO_METERS], ids.length*3-3);
                 }
             }
         }

@@ -599,22 +599,20 @@ export class DiceBox {
 		this._remoteOutlinePasses.delete(userId);
 	}
 
-	//facade: coordinate conversion (used by Dice3D)
-	toPositionPct(worldX, worldY) {
-		if (this.inputHandler) return this.inputHandler.toPositionPct(worldX, worldY);
+	toPositionPct(worldX, worldZ) {
+		if (this.inputHandler) return this.inputHandler.toPositionPct(worldX, worldZ);
 		//fallback before inputHandler is created
 		return {
 			x: (worldX / this.display.innerWidth) + 0.5,
-			y: -(worldY / this.display.innerHeight) + 0.5
+			y: -(worldZ / this.display.innerHeight) + 0.5
 		};
 	}
 
 	fromPositionPct(pct) {
 		if (this.inputHandler) return this.inputHandler.fromPositionPct(pct);
-		//fallback before inputHandler is created
 		return {
 			x: (pct.x - 0.5) * this.display.innerWidth,
-			y: -(pct.y - 0.5) * this.display.innerHeight
+			z: -(pct.y - 0.5) * this.display.innerHeight
 		};
 	}
 

@@ -1284,7 +1284,7 @@ export class Dice3D {
                     dieType: type,
                     positionPct: position || this._toPositionPct(
                         mesh.parent.position.x,
-                        mesh.parent.position.y
+                        mesh.parent.position.z
                     ),
                     linkGroupId: opts.linkGroupId || null,
                     linkGroupSecondary: opts.linkGroupSecondary || false,
@@ -1442,8 +1442,8 @@ export class Dice3D {
         ) || null;
     }
 
-    _toPositionPct(worldX, worldY) {
-        return this.box.toPositionPct(worldX, worldY);
+    _toPositionPct(worldX, worldZ) {
+        return this.box.toPositionPct(worldX, worldZ);
     }
 
     _fromPositionPct(pct) {
@@ -1591,7 +1591,7 @@ export class Dice3D {
             //ignore late-arriving moves for already-released dice
             if (!mesh.userData?.lockedBy) continue;
             const world = this._fromPositionPct(entry);
-            mesh.userData.remoteMoveTarget = { x: world.x, y: world.y };
+            mesh.userData.remoteMoveTarget = { x: world.x, z: world.z };
         }
     }
 

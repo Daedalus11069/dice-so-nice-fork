@@ -1,7 +1,7 @@
 import { DICE_MODELS } from './DiceModels.js';
 import { DiceSFXManager } from './DiceSFXManager.js';
 import { DiceSystem } from './DiceSystem.js';
-
+import { LEGACY_TO_METERS } from './SceneConstants.js';
 import {
 	Color,
 	Euler,
@@ -9,6 +9,12 @@ import {
 	MathUtils,
 	Quaternion
 } from 'three';
+
+const SPAWN_HEIGHT_MIN = 200 * LEGACY_TO_METERS;
+const SPAWN_HEIGHT_RANGE = 200 * LEGACY_TO_METERS;
+const SPAWN_DROP_VELOCITY = -10 * LEGACY_TO_METERS;
+const COIN_LIFT_VELOCITY = 3000 * LEGACY_TO_METERS;
+const SPAWN_PLANAR_JITTER = 100 * LEGACY_TO_METERS;
 
 //owns throw orchestration: vector computation, physics simulation, face swapping,
 //animation buffer replay, ephemeral dice spawning, SFX triggering on throw completion
@@ -68,13 +74,13 @@ export class ThrowEngine {
 			let W = this.diceScene.display.innerWidth;
 			let H = this.diceScene.display.innerHeight;
 			let pos = {
-				x: W * (vec.x > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
-				y: H * (vec.y > 0 ? -1 : 1) * 0.9 + Math.floor(Math.random() * 201) - 100,
-				z: Math.random() * 200 + 200
+				x: W * (vec.x > 0 ? -1 : 1) * 0.9 + (Math.random() * 2 - 1) * SPAWN_PLANAR_JITTER,
+				y: Math.random() * SPAWN_HEIGHT_RANGE + SPAWN_HEIGHT_MIN,
+				z: H * (vec.y > 0 ? -1 : 1) * 0.9 + (Math.random() * 2 - 1) * SPAWN_PLANAR_JITTER
 			};
 
 			let projector = Math.abs(vec.x / vec.y);
-			if (projector > 1.0) pos.y /= projector; else pos.x *= projector;
+			if (projector > 1.0) pos.z /= projector; else pos.x *= projector;
 
 
 			let velvec = this.vectorRand(vector);
@@ -87,21 +93,14 @@ export class ThrowEngine {
 
 				velocity = {
 					x: velvec.x * boost,
-					y: velvec.y * boost,
-					z: -10
+					y: SPAWN_DROP_VELOCITY,
+					z: velvec.y * boost
 				};
 
 				angle = {
 					x: -(Math.random() * vec.y * 5 + diceobj.inertia * vec.y),
-					y: Math.random() * vec.x * 5 + diceobj.inertia * vec.x,
-					z: 0
-				};
-
-				axis = {
-					x: Math.random(),
-					y: Math.random(),
-					z: Math.random(),
-					a: Math.random()
+					y: 0,
+					z: Math.random() * vec.x * 5 + diceobj.inertia * vec.x
 				};
 
 				axis = {
@@ -114,20 +113,20 @@ export class ThrowEngine {
 				//coin flip
 				velocity = {
 					x: velvec.x * boost / 10,
-					y: velvec.y * boost / 10,
-					z: 3000
+					y: COIN_LIFT_VELOCITY,
+					z: velvec.y * boost / 10
 				};
 
 				angle = {
-					x: 12 * diceobj.inertia,//-(Math.random() * velvec.y * 50 + diceobj.inertia * velvec.y ) ,
-					y: 1 * diceobj.inertia,//Math.random() * velvec.x * 50 + diceobj.inertia * velvec.x ,
-					z: 0
+					x: 12 * diceobj.inertia,
+					y: 0,
+					z: 1 * diceobj.inertia
 				};
 
 				axis = {
-					x: 1,//Math.random(),
-					y: 1,//Math.random(),
-					z: Math.random(),
+					x: 1,
+					y: Math.random(),
+					z: 1,
 					a: Math.random()
 				};
 			}

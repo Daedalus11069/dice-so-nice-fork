@@ -1,4 +1,5 @@
 import { DiceSFXManager } from './DiceSFXManager.js';
+import { LEGACY_TO_METERS } from './SceneConstants.js';
 
 import {
 	Euler,
@@ -67,7 +68,7 @@ export class PersistentDiceManager {
 		//axis must be zero or normalized (cannon-es NaN otherwise)
 		const vectordata = {
 			type: type,
-			pos: { x: posX, y: posY, z: diceobj.inertia * 13 },
+			pos: { x: posX, y: diceobj.inertia * 13 * LEGACY_TO_METERS, z: posY },
 			velocity: { x: 0, y: 0, z: 0 },
 			angle: { x: Math.random() * Math.PI * 2, y: Math.random() * Math.PI * 2, z: Math.random() * Math.PI * 2 },
 			axis: { x: 0, y: 0, z: 0, a: 0 }
@@ -316,14 +317,13 @@ export class PersistentDiceManager {
 			const container = dicemesh.parent;
 			if (!container) continue;
 			const dx = target.x - container.position.x;
-			const dy = target.y - container.position.y;
-			//snap if close enough
-			if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
+			const dz = target.z - container.position.z;
+			if (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001) {
 				container.position.x = target.x;
-				container.position.y = target.y;
+				container.position.z = target.z;
 			} else {
 				container.position.x += dx * REMOTE_LERP_FACTOR;
-				container.position.y += dy * REMOTE_LERP_FACTOR;
+				container.position.z += dz * REMOTE_LERP_FACTOR;
 			}
 			remotePosUpdates.push({
 				id: dicemesh.id,

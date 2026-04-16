@@ -1,4 +1,5 @@
 import { Mesh, PlaneGeometry, ShadowMaterial } from 'three';
+import { LEGACY_TO_METERS } from './SceneConstants.js';
 import { removeTicker } from './Utils.js';
 
 //showcase grid layout, selector animation, and die raycasting
@@ -54,10 +55,10 @@ export class ShowcaseView {
 		let columns = Math.min(selectordice.length, Math.round(Math.sqrt(proportion * selectordice.length)));
 		let rows = Math.floor((selectordice.length + columns - 1) / columns);
 
-		this.diceScene.camera.position.z = this.diceScene.cameraHeight.medium;
+		this.diceScene.camera.position.y = this.diceScene.cameraHeight.medium;
 		this.diceScene.camera.position.x = this.diceScene.display.containerWidth / 2 - (this.diceScene.display.containerWidth / columns / 2);
-		this.diceScene.camera.position.y = -this.diceScene.display.containerHeight / 2 + (this.diceScene.display.containerHeight / rows / 2);
-		this.diceScene.camera.fov = 2 * Math.atan(this.diceScene.display.containerHeight / (2 * this.diceScene.camera.position.z)) * (180 / Math.PI);
+		this.diceScene.camera.position.z = this.diceScene.display.containerHeight / 2 - (this.diceScene.display.containerHeight / rows / 2);
+		this.diceScene.camera.fov = 2 * Math.atan(this.diceScene.display.containerHeight / (2 * this.diceScene.camera.position.y)) * (180 / Math.PI);
 		this.diceScene.camera.updateProjectionMatrix();
 
 		if (this.pane) this.diceScene.scene.remove(this.pane);
@@ -70,11 +71,11 @@ export class ShowcaseView {
 
 			this.pane = new Mesh(new PlaneGeometry(this.diceScene.display.containerWidth * 2, this.diceScene.display.containerHeight * 2, 1, 1), shadowplane);
 			this.pane.receiveShadow = this.dicefactory.shadows;
-			this.pane.position.set(0, 0, -70);
+			this.pane.rotation.x = -Math.PI / 2;
+			this.pane.position.set(0, -0.001, 0);
 			this.diceScene.scene.add(this.pane);
 		}
 
-		let z = 0;
 		let count = 0;
 		for (let y = 0; y < rows; y++) {
 			for (let x = 0; x < columns; x++) {
@@ -92,7 +93,7 @@ export class ShowcaseView {
 					Math.min(dicemesh.scale.z * 5 / columns, dicemesh.scale.z * 2 / rows) * showcaseNormalize
 				);
 
-				dicemesh.position.set(x * this.diceScene.display.containerWidth / columns, -(y * this.diceScene.display.containerHeight / rows), z);
+				dicemesh.position.set(x * this.diceScene.display.containerWidth / columns, 0, y * this.diceScene.display.containerHeight / rows);
 
 				dicemesh.castShadow = this.dicefactory.shadows;
 

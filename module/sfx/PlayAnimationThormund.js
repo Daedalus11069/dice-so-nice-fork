@@ -2,6 +2,7 @@ import { Box3, CatmullRomCurve3, Clock, Vector3 } from 'three';
 import { DiceSFX } from '../DiceSFX.js';
 import { DiceSFXManager } from './../DiceSFXManager';
 import { ShaderUtils } from './../ShaderUtils';
+import { LEGACY_TO_METERS } from '../SceneConstants.js';
 
 
 export class PlayAnimationThormund extends DiceSFX {
@@ -13,6 +14,7 @@ export class PlayAnimationThormund extends DiceSFX {
     static curve = null;
     static duration1 = 2.5;
     static duration2 = 2.5;
+    //GLTF model's forward is +Z
     static up = new Vector3(0,0,1);
     /**@override init */
     static async init() {
@@ -36,6 +38,7 @@ export class PlayAnimationThormund extends DiceSFX {
         this.clock = new Clock();
         this.thormund = PlayAnimationThormund.model.clone();
         let scale = this.box.dicefactory.baseScale/100;
+        const L = LEGACY_TO_METERS;
 
         let boundingBox = new Vector3();
         let parent = null;
@@ -46,30 +49,29 @@ export class PlayAnimationThormund extends DiceSFX {
             delete parent.children[0].geometry;
         }
         new Box3().setFromObject(parent).getSize(boundingBox);
-        
+
 		this.thormund.scale.set(scale,scale,scale);
-        this.thormund.rotation.x = Math.PI/2;
         this.thormund.position.x = parent.position.x;
-        this.thormund.position.y = parent.position.y;
-        this.thormund.position.z = parent.position.z + (boundingBox.z/2);
+        this.thormund.position.y = parent.position.y + (boundingBox.y/2);
+        this.thormund.position.z = parent.position.z;
 
         this.curve = new CatmullRomCurve3( [
-            new Vector3( this.thormund.position.x, this.thormund.position.y,-50),
-            new Vector3( this.thormund.position.x +0, this.thormund.position.y    -100, this.thormund.position.z  +0 ),
-            new Vector3( this.thormund.position.x +100, this.thormund.position.y  -30, this.thormund.position.z    +0 ),
-            new Vector3( this.thormund.position.x +100, this.thormund.position.y  +30, this.thormund.position.z    +0 ),
-            new Vector3( this.thormund.position.x +30, this.thormund.position.y    +100, this.thormund.position.z  +0 ),
-            new Vector3( this.thormund.position.x -30, this.thormund.position.y    +100, this.thormund.position.z  +0 ),
-            new Vector3( this.thormund.position.x -100, this.thormund.position.y  +30, this.thormund.position.z    +80 ),
-            new Vector3( this.thormund.position.x /2, this.thormund.position.y /2, this.thormund.position.z    +100 )
+            new Vector3( this.thormund.position.x, -50*L, this.thormund.position.z ),
+            new Vector3( this.thormund.position.x, this.thormund.position.y, this.thormund.position.z - 100*L ),
+            new Vector3( this.thormund.position.x + 100*L, this.thormund.position.y, this.thormund.position.z - 30*L ),
+            new Vector3( this.thormund.position.x + 100*L, this.thormund.position.y, this.thormund.position.z + 30*L ),
+            new Vector3( this.thormund.position.x + 30*L, this.thormund.position.y, this.thormund.position.z + 100*L ),
+            new Vector3( this.thormund.position.x - 30*L, this.thormund.position.y, this.thormund.position.z + 100*L ),
+            new Vector3( this.thormund.position.x - 100*L, this.thormund.position.y + 80*L, this.thormund.position.z + 30*L ),
+            new Vector3( this.thormund.position.x /2, this.thormund.position.y + 100*L, this.thormund.position.z /2 )
         ],false,"chordal");
 
         this.curve2 = new CatmullRomCurve3([
-            new Vector3( this.thormund.position.x /2, this.thormund.position.y /2, this.thormund.position.z    +100 ),
-            new Vector3( 100, 50, this.box.camera.position.z/4 ),
-            new Vector3( -100, -50, this.box.camera.position.z/4*2 ),
-            new Vector3( 0, -50, this.box.camera.position.z/4*3 ),
-            new Vector3( 0, 0, this.box.camera.position.z )
+            new Vector3( this.thormund.position.x /2, this.thormund.position.y + 100*L, this.thormund.position.z /2 ),
+            new Vector3( 100*L, this.box.camera.position.y/4, 50*L ),
+            new Vector3( -100*L, this.box.camera.position.y/4*2, -50*L ),
+            new Vector3( 0, this.box.camera.position.y/4*3, -50*L ),
+            new Vector3( 0, this.box.camera.position.y, 0 )
         ],false,"chordal");
 
         this.axis = new Vector3();
