@@ -66,7 +66,7 @@ export class DiceScene {
 
 		this.colors = {
 			ambient: 0xf0f0f0,
-			spotlight: 0x000000,
+			spotlight: 0xffd7a0,
 			ground: 0x080820
 		};
 
@@ -242,7 +242,7 @@ export class DiceScene {
 
 		let intensity, intensity_amb;
 		if (this.dicefactory.realisticLighting) {
-			intensity = 1.5;
+			intensity = 1;
 			intensity_amb = 4.0;
 		} else {
 			this.colors.spotlight = 0xffffff;
@@ -255,10 +255,11 @@ export class DiceScene {
 		this.scene.add(this.light_amb);
 
 		this.light = new DirectionalLight(this.colors.spotlight, intensity);
-		this.light.position.set(-this.display.containerWidth / 20, maxwidth / 2, -this.display.containerHeight / 20);
+		this.light.position.set(-this.display.containerWidth / 20, maxwidth * 2, -this.display.containerHeight / 20);
 		this.light.target.position.set(0, 0, 0);
 		this.light.distance = 0;
 		this.light.castShadow = this.dicefactory.shadows;
+		this.light.shadow.camera.up.set(0, 0, -1);
 		this.light.shadow.camera.near = maxwidth / 10;
 		this.light.shadow.camera.far = maxwidth * 5;
 		this.light.shadow.camera.fov = 50;
@@ -269,12 +270,11 @@ export class DiceScene {
 
 		const halfWidth  = this.display.containerWidth  / 2;
 		const halfHeight = this.display.containerHeight / 2;
-		const d = Math.max(halfWidth, halfHeight) * 1.05;
-
-		this.light.shadow.camera.left = - d * 2;
-		this.light.shadow.camera.right = d * 2;
-		this.light.shadow.camera.top = d;
-		this.light.shadow.camera.bottom = - d;
+		const margin = 2.0;
+		this.light.shadow.camera.left   = -halfWidth  * margin;
+		this.light.shadow.camera.right  =  halfWidth  * margin;
+		this.light.shadow.camera.top    =  halfHeight * margin;
+		this.light.shadow.camera.bottom = -halfHeight * margin;
 		this.scene.add(this.light);
 
 		if (this.desk)
