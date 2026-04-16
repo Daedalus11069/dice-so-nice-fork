@@ -42,7 +42,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 { id: "general", icon: "fa-solid fa-dice-d20", label: "DICESONICE.settingsAppearance" },
                 { id: "preferences", icon: "fa-solid fa-cog", label: "DICESONICE.settingsPreferences" },
                 { id: "sfx", icon: "fa-solid fa-meteor", label: "DICESONICE.settingsSpecialEffects" },
-                { id: "performance", icon: "fa-solid fa-tachometer-alt", label: "DICESONICE.settingsPerformance" },
+                { id: "performance", icon: "fa-solid fa-desktop", label: "DICESONICE.settingsDisplay" },
                 { id: "data", icon: "fa-solid fa-database", label: "DICESONICE.settingsProfilesData" }
             ],
             initial: "general"
@@ -138,6 +138,11 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 "wood_table": "DICESONICE.SurfaceWoodTable",
                 "wood_tray": "DICESONICE.SurfaceWoodTray",
                 "metal": "DICESONICE.SurfaceMetal"
+            }),
+            ambianceList: Utils.localize({
+                "blouberg_sunrise_2_1k": "DICESONICE.AmbianceNeutral",
+                "warm_restaurant_night_1k": "DICESONICE.AmbianceTavern",
+                "shanghai_bund_1k": "DICESONICE.AmbianceNeon"
             }),
             canvasZIndexList: Utils.localize({
                 "over": "DICESONICE.CanvasZIndexOver",

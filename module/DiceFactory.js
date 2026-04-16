@@ -317,6 +317,7 @@ export class DiceFactory {
 		this.shadows = config.shadowQuality != "none";
 		this.shadowQuality = config.shadowQuality;
 		this.advancedGlass = !!config.advancedGlass;
+		this.ambiance = config.ambiance || "blouberg_sunrise_2_1k";
 	}
 
 	register(diceobj) {

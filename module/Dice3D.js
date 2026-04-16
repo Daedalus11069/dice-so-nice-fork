@@ -75,6 +75,7 @@ export class Dice3D {
             glow: quality.glow,
             persistentDiceOutlines: quality.persistentDiceOutlines,
             advancedGlass: quality.advancedGlass,
+            ambiance: "blouberg_sunrise_2_1k",
             showOthersSFX: true,
             immersiveDarkness: true,
             muteSoundSecretRolls: false,

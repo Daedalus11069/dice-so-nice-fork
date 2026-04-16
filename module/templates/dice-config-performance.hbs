@@ -1,6 +1,15 @@
 <div class="tab {{tab.cssClass}}" data-tab="performance" data-group="dsn-main">
     <div class="settings-list">
         <div class="form-group">
+            <label>{{localize "DICESONICE.ambiance"}}</label>
+            <select data-ambiance name="ambiance">
+                {{selectOptions ambianceList selected=ambiance}}
+            </select>
+        </div>
+
+        <hr/>
+
+        <div class="form-group">
             <label>{{localize "DICESONICE.imageQuality"}}</label>
             <select data-imageQuality name="imageQuality">
                 {{selectOptions imageQualityList selected=imageQuality}}
