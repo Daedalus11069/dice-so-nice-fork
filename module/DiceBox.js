@@ -268,7 +268,7 @@ export class DiceBox {
 		this.light.castShadow = this.dicefactory.shadows;
 		this.desk.receiveShadow = this.dicefactory.shadows;
 		this.renderer.shadowMap.enabled = this.dicefactory.shadows;
-		this.renderer.shadowMap.type = this.dicefactory.shadowQuality == "high" ? PCFSoftShadowMap : PCFShadowMap;
+		this.renderer.shadowMap.type = this.dicefactory.shadowQuality == "high" || this.dicefactory.shadowQuality == "medium" ? PCFSoftShadowMap : PCFShadowMap;
 
 		await this.dicefactory.preloadPresets(true, null, config.appearance);
 

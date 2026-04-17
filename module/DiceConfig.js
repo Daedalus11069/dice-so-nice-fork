@@ -125,6 +125,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             shadowQualityList: Utils.localize({
                 "none": "DICESONICE.None",
                 "low": "DICESONICE.Low",
+                "medium": "DICESONICE.Medium",
                 "high": "DICESONICE.High"
             }),
             antialiasingList: Utils.localize({
@@ -954,7 +955,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         break;
                     case "medium":
                         quality.bumpMapping = true;
-                        quality.shadowQuality = "low";
+                        quality.shadowQuality = "medium";
                         quality.glow = false;
                         quality.antialiasing = "none";
                         quality.useHighDPI = false;

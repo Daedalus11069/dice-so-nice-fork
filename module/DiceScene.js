@@ -126,7 +126,7 @@ export class DiceScene {
 
 			this.container.appendChild(this.renderer.domElement);
 			this.renderer.shadowMap.enabled = this.dicefactory.shadows;
-			this.renderer.shadowMap.type = this.dicefactory.shadowQuality == "high" ? PCFSoftShadowMap : PCFShadowMap;
+			this.renderer.shadowMap.type = this.dicefactory.shadowQuality == "high" || this.dicefactory.shadowQuality == "medium" ? PCFSoftShadowMap : PCFShadowMap;
 			this.renderer.setClearColor(0x000000, 0.0);
 
 			this.setScene(this.config.dimensions);
@@ -263,7 +263,7 @@ export class DiceScene {
 		this.light.shadow.camera.far = maxwidth * 5;
 		this.light.shadow.camera.fov = 50;
 		this.light.shadow.bias = -0.00005;
-		const shadowMapSize = this.dicefactory.shadowQuality == "high" ? 4096 : 1024;
+		const shadowMapSize = { high: 4096, medium: 2048, low: 1024 }[this.dicefactory.shadowQuality] || 1024;
 		this.light.shadow.mapSize.width = shadowMapSize;
 		this.light.shadow.mapSize.height = shadowMapSize;
 
