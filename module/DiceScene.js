@@ -263,7 +263,7 @@ export class DiceScene {
 		this.light.shadow.camera.far = maxwidth * 5;
 		this.light.shadow.camera.fov = 50;
 		this.light.shadow.bias = -0.00005;
-		const shadowMapSize = this.dicefactory.shadowQuality == "high" ? 2048 : 1024;
+		const shadowMapSize = this.dicefactory.shadowQuality == "high" ? 4096 : 1024;
 		this.light.shadow.mapSize.width = shadowMapSize;
 		this.light.shadow.mapSize.height = shadowMapSize;
 
@@ -276,10 +276,6 @@ export class DiceScene {
 		this.light.shadow.camera.bottom = -halfHeight * margin;
 		this.scene.add(this.light);
 
-		//softbox key light: mimics a studio window/softbox. doesn't cast shadows
-		//(three.js limitation) so the directional above keeps doing that; this
-		//one drives the soft specular shape on glossy/metal dice.
-		//realistic mode only - LTC math is too expensive for the classic pipeline.
 		if (this.dicefactory.realisticLighting) {
 			RectAreaLightUniformsLib.init();
 			const rectW = this.display.containerWidth * 0.9;

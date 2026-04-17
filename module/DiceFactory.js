@@ -45,7 +45,7 @@ export class DiceFactory {
 		this.cache_misses = 0;
 
 		this.realisticLighting = true;
-		this.normalMapStrength = 1.3;
+		this.normalMapStrength = 1.5;
 		this.advancedGlass = false;
 
 		this.loaderGLTF = new GLTFLoader();
@@ -574,10 +574,38 @@ export class DiceFactory {
 		const srcData = srcCtx.getImageData(0, 0, w, h).data;
 
 		//read the red channel as height - bump canvas is grayscale (white = high, dark = engraved)
-		const heights = new Float32Array(w * h);
+		const raw = new Float32Array(w * h);
 		for(let i = 0; i < w * h; i++) {
-			heights[i] = srcData[i * 4] / 255.0;
+			raw[i] = srcData[i * 4] / 255.0;
 		}
+
+		//separable 1-2-1 Gaussian blur (3 passes ≈ 7×7 kernel) to smooth
+		//high-frequency height noise before the Sobel pass
+		const tmp = new Float32Array(w * h);
+		let src = raw, dst = tmp;
+		const blurPasses = 3;
+		for(let pass = 0; pass < blurPasses; pass++) {
+			const mid = (pass === blurPasses - 1) ? new Float32Array(w * h) : dst;
+			for(let y = 0; y < h; y++) {
+				for(let x = 0; x < w; x++) {
+					const l = x > 0 ? src[y * w + x - 1] : src[y * w + x];
+					const c = src[y * w + x];
+					const r = x < w - 1 ? src[y * w + x + 1] : src[y * w + x];
+					mid[y * w + x] = (l + 2 * c + r) * 0.25;
+				}
+			}
+			for(let y = 0; y < h; y++) {
+				for(let x = 0; x < w; x++) {
+					const t = y > 0 ? mid[(y - 1) * w + x] : mid[y * w + x];
+					const c = mid[y * w + x];
+					const b = y < h - 1 ? mid[(y + 1) * w + x] : mid[y * w + x];
+					dst[y * w + x] = (t + 2 * c + b) * 0.25;
+				}
+			}
+			src = dst;
+			dst = (src === tmp) ? raw : tmp;
+		}
+		const heights = src;
 
 		const dstCanvas = document.createElement("canvas");
 		dstCanvas.width = w;
@@ -1026,8 +1054,10 @@ export class DiceFactory {
 				let normalCanvas = this.heightCanvasToNormalCanvas(canvasBump);
 				let normalMap = new CanvasTexture(normalCanvas);
 				normalMap.flipY = false;
+				normalMap.anisotropy = game.dice3d.box.anisotropy;
 				mat.normalMap = normalMap;
-				mat.normalScale = new Vector2(1, 1);
+				const nScale = Math.max(0.2, Math.min(1.0, mat.roughness / 0.3));
+				mat.normalScale = new Vector2(nScale, nScale);
 
 				let emissiveMap = new CanvasTexture(canvasEmissive);
 				if(this.realisticLighting)
