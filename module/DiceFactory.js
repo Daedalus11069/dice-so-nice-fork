@@ -139,8 +139,8 @@ export class DiceFactory {
 						roughness: 0.05,
 						transmission: 1.0,
 						ior: 1.5,
-						thickness: 20,
-						attenuationDistance: 10,
+						thickness: TARGET_D6_EDGE_METERS * 0.4,
+						attenuationDistance: TARGET_D6_EDGE_METERS * 0.2,
 						attenuationColor: new Color(0.95, 0.95, 1.0),
 						envMapIntensity: 1,
 						side: DoubleSide

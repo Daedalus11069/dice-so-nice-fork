@@ -16,6 +16,7 @@ import {
 	PlaneGeometry,
 	PMREMGenerator,
 	Raycaster,
+	RectAreaLight,
 	Scene,
 	ShaderMaterial,
 	ShadowMaterial,
@@ -31,6 +32,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { LEGACY_TO_METERS } from './SceneConstants.js';
 
@@ -74,6 +76,7 @@ export class DiceScene {
 		this.camera = null;
 		this.light = null;
 		this.light_amb = null;
+		this.light_rect = null;
 		this.desk = null;
 		this.scene = null;
 		this.anisotropy = null;
@@ -101,11 +104,6 @@ export class DiceScene {
 			}
 			else {
 				const preserveDrawingBuffer = game.user.getFlag("dice-so-nice", "preserveDrawingBuffer") || false;
-				//antialias normally stays false - the composer pipeline runs its own AA pass.
-				//advancedGlass forces it on because three.js's internal _transmissionRenderTarget
-				//is allocated with samples = capabilities.samples (WebGLRenderer.js), which
-				//is non-zero only when the context itself was requested with antialias: true.
-				//without it the transmission pass forms a feedback loop (three.js #25990).
 				this.renderer = new WebGLRenderer({
 					antialias: !!this.dicefactory.advancedGlass,
 					alpha: true,
@@ -239,6 +237,7 @@ export class DiceScene {
 
 		if (this.light) this.scene.remove(this.light);
 		if (this.light_amb) this.scene.remove(this.light_amb);
+		if (this.light_rect) this.scene.remove(this.light_rect);
 
 		let intensity, intensity_amb;
 		if (this.dicefactory.realisticLighting) {
@@ -276,6 +275,24 @@ export class DiceScene {
 		this.light.shadow.camera.top    =  halfHeight * margin;
 		this.light.shadow.camera.bottom = -halfHeight * margin;
 		this.scene.add(this.light);
+
+		//softbox key light: mimics a studio window/softbox. doesn't cast shadows
+		//(three.js limitation) so the directional above keeps doing that; this
+		//one drives the soft specular shape on glossy/metal dice.
+		//realistic mode only - LTC math is too expensive for the classic pipeline.
+		if (this.dicefactory.realisticLighting) {
+			RectAreaLightUniformsLib.init();
+			const rectW = this.display.containerWidth * 0.9;
+			const rectH = this.display.containerHeight * 0.6;
+			this.light_rect = new RectAreaLight(0xfff1dd, 1.0, rectW, rectH);
+			this.light_rect.position.set(
+				-this.display.containerWidth / 10,
+				maxwidth * 1.5,
+				-this.display.containerHeight / 10
+			);
+			this.light_rect.lookAt(0, 0, 0);
+			this.scene.add(this.light_rect);
+		}
 
 		if (this.desk)
 			this.scene.remove(this.desk);
