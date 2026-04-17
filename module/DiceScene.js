@@ -560,8 +560,8 @@ export class DiceScene {
 	}
 
 	computeAutoScale() {
-		const w = this.display.innerWidth || this.display.containerWidth;
-		const h = this.display.innerHeight || this.display.containerHeight;
+		const w = this.display.containerWidth;
+		const h = this.display.containerHeight;
 		return Math.sqrt(w * w + h * h) / 13;
 	}
 
