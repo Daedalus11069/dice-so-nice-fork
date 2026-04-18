@@ -27,6 +27,7 @@ export class DiceBox {
 		this.persistentDiceManager = null;
 		this.inputHandler = null;
 		this.isVisible = false;
+		this._preparingThrow = false;
 		this.last_time = 0;
 		this.allowInteractivity = false;
 
@@ -369,50 +370,52 @@ export class DiceBox {
 		if(this.stats)
 			this.stats.update();
 
-		if(this.throwEngine.iteration == 0) {
-			this.throwEngine.addDiceToScene();
-		}
+		if (!this._preparingThrow) {
+			if(this.throwEngine.iteration == 0) {
+				this.throwEngine.addDiceToScene();
+			}
 
-		if (neededSteps && this.throwEngine.rolling) {
-			this.throwEngine.updateThrowPlayback(neededSteps);
-		} else if (!this.throwEngine.rolling) {
-			if (this.inputHandler) this.inputHandler.updatePreRoll(time_diff);
+			if (neededSteps && this.throwEngine.rolling) {
+				this.throwEngine.updateThrowPlayback(neededSteps);
+			} else if (!this.throwEngine.rolling) {
+				if (this.inputHandler) this.inputHandler.updatePreRoll(time_diff);
 
-			this.persistentDiceManager.updateRemoteAnimations(time_diff);
+				this.persistentDiceManager.updateRemoteAnimations(time_diff);
 
-			this.physicsWorker.exec('playStep', {
-				time_diff: time_diff
-			}).then((result) => {
-				//If nothing is returned, skip the rest of the function
-				if (!result || !result.ids)
-					return;
-				const { ids, quaternionsBuffers, positionsBuffers, worldAsleep } = result;
+				this.physicsWorker.exec('playStep', {
+					time_diff: time_diff
+				}).then((result) => {
+					//If nothing is returned, skip the rest of the function
+					if (!result || !result.ids)
+						return;
+					const { ids, quaternionsBuffers, positionsBuffers, worldAsleep } = result;
 
-				if (worldAsleep)
-					return;
-				// Create a mapping of IDs to their index in the 'ids' array
-				const quaternions = new Float32Array(quaternionsBuffers);
-				const positions = new Float32Array(positionsBuffers);
-				const idToIndex = new Map();
-				ids.forEach((id, index) => {
-					idToIndex.set(id, index);
-				});
+					if (worldAsleep)
+						return;
+					// Create a mapping of IDs to their index in the 'ids' array
+					const quaternions = new Float32Array(quaternionsBuffers);
+					const positions = new Float32Array(positionsBuffers);
+					const idToIndex = new Map();
+					ids.forEach((id, index) => {
+						idToIndex.set(id, index);
+					});
 
-				for (const child of this.scene.children) {
-					if (!child.children || !child.children.length) continue;
-					let dicemesh = child.children[0];
-					//skip persistent dice in buffer playback
-					if (dicemesh.userData?.persistent && dicemesh.sim) continue;
-					//update ephemeral dice and persistent dice (live physics)
-					const isEphemeral = dicemesh.sim != undefined && !dicemesh.sim.dead;
-					const isPersistent = dicemesh.userData?.persistent;
-					if ((isEphemeral || isPersistent) && idToIndex.has(dicemesh.id)) {
-						const idx = idToIndex.get(dicemesh.id);
-						child.position.fromArray(positions, idx * 3);
-						child.quaternion.fromArray(quaternions, idx * 4);
+					for (const child of this.scene.children) {
+						if (!child.children || !child.children.length) continue;
+						let dicemesh = child.children[0];
+						//skip persistent dice in buffer playback
+						if (dicemesh.userData?.persistent && dicemesh.sim) continue;
+						//update ephemeral dice and persistent dice (live physics)
+						const isEphemeral = dicemesh.sim != undefined && !dicemesh.sim.dead;
+						const isPersistent = dicemesh.userData?.persistent;
+						if ((isEphemeral || isPersistent) && idToIndex.has(dicemesh.id)) {
+							const idx = idToIndex.get(dicemesh.id);
+							child.position.fromArray(positions, idx * 3);
+							child.quaternion.fromArray(quaternions, idx * 4);
+						}
 					}
-				}
-			});
+				});
+			}
 		}
 
 		//play back pre-recorded buffers for persistent dice mid-throw
@@ -434,7 +437,7 @@ export class DiceBox {
 		this.last_time = this.last_time + neededSteps * this.throwEngine.framerate * 1000;
 
 		// roll finished
-		if (this.throwEngine.throwFinished()) {
+		if (!this._preparingThrow && this.throwEngine.throwFinished()) {
 			//if animated dice still on the table, keep animating
 			if (this.throwEngine.running) {
 				this.throwEngine.fireResultEvents();
@@ -456,7 +459,9 @@ export class DiceBox {
 	async start_throw(throws, callback) {
 		if (this.throwEngine.rolling) return;
 		this.isVisible = true;
+		this._preparingThrow = true;
 		await this.throwEngine.start_throw(throws, callback);
+		this._preparingThrow = false;
 		this.last_time = 0;
 		removeTicker(this.animateThrow);
 		canvas.app.ticker.add(this.animateThrow, this);
