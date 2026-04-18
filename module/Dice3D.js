@@ -577,8 +577,9 @@ export class Dice3D {
         const hideCanvasAndClear = () => {
             const config = Dice3D.CONFIG();
             if (!config.hideAfterRoll && this.canvas.is(":visible") && !this.box.rolling) {
-                if (this.box.persistentDiceList.length > 0) return;
-                this.canvas.hide();
+                if (this.box.persistentDiceList.length === 0) {
+                    this.canvas.hide();
+                }
                 this.box.clearAll();
             }
         }
