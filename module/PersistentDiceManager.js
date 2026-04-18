@@ -336,73 +336,120 @@ export class PersistentDiceManager {
 		}
 	}
 
-	//per-frame: play back pre-recorded buffers for persistent dice mid-throw
+	//per-frame: play back pre-recorded buffers for dice (persistent and struck ephemerals) mid-throw
 	updatePersistentPlayback(neededSteps, speed) {
 		for (const dicemesh of this.persistentDiceList) {
-			const pt = dicemesh.persistentThrow;
-			if (!dicemesh.sim || !pt) continue;
-
-			//advance playback, clamped to buffer length
-			const steps = Math.max(neededSteps, 1) * speed;
-			const prevIteration = pt.iteration;
-			pt.iteration = Math.min(pt.iteration + steps, pt.iterations);
-
-			//replay collision sounds between previous and current frame
-			if (pt.detectedCollides) {
-				const startFrame = Math.max(Math.floor(prevIteration), pt.lastCollideFrame + 1);
-				const endFrame = Math.min(Math.floor(pt.iteration), pt.iterations);
-				for (let f = startFrame; f <= endFrame; f++) {
-					const c = pt.detectedCollides[f];
-					if (c) this.soundManager.playAudioSprite(...c);
-				}
-				pt.lastCollideFrame = endFrame;
+			this._advancePlayback(dicemesh, neededSteps, speed);
+		}
+		//ephemeral struck bystanders also get buffer playback
+		if (this.throwEngine) {
+			for (const dicemesh of this.throwEngine.diceList) {
+				this._advancePlayback(dicemesh, neededSteps, speed);
 			}
-
-			if (pt.iteration >= pt.iterations) {
-				//playback complete
-				const fi = pt.iterations;
-				if (dicemesh.parent) {
-					dicemesh.parent.position.fromArray(dicemesh.sim.stepPositions, fi * 3);
-					if (pt.rawQuat) {
-						//throwing die: parent=raw quat, child=swap correction
-						const rq = pt.rawQuat;
-						dicemesh.parent.quaternion.set(rq.x, rq.y, rq.z, rq.w);
-					} else {
-						//struck die: no swap, hand off to live physics
-						dicemesh.parent.quaternion.fromArray(dicemesh.sim.stepQuaternions, fi * 4);
-					}
-				}
-				if (pt.swapQuat) {
-					dicemesh.quaternion.copy(pt.swapQuat);
-				}
-				//send chat message
-				if (pt.roll) {
-					pt.roll.toMessage({
-						flavor: `${pt.diceType} - Persistent Dice`,
-						flags: { "dice-so-nice": { persistent: true } }
-					}).catch(err => {
-						console.error("[Dice So Nice] Failed to create persistent dice chat message:", err);
-						if (ui?.notifications) ui.notifications.warn("Dice So Nice: persistent roll failed to post to chat (see console).");
-					});
-				}
-				//fire SFX at throw completion
-				if (dicemesh.specialEffects) {
-					for (const sfx of dicemesh.specialEffects) {
-						DiceSFXManager.playSFX(sfx, this.sfxContext, dicemesh);
-					}
-					delete dicemesh.specialEffects;
-				}
-				delete dicemesh.sim;
-				delete dicemesh.persistentThrow;
-			} else {
-				//floor to integer frame index
-				const iter = Math.floor(pt.iteration);
-				if (dicemesh.parent && iter < pt.iterations) {
-					dicemesh.parent.position.fromArray(dicemesh.sim.stepPositions, iter * 3);
-					dicemesh.parent.quaternion.fromArray(dicemesh.sim.stepQuaternions, iter * 4);
-				}
+			for (const dicemesh of this.throwEngine.deadDiceList) {
+				this._advancePlayback(dicemesh, neededSteps, speed);
 			}
 		}
+	}
+
+	_advancePlayback(dicemesh, neededSteps, speed) {
+		const pt = dicemesh.persistentThrow;
+		if (!dicemesh.sim || !pt) return;
+
+		//advance playback, clamped to buffer length
+		const steps = Math.max(neededSteps, 1) * speed;
+		const prevIteration = pt.iteration;
+		pt.iteration = Math.min(pt.iteration + steps, pt.iterations);
+
+		//replay collision sounds between previous and current frame
+		if (pt.detectedCollides) {
+			const startFrame = Math.max(Math.floor(prevIteration), pt.lastCollideFrame + 1);
+			const endFrame = Math.min(Math.floor(pt.iteration), pt.iterations);
+			for (let f = startFrame; f <= endFrame; f++) {
+				const c = pt.detectedCollides[f];
+				if (c) this.soundManager.playAudioSprite(...c);
+			}
+			pt.lastCollideFrame = endFrame;
+		}
+
+		if (pt.iteration >= pt.iterations) {
+			//playback complete
+			const fi = pt.iterations;
+			if (dicemesh.parent) {
+				dicemesh.parent.position.fromArray(dicemesh.sim.stepPositions, fi * 3);
+				if (pt.rawQuat) {
+					//throwing die: parent=raw quat, child=swap correction
+					const rq = pt.rawQuat;
+					dicemesh.parent.quaternion.set(rq.x, rq.y, rq.z, rq.w);
+				} else {
+					//struck die: no swap, hand off to live physics
+					dicemesh.parent.quaternion.fromArray(dicemesh.sim.stepQuaternions, fi * 4);
+				}
+			}
+			if (pt.swapQuat) {
+				dicemesh.quaternion.copy(pt.swapQuat);
+			}
+			//send chat message
+			if (pt.roll) {
+				pt.roll.toMessage({
+					flavor: `${pt.diceType} - Persistent Dice`,
+					flags: { "dice-so-nice": { persistent: true } }
+				}).catch(err => {
+					console.error("[Dice So Nice] Failed to create persistent dice chat message:", err);
+					if (ui?.notifications) ui.notifications.warn("Dice So Nice: persistent roll failed to post to chat (see console).");
+				});
+			}
+			//fire SFX at throw completion
+			if (dicemesh.specialEffects) {
+				for (const sfx of dicemesh.specialEffects) {
+					DiceSFXManager.playSFX(sfx, this.sfxContext, dicemesh);
+				}
+				delete dicemesh.specialEffects;
+			}
+			if (dicemesh.userData?.persistent) {
+				//persistent dice: full reset, live physics takes over
+				delete dicemesh.sim;
+			} else {
+				//ephemeral: keep sim struct so isEphemeral check in playStep branch stays true,
+				//but empty the buffers (matches throwFinished post-throw state)
+				dicemesh.sim.stepPositions = new Float32Array(1001 * 3);
+				dicemesh.sim.stepQuaternions = new Float32Array(1001 * 4);
+			}
+			delete dicemesh.persistentThrow;
+		} else {
+			//floor to integer frame index
+			const iter = Math.floor(pt.iteration);
+			if (dicemesh.parent && iter < pt.iterations) {
+				dicemesh.parent.position.fromArray(dicemesh.sim.stepPositions, iter * 3);
+				dicemesh.parent.quaternion.fromArray(dicemesh.sim.stepQuaternions, iter * 4);
+			}
+		}
+	}
+
+	//build id->mesh lookup spanning persistent dice and any active/settled ephemerals
+	_buildMeshByIdMap() {
+		const map = new Map();
+		for (const m of this.persistentDiceList) map.set(m.id, m);
+		if (this.throwEngine) {
+			for (const m of this.throwEngine.diceList) map.set(m.id, m);
+			for (const m of this.throwEngine.deadDiceList) map.set(m.id, m);
+		}
+		return map;
+	}
+
+	//assign sim+persistentThrow to a struck bystander (persistent or ephemeral)
+	_assignStruckBystanderSim(struckMesh, positionsBuffer, quaternionsBuffer, iterationsNeeded) {
+		//preserve existing sim.dead for ephemerals (persistent dice don't have prior sim)
+		const prevDead = struckMesh.sim?.dead ?? false;
+		struckMesh.sim = {
+			dead: prevDead,
+			stepPositions: new Float32Array(positionsBuffer),
+			stepQuaternions: new Float32Array(quaternionsBuffer)
+		};
+		struckMesh.persistentThrow = {
+			iterations: iterationsNeeded,
+			iteration: 0
+		};
 	}
 
 	//throw held persistent dice: combined Roll, one sim, one chat message
@@ -537,8 +584,7 @@ export class PersistentDiceManager {
 			? this.soundManager.generateCollisionSounds(detectedCollides)
 			: null;
 
-		const meshById = new Map();
-		for (const m of this.persistentDiceList) meshById.set(m.id, m);
+		const meshById = this._buildMeshByIdMap();
 
 		const consumedSimIndices = new Set();
 
@@ -615,20 +661,12 @@ export class PersistentDiceManager {
 			}
 		}
 
-		//6. buffer playback for struck bystander dice (no face swap, no chat)
+		//6. buffer playback for struck bystander dice (persistent or ephemeral, no face swap, no chat)
 		for (let i = 0; i < diceIds.length; i++) {
 			if (consumedSimIndices.has(i)) continue;
 			const struckMesh = meshById.get(diceIds[i]);
 			if (!struckMesh) continue;
-			struckMesh.sim = {
-				dead: false,
-				stepPositions: new Float32Array(positionsBuffers[i]),
-				stepQuaternions: new Float32Array(quaternionsBuffers[i])
-			};
-			struckMesh.persistentThrow = {
-				iterations: iterationsNeeded,
-				iteration: 0
-			};
+			this._assignStruckBystanderSim(struckMesh, positionsBuffers[i], quaternionsBuffers[i], iterationsNeeded);
 		}
 	}
 
@@ -666,8 +704,7 @@ export class PersistentDiceManager {
 			? this.soundManager.generateCollisionSounds(detectedCollides)
 			: null;
 
-		const meshById = new Map();
-		for (const m of this.persistentDiceList) meshById.set(m.id, m);
+		const meshById = this._buildMeshByIdMap();
 		const consumedSimIndices = new Set();
 
 		//4. face swap + buffer playback (no chat carrier)
@@ -722,20 +759,12 @@ export class PersistentDiceManager {
 			}
 		}
 
-		//5. buffer playback for struck bystander dice
+		//5. buffer playback for struck bystander dice (persistent or ephemeral)
 		for (let i = 0; i < diceIds.length; i++) {
 			if (consumedSimIndices.has(i)) continue;
 			const struckMesh = meshById.get(diceIds[i]);
 			if (!struckMesh) continue;
-			struckMesh.sim = {
-				dead: false,
-				stepPositions: new Float32Array(positionsBuffers[i]),
-				stepQuaternions: new Float32Array(quaternionsBuffers[i])
-			};
-			struckMesh.persistentThrow = {
-				iterations: iterationsNeeded,
-				iteration: 0
-			};
+			this._assignStruckBystanderSim(struckMesh, positionsBuffers[i], quaternionsBuffers[i], iterationsNeeded);
 		}
 
 		//notify DiceBox so it can update remote outlines

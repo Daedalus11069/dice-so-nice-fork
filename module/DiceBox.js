@@ -403,8 +403,8 @@ export class DiceBox {
 					for (const child of this.scene.children) {
 						if (!child.children || !child.children.length) continue;
 						let dicemesh = child.children[0];
-						//skip persistent dice in buffer playback
-						if (dicemesh.userData?.persistent && dicemesh.sim) continue;
+						//skip any die currently in persistent-throw buffer playback
+						if (dicemesh.persistentThrow) continue;
 						//update ephemeral dice and persistent dice (live physics)
 						const isEphemeral = dicemesh.sim != undefined && !dicemesh.sim.dead;
 						const isPersistent = dicemesh.userData?.persistent;

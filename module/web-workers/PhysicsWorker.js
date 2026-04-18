@@ -607,9 +607,9 @@ class PhysicsWorker {
         const tracked = new Map();
 
         //snapshot sleeping dice positions before sim so backfill uses pre-collision state
+        //(covers persistent bystanders and settled-but-flippable ephemeral dice)
         const restingSnapshots = new Map();
         for (const [otherId, otherDice] of this.diceList) {
-            if (!otherDice.persistent) continue;
             if (otherDice.sleepState >= 2) {
                 restingSnapshots.set(otherId, {
                     px: otherDice.position.x, py: otherDice.position.y, pz: otherDice.position.z,
@@ -632,13 +632,14 @@ class PhysicsWorker {
             tracked.set(trackId, { dice, posBuffer, quatBuffer });
         };
 
-        //seed with throwing dice, then any other awake persistent dice
+        //seed with throwing dice, then any other awake dynamic die
+        //(persistent bystanders or mid-flight ephemerals; skip mass=0 settled ephemerals)
         for (let i = 0; i < throwingIds.length; i++) {
             startTracking(throwingIds[i], throwingDiceRefs[i], 0);
         }
         for (const [otherId, otherDice] of this.diceList) {
             if (tracked.has(otherId)) continue;
-            if (!otherDice.persistent) continue;
+            if (otherDice.mass === 0) continue;
             if (otherDice.sleepState >= 2) continue;
             startTracking(otherId, otherDice, 0);
         }
@@ -657,10 +658,10 @@ class PhysicsWorker {
                 entry.quatBuffer.set([d.quaternion.x, d.quaternion.y, d.quaternion.z, d.quaternion.w], iteration * 4);
             }
 
-            //pick up any persistent die that woke this frame
+            //pick up any dynamic die (persistent or ephemeral) that woke this frame
             for (const [otherId, otherDice] of this.diceList) {
                 if (tracked.has(otherId)) continue;
-                if (!otherDice.persistent) continue;
+                if (otherDice.mass === 0) continue;
                 if (otherDice.sleepState >= 2) continue;
                 startTracking(otherId, otherDice, iteration);
             }
