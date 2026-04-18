@@ -16,7 +16,6 @@ import {
 	PlaneGeometry,
 	PMREMGenerator,
 	Raycaster,
-	RectAreaLight,
 	Scene,
 	ShaderMaterial,
 	ShadowMaterial,
@@ -32,7 +31,6 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { LEGACY_TO_METERS } from './SceneConstants.js';
 
@@ -275,20 +273,6 @@ export class DiceScene {
 		this.light.shadow.camera.top    =  halfHeight * margin;
 		this.light.shadow.camera.bottom = -halfHeight * margin;
 		this.scene.add(this.light);
-
-		if (this.dicefactory.realisticLighting) {
-			RectAreaLightUniformsLib.init();
-			const rectW = this.display.containerWidth * 0.9;
-			const rectH = this.display.containerHeight * 0.6;
-			this.light_rect = new RectAreaLight(0xfff1dd, 1.0, rectW, rectH);
-			this.light_rect.position.set(
-				-this.display.containerWidth / 10,
-				maxwidth * 1.5,
-				-this.display.containerHeight / 10
-			);
-			this.light_rect.lookAt(0, 0, 0);
-			this.scene.add(this.light_rect);
-		}
 
 		if (this.desk)
 			this.scene.remove(this.desk);
