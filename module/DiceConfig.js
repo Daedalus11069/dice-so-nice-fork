@@ -146,6 +146,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 "shanghai_bund_1k": "DICESONICE.AmbianceNeon"
             }),
             canvasZIndexList: Utils.localize({
+                "auto": "DICESONICE.CanvasZIndexAuto",
                 "over": "DICESONICE.CanvasZIndexOver",
                 "under": "DICESONICE.CanvasZIndexUnder",
             }),

@@ -276,6 +276,7 @@
     "DICESONICE.SurfaceWoodTable": "Wood table",
     "DICESONICE.SurfaceWoodTray": "Wood tray",
     "DICESONICE.SurfaceMetal": "Metal",
+    "DICESONICE.CanvasZIndexAuto": "Auto",
     "DICESONICE.CanvasZIndexOver": "Over sheets",
     "DICESONICE.CanvasZIndexUnder": "Under sheets",
     "DICESONICE.ThrowingForceWeak": "Weak",

@@ -68,7 +68,7 @@ export class Dice3D {
             sounds: true,
             soundsSurface: 'felt',
             soundsVolume: 0.5,
-            canvasZIndex: 'over',
+            canvasZIndex: 'auto',
             throwingForce: 'medium',
             useHighDPI: quality.useHighDPI,
             antialiasing: quality.antialiasing,
@@ -422,12 +422,28 @@ export class Dice3D {
         if (config.canvasZIndex === "over") {
             this.canvas.css("z-index", 1000);
             this.canvas.appendTo($('body'));
-        }
-        else {
+        } else if (config.canvasZIndex === "auto") {
+            this.canvas.css("z-index", 0);
+            this.canvas.appendTo($('body'));
+        } else {
             $("#board").after(this.canvas);
         }
         this.canvas.width(area.width + 'px');
         this.canvas.height(area.height + 'px');
+    }
+
+    _isAutoMode() {
+        return Dice3D.CONFIG().canvasZIndex === 'auto';
+    }
+
+    _raiseCanvas() {
+        if (!this._isAutoMode()) return;
+        const maxZ = foundry.applications?.api?.ApplicationV2?._maxZ;
+        if (maxZ == null) {
+            this.canvas[0].style.zIndex = 1000;
+        } else {
+            this.canvas[0].style.zIndex = ++foundry.applications.api.ApplicationV2._maxZ;
+        }
     }
 
     /**
@@ -624,6 +640,13 @@ export class Dice3D {
                     } catch (e) { /* capture is best-effort */ }
                     this._beforeShow();
                 } else {
+                    if (this._isAutoMode()) {
+                        const el = document.elementFromPoint(event.clientX, event.clientY);
+                        const win = el?.closest('.window-app, .application');
+                        if (win) {
+                            win.style.zIndex = ++foundry.applications.api.ApplicationV2._maxZ;
+                        }
+                    }
                     hideCanvasAndClear();
                 }
             };
@@ -1225,6 +1248,7 @@ export class Dice3D {
         }
         this.canvas.stop(true);
         this.canvas.show();
+        this._raiseCanvas();
     }
 
     /**
