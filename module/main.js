@@ -269,10 +269,15 @@ Hooks.once('init', () => {
         CONFIG.ui["dice-so-nice"] = DsnSidebarTab;
         const sidebarClass = foundry.applications.sidebar.Sidebar;
         if (sidebarClass?.TABS) {
-            sidebarClass.TABS["dice-so-nice"] = {
-                icon: "fa-solid fa-dice-d20",
-                tooltip: "DICESONICE.sidebarTabTitle"
-            };
+            const dsnTab = { icon: "fa-solid fa-dice-d20", tooltip: "DICESONICE.sidebarTabTitle" };
+            const settingsTab = sidebarClass.TABS.settings;
+            if (settingsTab) {
+                delete sidebarClass.TABS.settings;
+                sidebarClass.TABS["dice-so-nice"] = dsnTab;
+                sidebarClass.TABS.settings = settingsTab;
+            } else {
+                sidebarClass.TABS["dice-so-nice"] = dsnTab;
+            }
         }
     }
 

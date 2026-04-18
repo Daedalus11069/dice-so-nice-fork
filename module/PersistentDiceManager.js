@@ -1,5 +1,5 @@
 import { DiceSFXManager } from './DiceSFXManager.js';
-import { LEGACY_TO_METERS } from './SceneConstants.js';
+import { LEGACY_TO_METERS, GRAB_LIFT_PERSISTENT } from './SceneConstants.js';
 
 import {
 	Euler,
@@ -291,6 +291,21 @@ export class PersistentDiceManager {
 		if (this.onSelectionChanged) this.onSelectionChanged();
 	}
 
+	async addRemoteConstraints(meshes) {
+		for (const mesh of meshes) {
+			const container = mesh.parent;
+			const pos = container
+				? { x: container.position.x, y: GRAB_LIFT_PERSISTENT, z: container.position.z }
+				: { x: 0, y: GRAB_LIFT_PERSISTENT, z: 0 };
+			await this.physicsWorker.exec("addConstraint", { id: mesh.id, pos });
+		}
+	}
+
+	async removeRemoteConstraints(meshes) {
+		if (meshes.length === 0) return;
+		await this.physicsWorker.exec("removeConstraint", { ids: meshes.map(m => m.id) });
+	}
+
 	//per-frame: remote pre-roll visual rotation + remote move interpolation
 	updateRemoteAnimations(timeDiff) {
 		//remote pre-roll: same visual effect for dice held by other players
@@ -308,31 +323,27 @@ export class PersistentDiceManager {
 			dicemesh.quaternion.multiply(this._preRollDeltaQuat);
 		}
 
-		//remote move interpolation: lerp toward latest known position
+		//remote move: lerp toward latest target then feed to constraint solver
 		const REMOTE_LERP_FACTOR = 0.2;
-		const remotePosUpdates = [];
+		const constraintUpdates = {};
 		for (const dicemesh of this.persistentDiceList) {
 			const target = dicemesh.userData?.remoteMoveTarget;
 			if (!target) continue;
-			const container = dicemesh.parent;
-			if (!container) continue;
-			const dx = target.x - container.position.x;
-			const dz = target.z - container.position.z;
+			const lerped = dicemesh.userData.remoteMoveSmoothed
+				|| (dicemesh.userData.remoteMoveSmoothed = { x: target.x, z: target.z });
+			const dx = target.x - lerped.x;
+			const dz = target.z - lerped.z;
 			if (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001) {
-				container.position.x = target.x;
-				container.position.z = target.z;
+				lerped.x = target.x;
+				lerped.z = target.z;
 			} else {
-				container.position.x += dx * REMOTE_LERP_FACTOR;
-				container.position.z += dz * REMOTE_LERP_FACTOR;
+				lerped.x += dx * REMOTE_LERP_FACTOR;
+				lerped.z += dz * REMOTE_LERP_FACTOR;
 			}
-			remotePosUpdates.push({
-				id: dicemesh.id,
-				position: { x: container.position.x, y: container.position.y, z: container.position.z }
-			});
+			constraintUpdates[dicemesh.id] = { x: lerped.x, y: GRAB_LIFT_PERSISTENT, z: lerped.z };
 		}
-		//batch-sync remote dice physics bodies
-		if (remotePosUpdates.length > 0) {
-			this.physicsWorker?.exec("setBodyPositions", { updates: remotePosUpdates });
+		if (Object.keys(constraintUpdates).length > 0) {
+			this.physicsWorker?.exec("updateConstraint", { positions: constraintUpdates });
 		}
 	}
 

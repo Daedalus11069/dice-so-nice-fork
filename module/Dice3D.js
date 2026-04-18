@@ -1465,18 +1465,20 @@ export class Dice3D {
         }
     }
 
-    _cleanupDisconnectedUser(userId) {
-        let changed = false;
+    async _cleanupDisconnectedUser(userId) {
+        const lockedMeshes = [];
         for (const mesh of this.box.persistentDiceList) {
             if (mesh.userData?.lockedBy === userId) {
                 delete mesh.userData.lockedBy;
                 delete mesh.userData.remotePreRoll;
                 delete mesh.userData.preRollRates;
                 delete mesh.userData.remoteMoveTarget;
-                changed = true;
+                delete mesh.userData.remoteMoveSmoothed;
+                lockedMeshes.push(mesh);
             }
         }
-        if (changed) {
+        if (lockedMeshes.length > 0) {
+            await this.box.persistentDiceManager.removeRemoteConstraints(lockedMeshes);
             this.box.updateSelectionOutlines();
         }
         this.box.removeRemoteOutlinePass(userId);
@@ -1571,14 +1573,21 @@ export class Dice3D {
         await this.clearPersistentDice(ownerUserId ? { ownerUserId } : {}, false);
     }
 
-    _onRemotePersistentPickup(request) {
+    async _onRemotePersistentPickup(request) {
         const { persistentIds } = request.data;
         if (!Array.isArray(persistentIds)) return;
+        const meshes = [];
         for (const pid of persistentIds) {
             const mesh = this._findPersistentMeshById(pid);
-            if (mesh) mesh.userData.lockedBy = request.user;
+            if (mesh) {
+                mesh.userData.lockedBy = request.user;
+                meshes.push(mesh);
+            }
         }
         this.box.updateSelectionOutlines();
+        if (meshes.length > 0) {
+            await this.box.persistentDiceManager.addRemoteConstraints(meshes);
+        }
     }
 
     _onRemotePersistentMove(request) {
@@ -1596,9 +1605,10 @@ export class Dice3D {
         }
     }
 
-    _onRemotePersistentRelease(request) {
+    async _onRemotePersistentRelease(request) {
         const { persistentIds } = request.data;
         if (!Array.isArray(persistentIds)) return;
+        const meshes = [];
         for (const pid of persistentIds) {
             const mesh = this._findPersistentMeshById(pid);
             if (!mesh) continue;
@@ -1606,7 +1616,9 @@ export class Dice3D {
             delete mesh.userData.remotePreRoll;
             delete mesh.userData.preRollRates;
             delete mesh.userData.remoteMoveTarget;
+            meshes.push(mesh);
         }
+        await this.box.persistentDiceManager.removeRemoteConstraints(meshes);
         this.box.updateSelectionOutlines();
     }
 
@@ -1649,6 +1661,7 @@ export class Dice3D {
         }
         if (heldDice.length === 0) return;
 
+        await this.box.persistentDiceManager.removeRemoteConstraints(heldDice);
         this.box.updateSelectionOutlines();
         this._beforeShow();
 
