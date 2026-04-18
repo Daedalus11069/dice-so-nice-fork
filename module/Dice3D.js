@@ -643,7 +643,7 @@ export class Dice3D {
                     if (this._isAutoMode()) {
                         const el = document.elementFromPoint(event.clientX, event.clientY);
                         const win = el?.closest('.window-app, .application');
-                        if (win) {
+                        if (win && foundry.applications?.api?.ApplicationV2?._maxZ != null) {
                             win.style.zIndex = ++foundry.applications.api.ApplicationV2._maxZ;
                         }
                     }
