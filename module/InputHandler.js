@@ -182,47 +182,52 @@ export class InputHandler {
 					await this.physicsWorker.exec("updateConstraint", { pos });
 				}
 
-				//ring buffer for velocity calculation
+				//ring buffer for velocity calculation (time-gated to ~25Hz
+				//so gesture detection works regardless of mouse polling rate)
 				if (this.mouse.heldPersistentDice.length > 0) {
 					const DRAG_BUFFER_SIZE = 6;
+					const SAMPLE_INTERVAL_MS = 40;
 					const now = performance.now();
 					const buf = this.mouse.dragPositions;
-					buf.push({ x: pos.x, z: pos.z, time: now });
-					if (buf.length > DRAG_BUFFER_SIZE) buf.shift();
+					const lastEntry = buf.length > 0 ? buf[buf.length - 1] : null;
+					if (!lastEntry || (now - lastEntry.time) >= SAMPLE_INTERVAL_MS) {
+						buf.push({ x: pos.x, z: pos.z, time: now });
+						if (buf.length > DRAG_BUFFER_SIZE) buf.shift();
 
-					//gesture detection: shakes (direction reversals) or spins (rotational sweep)
-					if (!this.mouse.preRoll && buf.length >= 3) {
-						const p0 = buf[buf.length - 3];
-						const p1 = buf[buf.length - 2];
-						const p2 = buf[buf.length - 1];
-						const d1x = p1.x - p0.x, d1z = p1.z - p0.z;
-						const d2x = p2.x - p1.x, d2z = p2.z - p1.z;
-						const dt12 = (p2.time - p1.time) / 1000;
-						const mag1 = Math.hypot(d1x, d1z);
-						const mag2 = Math.hypot(d2x, d2z);
-						const instSpeed = dt12 > 0 ? mag2 / dt12 : 0;
+						//gesture detection: shakes (direction reversals) or spins (rotational sweep)
+						if (!this.mouse.preRoll && buf.length >= 3) {
+							const p0 = buf[buf.length - 3];
+							const p1 = buf[buf.length - 2];
+							const p2 = buf[buf.length - 1];
+							const d1x = p1.x - p0.x, d1z = p1.z - p0.z;
+							const d2x = p2.x - p1.x, d2z = p2.z - p1.z;
+							const dt12 = (p2.time - p1.time) / 1000;
+							const mag1 = Math.hypot(d1x, d1z);
+							const mag2 = Math.hypot(d2x, d2z);
+							const instSpeed = dt12 > 0 ? mag2 / dt12 : 0;
 
-						//noise gate: reject sub-pixel jitter, require real gesture speed
-						if (mag1 > MIN_DELTA_MAG && mag2 > MIN_DELTA_MAG && instSpeed > MIN_GESTURE_SPEED) {
-							const dot = (d1x * d2x + d1z * d2z) / (mag1 * mag2);
-							const cross = (d1x * d2z - d1z * d2x) / (mag1 * mag2);
+							//noise gate: reject sub-pixel jitter, require real gesture speed
+							if (mag1 > MIN_DELTA_MAG && mag2 > MIN_DELTA_MAG && instSpeed > MIN_GESTURE_SPEED) {
+								const dot = (d1x * d2x + d1z * d2z) / (mag1 * mag2);
+								const cross = (d1x * d2z - d1z * d2x) / (mag1 * mag2);
 
-							//sharp reversal => shake tick
-							if (dot < -0.35) this.mouse.shakeCount++;
+								//sharp reversal => shake tick
+								if (dot < -0.35) this.mouse.shakeCount++;
 
-							//integrate signed rotational sweep
-							this.mouse.spinAccum += cross;
-						} else {
-							//decay accumulators on non-gesture motion
-							this.mouse.shakeCount = Math.max(0, this.mouse.shakeCount - 0.25);
-							this.mouse.spinAccum *= 0.92;
-						}
+								//integrate signed rotational sweep
+								this.mouse.spinAccum += cross;
+							} else {
+								//decay accumulators on non-gesture motion
+								this.mouse.shakeCount = Math.max(0, this.mouse.shakeCount - 0.25);
+								this.mouse.spinAccum *= 0.92;
+							}
 
-						const SHAKE_TRIGGER = 3;
-						const SPIN_TRIGGER = 3;
-						if (this.mouse.shakeCount >= SHAKE_TRIGGER ||
-							Math.abs(this.mouse.spinAccum) >= SPIN_TRIGGER) {
-							this._activatePreRoll();
+							const SHAKE_TRIGGER = 3;
+							const SPIN_TRIGGER = 3;
+							if (this.mouse.shakeCount >= SHAKE_TRIGGER ||
+								Math.abs(this.mouse.spinAccum) >= SPIN_TRIGGER) {
+								this._activatePreRoll();
+							}
 						}
 					}
 				}

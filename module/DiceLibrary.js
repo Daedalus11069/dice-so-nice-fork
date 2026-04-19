@@ -2,7 +2,7 @@ import { DiceColors } from './DiceColors.js';
 import { AssetsLoader } from './AssetsLoader.js';
 
 //dc excluded (coin)
-export const LIBRARY_DIE_TYPES = ["df", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d10", "d12", "d14", "d16", "d20", "d24", "d30", "d100"];
+export const LIBRARY_DIE_TYPES = ["df", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d10", "d12", "d14", "d16", "d20", "d24", "d30", "d100", "d1000", "d10000"];
 
 //manages CRUD on the user's custom dice library (stored in dice-so-nice/diceLibrary flag)
 export class DiceLibrary {

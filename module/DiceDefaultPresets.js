@@ -90,6 +90,24 @@ diceobj.inertia = 9;
 diceobj.scale = 0.9;
 BASE_PRESETS_LIST.push(diceobj);
 
+diceobj = new DicePreset('d1000', 'd10');
+diceobj.setLabels(['100', '200', '300', '400', '500', '600', '700', '800', '900', '000']);
+diceobj.setValues(100, 1000, 100);
+diceobj.mass = 450;
+diceobj.inertia = 9;
+diceobj.scale = 0.9;
+diceobj.fontScale = 0.55;
+BASE_PRESETS_LIST.push(diceobj);
+
+diceobj = new DicePreset('d10000', 'd10');
+diceobj.setLabels(['1000', '2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '0000']);
+diceobj.setValues(1000, 10000, 1000);
+diceobj.mass = 450;
+diceobj.inertia = 9;
+diceobj.scale = 0.9;
+diceobj.fontScale = 0.45;
+BASE_PRESETS_LIST.push(diceobj);
+
 diceobj = new DicePreset('d12');
 diceobj.setLabels(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
 diceobj.setValues(1, 12);

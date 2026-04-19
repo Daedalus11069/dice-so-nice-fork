@@ -1314,6 +1314,7 @@ export class Dice3D {
                     ),
                     linkGroupId: opts.linkGroupId || null,
                     linkGroupSecondary: opts.linkGroupSecondary || false,
+                    digitPlace: opts.digitPlace ?? null,
                     appearances: rawAppearances,
                     diceLibrary: diceLibrary
                 }
@@ -1326,7 +1327,8 @@ export class Dice3D {
                 appearances: rawAppearances,
                 diceLibrary,
                 linkGroupId: opts.linkGroupId || null,
-                linkGroupSecondary: opts.linkGroupSecondary || false
+                linkGroupSecondary: opts.linkGroupSecondary || false,
+                digitPlace: opts.digitPlace ?? null
             });
             this._savePersistentDiceToFlags();
         }
@@ -1542,7 +1544,8 @@ export class Dice3D {
                 _rawAppearances: appearances,
                 diceLibrary: entry.diceLibrary,
                 linkGroupId: entry.linkGroupId || null,
-                linkGroupSecondary: entry.linkGroupSecondary || false
+                linkGroupSecondary: entry.linkGroupSecondary || false,
+                digitPlace: entry.digitPlace ?? null
             }, synchronize);
         }
     }
@@ -1563,7 +1566,7 @@ export class Dice3D {
     }
 
     async _onRemotePersistentCreate(request) {
-        const { persistentId, dieType, positionPct, linkGroupId, linkGroupSecondary, appearances, diceLibrary } = request.data;
+        const { persistentId, dieType, positionPct, linkGroupId, linkGroupSecondary, digitPlace, appearances, diceLibrary } = request.data;
         const user = game.users.get(request.user);
         if (!user) return;
 
@@ -1582,6 +1585,7 @@ export class Dice3D {
             remotePersistentId: persistentId,
             linkGroupId,
             linkGroupSecondary,
+            digitPlace: digitPlace ?? null,
             appearance: resolvedAppearance,
             _rawAppearances: appearances,
             diceLibrary

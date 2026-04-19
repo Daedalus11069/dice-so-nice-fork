@@ -47,7 +47,7 @@ export class ShowcaseView {
 
 		//get dice type list as an array
 		let selectordice = [...this.dicefactory.systems.get("standard").dice.keys()];
-		const extraDiceTypes = ["d3", "d5", "d7", "d14", "d16", "d24", "d30"];
+		const extraDiceTypes = ["d3", "d5", "d7", "d14", "d16", "d24", "d30", "d1000", "d10000"];
 		if (!this.showExtraDice)
 			selectordice = selectordice.filter((die) => !extraDiceTypes.includes(die));
 

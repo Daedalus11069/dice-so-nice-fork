@@ -1,4 +1,5 @@
 import { DiceConfig } from './DiceConfig.js';
+import { COMPOUND_DICE } from './DiceNotation.js';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { AbstractSidebarTab } = foundry.applications.sidebar;
@@ -34,9 +35,7 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
     };
 
     //dice types behind "Show more", d100 handled separately as linked pair
-    static EXTRA_DICE_TYPES = ["d3", "d5", "d7", "d14", "d16", "d24", "d30"];
-
-    static HIDDEN_DICE_TYPES = new Set(["dc", "df"]);
+    static EXTRA_DICE_TYPES = ["dc", "df", "d3", "d5", "d7", "d14", "d16", "d24", "d30"];
 
     constructor(options = {}) {
         super(options);
@@ -65,8 +64,10 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
             const standardDice = [...box.dicefactory.systems.get("standard").dice.keys()];
 
             const isExtra = (t) => DsnSidebarTab.EXTRA_DICE_TYPES.includes(t);
-            const isHidden = (t) => DsnSidebarTab.HIDDEN_DICE_TYPES.has(t);
-            const isD100 = (t) => t === "d100";
+            const isCompoundPrimary = (t) => {
+                const faces = parseInt(t.slice(1));
+                return !!COMPOUND_DICE[faces];
+            };
 
             const toEntry = (type) => ({
                 type,
@@ -75,22 +76,27 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
             });
 
             const main = standardDice
-                .filter(t => !isExtra(t) && !isHidden(t) && !isD100(t))
+                .filter(t => !isExtra(t) && !isCompoundPrimary(t))
                 .map(toEntry);
 
             const extras = standardDice
                 .filter(t => isExtra(t))
                 .map(toEntry);
 
-            const hasD100 = standardDice.includes("d100") && standardDice.includes("d10");
-            const d100Entry = hasD100 ? toEntry("d100") : null;
+            const allCompound = Object.entries(COMPOUND_DICE)
+                .filter(([, places]) => places.every(p => standardDice.includes(p.type)))
+                .map(([k, places]) => ({ faces: parseInt(k), entry: toEntry(places[0].type) }));
+            const compoundDice = allCompound.filter(c => c.faces <= 100).map(c => c.entry);
+            const extraCompoundDice = allCompound.filter(c => c.faces > 100).map(c => c.entry);
 
             const visibility = box.persistentDiceVisibility || "all";
             diceContext = {
                 mainDice: main,
                 extraDice: extras,
+                extraCompoundDice,
+                hasExtras: extras.length > 0 || extraCompoundDice.length > 0,
                 showExtras: this._showExtras,
-                d100: d100Entry,
+                compoundDice,
                 visibility,
                 visibilityAll: visibility === "all",
                 visibilityMine: visibility === "mine",
@@ -191,12 +197,15 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
         const dice3d = game.dice3d;
         if (!dice3d) return;
 
-        //d100 spawns as linked tens+units pair, bail if primary fails
-        if (type === "d100") {
+        const faces = parseInt(type.slice(1));
+        const places = COMPOUND_DICE[faces];
+        if (places) {
             const linkGroupId = foundry.utils.randomID();
-            const primary = await dice3d.spawnPersistentDie("d100", null, { linkGroupId });
+            const primary = await dice3d.spawnPersistentDie(places[0].type, null, { linkGroupId, digitPlace: 0 });
             if (!primary) return;
-            await dice3d.spawnPersistentDie("d10", null, { linkGroupId, linkGroupSecondary: true });
+            for (let p = 1; p < places.length; p++) {
+                await dice3d.spawnPersistentDie(places[p].type, null, { linkGroupId, linkGroupSecondary: true, digitPlace: p });
+            }
             return;
         }
 

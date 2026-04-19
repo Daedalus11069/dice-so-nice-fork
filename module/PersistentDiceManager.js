@@ -1,4 +1,5 @@
 import { DiceSFXManager } from './DiceSFXManager.js';
+import { COMPOUND_DICE } from './DiceNotation.js';
 import { LEGACY_TO_METERS, GRAB_LIFT_PERSISTENT } from './SceneConstants.js';
 
 import {
@@ -92,6 +93,7 @@ export class PersistentDiceManager {
 		dicemesh.userData.ownerUserId = opts.ownerUserId || game.user?.id || null;
 		if (opts.linkGroupId) dicemesh.userData.linkGroupId = opts.linkGroupId;
 		if (opts.linkGroupSecondary) dicemesh.userData.linkGroupSecondary = true;
+		if (opts.digitPlace != null) dicemesh.userData.digitPlace = opts.digitPlace;
 
 		try {
 			await this.physicsWorker.exec('createDice', {
@@ -501,7 +503,9 @@ export class PersistentDiceManager {
 				&& d.userData?.linkGroupId
 				&& heldPrimaryLinkGroups.has(d.userData.linkGroupId);
 			if (isLinkedSecondary) {
-				secondariesByLinkGroup.set(d.userData.linkGroupId, d);
+				if (!secondariesByLinkGroup.has(d.userData.linkGroupId))
+					secondariesByLinkGroup.set(d.userData.linkGroupId, []);
+				secondariesByLinkGroup.get(d.userData.linkGroupId).push(d);
 			} else {
 				primaries.push(d);
 			}
@@ -530,21 +534,26 @@ export class PersistentDiceManager {
 			return;
 		}
 
-		//2b. derive forced face for every held mesh (d100 splits into tens/units)
 		const forcedByMesh = new Map();
 		for (let i = 0; i < primaries.length; i++) {
 			const primary = primaries[i];
 			const rawResult = perPrimaryResults[i];
-			if (primary.notation.type === "d100" && primary.userData?.linkGroupId) {
-				let tens = Math.floor(rawResult / 10);
-				if (tens === 10) tens = 0;
-				forcedByMesh.set(primary, tens);
-				primary.notation.d100Result = rawResult;
+			const faces = parseInt(primary.notation.type.slice(1));
+			const places = COMPOUND_DICE[faces];
+			if (places && primary.userData?.linkGroupId) {
+				const primaryDigit = Math.floor(rawResult / places[0].divisor) % 10;
+				forcedByMesh.set(primary, primaryDigit);
+				primary.notation.compositeResult = rawResult;
+				primary.notation.compositeType = primary.notation.type;
 
-				const secondary = secondariesByLinkGroup.get(primary.userData.linkGroupId);
-				if (secondary) {
-					forcedByMesh.set(secondary, rawResult % 10);
-					secondary.notation.d100Result = rawResult;
+				const secondaries = secondariesByLinkGroup.get(primary.userData.linkGroupId) || [];
+				for (const sec of secondaries) {
+					const dp = sec.userData?.digitPlace;
+					if (dp != null && places[dp]) {
+						forcedByMesh.set(sec, Math.floor(rawResult / places[dp].divisor) % 10);
+					}
+					sec.notation.compositeResult = rawResult;
+					sec.notation.compositeType = primary.notation.type;
 				}
 			} else {
 				forcedByMesh.set(primary, rawResult);
@@ -680,7 +689,7 @@ export class PersistentDiceManager {
 				if (dicemesh.forcedResult == null) continue;
 				const matched = this._matchPersistentSFX(
 					sfxList, dicemesh.notation.type,
-					dicemesh.forcedResult, dicemesh.notation.d100Result || null
+					dicemesh.forcedResult, dicemesh.notation.compositeResult || null, dicemesh.notation.compositeType || null
 				);
 				if (matched.length > 0) dicemesh.specialEffects = matched;
 			}
@@ -778,7 +787,7 @@ export class PersistentDiceManager {
 				if (dicemesh.forcedResult == null) continue;
 				const matched = this._matchPersistentSFX(
 					sfxList, dicemesh.notation.type,
-					dicemesh.forcedResult, dicemesh.notation.d100Result || null
+					dicemesh.forcedResult, dicemesh.notation.compositeResult || null, dicemesh.notation.compositeType || null
 				);
 				if (matched.length > 0) dicemesh.specialEffects = matched;
 			}
@@ -800,15 +809,14 @@ export class PersistentDiceManager {
 	}
 
 	//match SFX config entries against a persistent die's type and result
-	_matchPersistentSFX(sfxList, dieType, forcedResult, d100Result = null) {
+	_matchPersistentSFX(sfxList, dieType, forcedResult, compositeResult = null, compositeType = null) {
 		if (!Array.isArray(sfxList) || sfxList.length === 0) return [];
 		const resultStr = String(forcedResult);
 		return sfxList.filter(sfx => {
-			if (sfx.diceType === "d100") {
-				if (!d100Result) return false;
+			if (compositeType && sfx.diceType === compositeType) {
 				const sfxClass = DiceSFXManager.SFX_MODE_CLASS?.[sfx.specialEffect];
-				if (sfxClass?.PLAY_ONLY_ONCE_PER_MESH && dieType === "d10") return false;
-				return sfx.onResult.includes(String(d100Result));
+				if (sfxClass?.PLAY_ONLY_ONCE_PER_MESH && dieType !== sfx.diceType) return false;
+				return sfx.onResult.includes(String(compositeResult));
 			}
 			return sfx.diceType === dieType && sfx.onResult.includes(resultStr);
 		});
@@ -822,7 +830,8 @@ export class PersistentDiceManager {
 				sfxList,
 				dicemesh.notation.type,
 				dicemesh.forcedResult,
-				dicemesh.notation.d100Result || null
+				dicemesh.notation.compositeResult || null,
+				dicemesh.notation.compositeType || null
 			);
 			if (matched.length > 0) {
 				dicemesh.specialEffects = matched;

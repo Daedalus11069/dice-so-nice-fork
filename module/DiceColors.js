@@ -661,7 +661,9 @@ export const DICE_SCALE = {
 	"d5":1,
 	"d7":0.5,
 	"df":2,
-	"d100":0.75
+	"d100":0.75,
+	"d1000":0.55,
+	"d10000":0.45
 };
 
 export class DiceColors {

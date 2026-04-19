@@ -26,22 +26,22 @@
         </li>
         {{/each}}
 
-        {{#if dice.d100}}
-        <li class="dsn-toolbox-dice-row" data-type="d100">
-            <span class="dsn-toolbox-dice-label">{{dice.d100.label}}</span>
-            <span class="dsn-toolbox-dice-count">{{dice.d100.count}}</span>
+        {{#each dice.compoundDice}}
+        <li class="dsn-toolbox-dice-row" data-type="{{this.type}}">
+            <span class="dsn-toolbox-dice-label">{{this.label}}</span>
+            <span class="dsn-toolbox-dice-count">{{this.count}}</span>
             <div class="dsn-toolbox-dice-buttons">
-                <button type="button" data-action="remove" data-type="d100" class="dsn-toolbox-btn"
+                <button type="button" data-action="remove" data-type="{{this.type}}" class="dsn-toolbox-btn"
                     title="{{localize "DICESONICE.persistentDiceToolboxRemove"}}">−</button>
-                <button type="button" data-action="spawn" data-type="d100" class="dsn-toolbox-btn"
+                <button type="button" data-action="spawn" data-type="{{this.type}}" class="dsn-toolbox-btn"
                     title="{{localize "DICESONICE.persistentDiceToolboxAdd"}}">+</button>
             </div>
         </li>
-        {{/if}}
+        {{/each}}
     </ul>
 </section>
 
-{{#if dice.extraDice.length}}
+{{#if dice.hasExtras}}
 <section class="dsn-toolbox-section dsn-toolbox-extras">
     <button type="button" data-action="toggleExtras" class="dsn-toolbox-disclosure">
         <i class="fa-solid {{#if dice.showExtras}}fa-chevron-down{{else}}fa-chevron-right{{/if}}"></i>
@@ -50,6 +50,18 @@
     {{#if dice.showExtras}}
     <ul class="dsn-toolbox-dice-list">
         {{#each dice.extraDice}}
+        <li class="dsn-toolbox-dice-row" data-type="{{this.type}}">
+            <span class="dsn-toolbox-dice-label">{{this.label}}</span>
+            <span class="dsn-toolbox-dice-count">{{this.count}}</span>
+            <div class="dsn-toolbox-dice-buttons">
+                <button type="button" data-action="remove" data-type="{{this.type}}" class="dsn-toolbox-btn"
+                    title="{{localize "DICESONICE.persistentDiceToolboxRemove"}}">−</button>
+                <button type="button" data-action="spawn" data-type="{{this.type}}" class="dsn-toolbox-btn"
+                    title="{{localize "DICESONICE.persistentDiceToolboxAdd"}}">+</button>
+            </div>
+        </li>
+        {{/each}}
+        {{#each dice.extraCompoundDice}}
         <li class="dsn-toolbox-dice-row" data-type="{{this.type}}">
             <span class="dsn-toolbox-dice-label">{{this.label}}</span>
             <span class="dsn-toolbox-dice-count">{{this.count}}</span>

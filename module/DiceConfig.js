@@ -3,7 +3,7 @@ import { DiceScene } from './DiceScene.js';
 import { DiceSFXManager } from './DiceSFXManager.js';
 import { ShowcaseView } from './ShowcaseView.js';
 import { Utils } from './Utils.js';
-import { DiceNotation } from './DiceNotation.js';
+import { DiceNotation, COMPOUND_DICE } from './DiceNotation.js';
 import { DiceColors, DICE_SCALE } from './DiceColors.js';
 import { DiceSystem } from './DiceSystem.js';
 import { DiceLibrary, LIBRARY_DIE_TYPES } from './DiceLibrary.js';
@@ -206,31 +206,35 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         let triggerTypeList = [{ id: "", name: "" }];
         this.possibleResultList = {};
         let i = 0;
+        const sfxExcludedCompound = new Set(
+            Object.entries(COMPOUND_DICE).filter(([k]) => parseInt(k) > 100).map(([, places]) => places[0].type)
+        );
         this.showcaseView.diceList.forEach((el) => {
             this.navOrder[el.userData] = i++;
-            triggerTypeList.push({ id: el.userData, name: el.userData });
-            this.possibleResultList[el.userData] = [];
-            let preset = this.diceFactory.systems.get("standard").dice.get(el.userData);
-            let termClass = Object.values(CONFIG.Dice.terms).find(term => term.name == preset.term) || foundry.dice.terms.Die;
-            let term = new termClass({});
+            if (!sfxExcludedCompound.has(el.userData)) {
+                triggerTypeList.push({ id: el.userData, name: el.userData });
+                this.possibleResultList[el.userData] = [];
+                let preset = this.diceFactory.systems.get("standard").dice.get(el.userData);
+                let termClass = Object.values(CONFIG.Dice.terms).find(term => term.name == preset.term) || foundry.dice.terms.Die;
+                let term = new termClass({});
 
-            if (el.userData == "d100") {
-                for (let i = 1; i <= 100; i++) {
-                    let label = term.getResultLabel({ result: i });
-                    let option = { id: i + "", name: label };
-                    this.possibleResultList[el.userData].push(option);
+                if (el.userData == "d100") {
+                    for (let i = 1; i <= 100; i++) {
+                        let label = term.getResultLabel({ result: i });
+                        let option = { id: i + "", name: label };
+                        this.possibleResultList[el.userData].push(option);
+                    }
+                } else {
+                    preset.values.forEach((value) => {
+                        let label = term.getResultLabel({ result: value });
+                        let option = { id: value + "", name: label };
+                        this.possibleResultList[el.userData].push(option);
+                    });
                 }
-            } else {
-                preset.values.forEach((value) => {
-                    let label = term.getResultLabel({ result: value });
-                    let option = { id: value + "", name: label };
-                    this.possibleResultList[el.userData].push(option);
-                });
-            }
 
-            //add special triggers, like "keep highest" (kh)
-            this.possibleResultList[el.userData].push({ id: "kh", name: "Keep Highest / Advantage" });
-            this.possibleResultList[el.userData].push({ id: "kl", name: "Keep Lowest / Disadvantage" });
+                this.possibleResultList[el.userData].push({ id: "kh", name: "Keep Highest / Advantage" });
+                this.possibleResultList[el.userData].push({ id: "kl", name: "Keep Lowest / Disadvantage" });
+            }
         });
 
         let specialEffectsList = [];
@@ -491,9 +495,18 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             $(this.element).on("click", "[data-action=test]", (ev) => {
                 let config = this.getShowcaseAppearance();
                 let denominationList = [];
+                const showcaseTypes = new Set(this.showcaseView.diceList.map(el => el.userData));
+                const compoundSubTypes = new Set();
+                for (const [, places] of Object.entries(COMPOUND_DICE)) {
+                    if (showcaseTypes.has(places[0].type)) {
+                        for (let p = 1; p < places.length; p++) {
+                            if (!showcaseTypes.has(places[p].type) || !COMPOUND_DICE[parseInt(places[p].type.slice(1))])
+                                compoundSubTypes.add(places[p].type);
+                        }
+                    }
+                }
                 this.showcaseView.diceList.forEach((el) => {
-                    //the d100 will roll the d10 so we remove the d10 from the list
-                    if (el.userData != "d10")
+                    if (!compoundSubTypes.has(el.userData))
                         denominationList.push(el.userData);
                 });
                 let roll = new Roll(denominationList.join("+")).evaluate().then((roll) => {

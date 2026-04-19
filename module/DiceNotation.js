@@ -2,6 +2,12 @@
 
 import { DiceSFXManager } from './DiceSFXManager.js';
 
+export const COMPOUND_DICE = {
+	100:   [{ type: 'd100',   divisor: 10   }, { type: 'd10',  divisor: 1    }],
+	1000:  [{ type: 'd1000',  divisor: 100  }, { type: 'd100', divisor: 10   }, { type: 'd10', divisor: 1 }],
+	10000: [{ type: 'd10000', divisor: 1000 }, { type: 'd1000', divisor: 100 }, { type: 'd100', divisor: 10 }, { type: 'd10', divisor: 1 }]
+};
+
 export class DiceNotation {
 
 	/**
@@ -15,7 +21,7 @@ export class DiceNotation {
 		//First we need to prepare the data
 		rolls.dice.forEach(die => {
 			//We only are able to handle this list of number of face in 3D for now
-			if([2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 30, 100].includes(die.faces)) {
+			if([2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 30, 100, 1000, 10000].includes(die.faces)) {
 				//We flag every single die with a throw number, to queue exploded dice
 				let cnt = die.results.filter(r => !r.rerolled && !r.exploded).length;
 				let countExtraDice = 0;
@@ -57,7 +63,7 @@ export class DiceNotation {
 		//Then we can create the throws
 		rolls.dice.some(die => {
 			//We only are able to handle this list of number of face in 3D for now
-			if([2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 30, 100].includes(die.faces)) {
+			if([2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 20, 24, 30, 100, 1000, 10000].includes(die.faces)) {
 				let options = {};
 				for(let i =0; i< die.results.length; i++){
 					if(++diceNumber >= maxDiceNumber)
@@ -75,63 +81,56 @@ export class DiceNotation {
 						if(die.modifiers.length)
 							options.modifiers = die.modifiers;
 
-						this.addDie({fvttDie: die, index:i, options:options});
-						if(die.faces == 100){
-							this.addDie({fvttDie: die, index:i, isd10of100:true, options:options});
+						const places = COMPOUND_DICE[die.faces];
+						if (places) {
+							const compositeType = 'd' + die.faces;
+							for (let p = 0; p < places.length; p++) {
+								this.addDie({fvttDie: die, index:i, digitPlace: places[p], compositeType, isCompoundPrimary: p === 0, options:options});
+							}
+						} else {
+							this.addDie({fvttDie: die, index:i, options:options});
 						}
 					}
 				}
 			}
 		});
 	}
-	/**
-	 * 
-	 * @param {DiceTerm} fvttDie Die object from Foundry VTT
-	 * @param {Integer} index Position in the dice array
-	 * @param {Boolean} isd10of100 In DsN, we use two d10 for a d100. Set to true if this die should be the unit dice of a d100
-	 * @param {Object} options Options related to the fvtt roll that should be attached to the dsn die
-	 */
-	addDie({fvttDie, index, isd10of100 = false, options = {}}){
+	addDie({fvttDie, index, digitPlace = null, compositeType = null, isCompoundPrimary = false, options = {}}){
 		let dsnDie = {};
 		let dieValue = fvttDie.results[index].result;
-		if(fvttDie.faces == 100) {
-			//For d100, we create two d10 dice
-			if(isd10of100) {
-				dieValue = dieValue%10;
-				
-				dsnDie.resultLabel = fvttDie.getResultLabel({result:dieValue});
-			}
-			else {
-				dieValue = parseInt(dieValue/10);
-				dsnDie.resultLabel = fvttDie.getResultLabel({result:dieValue*10});
-				//On a d100, 0 is 10, because.
-				if(dieValue==10)
-					dieValue=0;
-			}
-			dsnDie.d100Result = fvttDie.results[index].result;
-		} else
-			
+
+		if(digitPlace) {
+			const rawDigit = Math.floor(dieValue / digitPlace.divisor);
+			const digit = rawDigit % 10;
+			dsnDie.resultLabel = fvttDie.getResultLabel({result: digit * digitPlace.divisor});
+			dieValue = digit;
+			dsnDie.compositeResult = fvttDie.results[index].result;
+			dsnDie.compositeType = compositeType;
+		} else {
 			dsnDie.resultLabel = fvttDie.getResultLabel({result:dieValue});
+		}
+
 		dsnDie.result = dieValue;
 		if(fvttDie.results[index].discarded)
 			dsnDie.discarded = true;
 
-
-		//A Die-family term with the inherited "d" denomination is a numeric die (native Die,
-		//dnd5e BasicDie, daggerheart HopeDie/FearDie, etc) and routes to d{faces}. Everything
-		//else (Coin, FateDie, SWFFG ChallengeDie, Blade Runner's d6/d8/d10/d12 subclasses with
-		//numeric denominations, etc) uses its own denomination as the preset suffix.
 		const Die = foundry.dice.terms.Die;
 		const denomination = fvttDie.constructor.DENOMINATION;
-		if(fvttDie instanceof Die && denomination === Die.DENOMINATION)
-			dsnDie.type = "d" + (isd10of100 ? "10" : fvttDie.faces);
-		else
-			dsnDie.type = "d" + denomination;
+		if(digitPlace) {
+			if(isCompoundPrimary && !(fvttDie instanceof Die && denomination === Die.DENOMINATION))
+				dsnDie.type = "d" + denomination;
+			else
+				dsnDie.type = digitPlace.type;
+		} else {
+			if(fvttDie instanceof Die && denomination === Die.DENOMINATION)
+				dsnDie.type = "d" + fvttDie.faces;
+			else
+				dsnDie.type = "d" + denomination;
+		}
+
 		dsnDie.vectors = [];
-		//Contains optionals flavor/type (core) and colorset (dsn) infos.
 		dsnDie.options = foundry.utils.duplicate(fvttDie.options);
 		foundry.utils.mergeObject(dsnDie.options, options);
-		//damage type kill switch: drop both flavor and type when user disables the feature
 		if(this.userConfig && !this.userConfig.enableFlavorColorset) {
 			if(dsnDie.options.flavor) delete dsnDie.options.flavor;
 			if(dsnDie.options.type) delete dsnDie.options.type;
@@ -188,13 +187,10 @@ export class DiceNotation {
 						if(manualResultTrigger)
 							return true;
 
-						//if the result is in the triggers value, we keep the fx. Special case: double d10 for a d100 roll
-						if(sfx.diceType == "d100"){
-							// If SFX must only play once per logical die (multi-mesh like d100), skip unit (d10) mesh
+						if(dsnDie.compositeType && sfx.diceType === dsnDie.compositeType){
 							const sfxClass = DiceSFXManager.SFX_MODE_CLASS?.[sfx.specialEffect];
-							if(sfxClass?.PLAY_ONLY_ONCE_PER_MESH && dsnDie.type === "d10") return false;
-							
-							if(dsnDie.d100Result && sfx.onResult.includes(dsnDie.d100Result.toString()))
+							if(sfxClass?.PLAY_ONLY_ONCE_PER_MESH && dsnDie.type !== sfx.diceType) return false;
+							if(sfx.onResult.includes(dsnDie.compositeResult.toString()))
 								return true;
 						} else {
 							if(sfx.diceType == dsnDie.type && sfx.onResult.includes(dsnDie.result.toString()))
