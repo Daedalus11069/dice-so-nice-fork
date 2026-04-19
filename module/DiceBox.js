@@ -41,6 +41,11 @@ export class DiceBox {
 
 		this.showExtraDice = false;
 
+		this.fadingDice = [];
+
+		this.cachedRendererStats = null;
+		this._lastStatsCacheTime = 0;
+
 		this.soundManager = new SoundManager();
 
 		//deferred callback values set before persistentDiceManager is created
@@ -131,6 +136,9 @@ export class DiceBox {
 				autoscale: this.config.autoscale
 			});
 			await this.diceScene.initialize();
+
+			// disable auto-reset so stats accumulate across bloom passes per frame
+			if (this.renderer) this.renderer.info.autoReset = false;
 
 			//DiceScene computed display.scale during init - push it to the factory
 			this.dicefactory.setScale(this.display.scale);
@@ -323,7 +331,7 @@ export class DiceBox {
 		await this.persistentDiceManager.removePersistentDie(persistentId);
 
 		//clean up if no more dice
-		if (this.persistentDiceList.length === 0 && !this.throwEngine.rolling && this.throwEngine.diceList.length === 0 && this.throwEngine.deadDiceList.length === 0) {
+		if (this.persistentDiceList.length === 0 && !this.throwEngine.rolling && this.throwEngine.diceList.length === 0 && this.throwEngine.deadDiceList.length === 0 && this.fadingDice.length === 0) {
 			removeTicker(this.animateThrow);
 			this.isVisible = false;
 		}
@@ -421,14 +429,49 @@ export class DiceBox {
 		//play back pre-recorded buffers for persistent dice mid-throw
 		this.persistentDiceManager.updatePersistentPlayback(neededSteps, this.throwEngine.speed);
 
-		if (this.isVisible && (this.allowInteractivity || this.diceScene.animatedDiceDetected || neededSteps || DiceSFXManager.renderQueue.length || this.persistentDiceList.length > 0)) {
+		// fade-out update for ephemeral dice
+		if (this.fadingDice.length > 0) {
+			const now = performance.now();
+			for (let i = this.fadingDice.length - 1; i >= 0; i--) {
+				const entry = this.fadingDice[i];
+				const elapsed = now - entry.startTime;
+				const t = Math.min(elapsed / entry.duration, 1);
+
+				for (const { material } of entry.originals) {
+					material.opacity = 1 - t;
+				}
+
+				if (t >= 1) {
+					// restore material state before removing
+					for (const { material, transparent, opacity } of entry.originals) {
+						material.transparent = transparent;
+						material.opacity = opacity;
+					}
+					const container = entry.mesh.parent?.type === "Scene" ? entry.mesh : entry.mesh.parent;
+					if (container) this.scene.remove(container);
+					this.fadingDice.splice(i, 1);
+				}
+			}
+
+			// clean up physics for faded-out dice
+			if (this.fadingDice.length === 0 && this.persistentDiceList.length === 0 && !this.throwEngine.rolling) {
+				removeTicker(this.animateThrow);
+				this.isVisible = false;
+			}
+		}
+
+		if (this.isVisible && (this.allowInteractivity || this.diceScene.animatedDiceDetected || neededSteps || DiceSFXManager.renderQueue.length || this.persistentDiceList.length > 0 || this.fadingDice.length > 0)) {
 			DiceSFXManager.renderSFX();
-			//use darknessLevel to change toneMapping
 			if (this.dicefactory.realisticLighting && this.immersiveDarkness) {
-				//If the darkness level is not defined, we set it to 0
 				let darknessLevel = canvas.darknessLevel || 0;
-				let toneDefault = this.diceScene.toneMappingExposureDefault;
-					this.renderer.toneMappingExposure = toneDefault * 0.4 + (toneDefault * 0.6 - darknessLevel * 0.6);
+				let factor = 1.0 - darknessLevel * 0.95;
+				this.diceScene.light.intensity = factor;
+				this.diceScene.light_amb.intensity = 4.0 * factor;
+				this.diceScene.scene.environmentIntensity = factor;
+			} else if (this.dicefactory.realisticLighting) {
+				this.diceScene.light.intensity = 1;
+				this.diceScene.light_amb.intensity = 4.0;
+				this.diceScene.scene.environmentIntensity = 1.0;
 			}
 
 			this.renderScene();
@@ -448,7 +491,7 @@ export class DiceBox {
 						delete die.sim;
 					}
 					this.throwEngine.callback(this.throwEngine.throws);
-					if (!this.diceScene.animatedDiceDetected && !(this.allowInteractivity && (this.throwEngine.deadDiceList.length + this.throwEngine.diceList.length) > 0) && !DiceSFXManager.renderQueue.length && this.persistentDiceList.length === 0)
+					if (!this.diceScene.animatedDiceDetected && !(this.allowInteractivity && (this.throwEngine.deadDiceList.length + this.throwEngine.diceList.length) > 0) && !DiceSFXManager.renderQueue.length && this.persistentDiceList.length === 0 && this.fadingDice.length === 0)
 						removeTicker(this.animateThrow);
 				});
 			}
@@ -468,10 +511,11 @@ export class DiceBox {
 	}
 
 	async clearAll() {
+		this.cancelFade();
 		await this.throwEngine.clearAll();
 		DiceSFXManager.clearQueue();
-		//keep ticker alive if persistent dice exist
-		if (this.persistentDiceList.length === 0) {
+		//keep ticker alive if persistent dice or fading dice exist
+		if (this.persistentDiceList.length === 0 && this.fadingDice.length === 0) {
 			removeTicker(this.animateThrow);
 		}
 
@@ -483,7 +527,70 @@ export class DiceBox {
 		}
 	}
 
+	fadeOutEphemeral(duration) {
+		// collect all ephemeral meshes from diceList and deadDiceList
+		const ephemeralFromList = this.throwEngine.diceList.filter(d => !d.userData?.persistent);
+		const ephemeralFromDead = this.throwEngine.deadDiceList.filter(d => !d.userData?.persistent);
+		const allEphemeral = [...ephemeralFromList, ...ephemeralFromDead];
+		if (allEphemeral.length === 0) return;
+
+		const now = performance.now();
+		const physicsIds = [];
+		for (const mesh of allEphemeral) {
+			const materials = mesh.parent?.children
+				? mesh.parent.children.flatMap(c => Array.isArray(c.material) ? c.material : [c.material]).filter(Boolean)
+				: (Array.isArray(mesh.material) ? mesh.material : [mesh.material]);
+			const originals = materials.map(m => ({ material: m, transparent: m.transparent, opacity: m.opacity }));
+
+			for (const { material } of originals) {
+				material.transparent = true;
+			}
+
+			this.fadingDice.push({ mesh, startTime: now, duration, originals });
+			physicsIds.push(mesh.id);
+		}
+
+		// remove from throwEngine lists
+		this.throwEngine.diceList = this.throwEngine.diceList.filter(d => d.userData?.persistent);
+		this.throwEngine.deadDiceList = this.throwEngine.deadDiceList.filter(d => d.userData?.persistent);
+
+		// remove physics bodies for fading dice
+		if (physicsIds.length > 0 && this.throwEngine.physicsWorker) {
+			this.throwEngine.physicsWorker.exec("removeDice", physicsIds);
+		}
+
+		DiceSFXManager.clearQueue();
+
+		// ensure ticker is running
+		removeTicker(this.animateThrow);
+		canvas.app.ticker.add(this.animateThrow, this);
+	}
+
+	cancelFade() {
+		for (const entry of this.fadingDice) {
+			for (const { material, transparent, opacity } of entry.originals) {
+				material.transparent = transparent;
+				material.opacity = opacity;
+			}
+			const container = entry.mesh.parent?.type === "Scene" ? entry.mesh : entry.mesh.parent;
+			if (container) this.scene.remove(container);
+		}
+		this.fadingDice.length = 0;
+	}
+
 	renderScene() {
+		if (this.renderer) {
+			const now = performance.now();
+			if (now - this._lastStatsCacheTime > 1000) {
+				this.cachedRendererStats = {
+					calls: this.renderer.info.render.calls,
+					triangles: this.renderer.info.render.triangles,
+					textures: this.renderer.info.memory.textures
+				};
+				this._lastStatsCacheTime = now;
+			}
+			this.renderer.info.reset();
+		}
 		this.diceScene.renderScene();
 	}
 

@@ -19,6 +19,7 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
             spawn: DsnSidebarTab._onSpawn,
             remove: DsnSidebarTab._onRemove,
             toggleExtras: DsnSidebarTab._onToggleExtras,
+            toggleHelp: DsnSidebarTab._onToggleHelp,
             clearMine: DsnSidebarTab._onClearMine,
             clearAll: DsnSidebarTab._onClearAll,
             openConfig: DsnSidebarTab._onOpenConfig
@@ -40,6 +41,7 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
     constructor(options = {}) {
         super(options);
         this._showExtras = false;
+        this._showHelp = false;
 
         //re-render when persistent dice change from outside the sidebar
         this._persistentChangedHookId = Hooks.on(
@@ -100,7 +102,8 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
             persistentDiceEnabled,
             ready: !!box,
             dice: diceContext,
-            isGM: !!game.user?.isGM
+            isGM: !!game.user?.isGM,
+            showHelp: this._showHelp
         });
     }
 
@@ -113,6 +116,29 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
                 game.dice3d?.setPersistentDiceVisibility(ev.currentTarget.value);
             });
         }
+
+        if (this._statsInterval) clearInterval(this._statsInterval);
+        this._statsInterval = setInterval(() => this._updateStatsFooter(), 1000);
+        this._updateStatsFooter();
+    }
+
+    _onClose(options) {
+        if (this._statsInterval) {
+            clearInterval(this._statsInterval);
+            this._statsInterval = null;
+        }
+        super._onClose?.(options);
+    }
+
+    _updateStatsFooter() {
+        const box = game.dice3d?.box;
+        const stats = box?.isVisible ? box.cachedRendererStats : null;
+        const callsEl = this.element?.querySelector("[data-stat-value='calls']");
+        const trisEl = this.element?.querySelector("[data-stat-value='triangles']");
+        const texEl = this.element?.querySelector("[data-stat-value='textures']");
+        if (callsEl) callsEl.textContent = stats ? stats.calls : "---";
+        if (trisEl) trisEl.textContent = stats ? stats.triangles : "---";
+        if (texEl) texEl.textContent = stats ? stats.textures : "---";
     }
 
     async _confirm(titleKey, contentKey) {
@@ -139,6 +165,11 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
 
     static _onToggleExtras() {
         this._showExtras = !this._showExtras;
+        this.render(true);
+    }
+
+    static _onToggleHelp() {
+        this._showHelp = !this._showHelp;
         this.render(true);
     }
 

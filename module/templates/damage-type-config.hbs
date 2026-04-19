@@ -8,6 +8,7 @@
                     <th class="col-label">{{localize "DICESONICE.DamageTypeColumnName"}}</th>
                     <th class="col-preset">{{localize "DICESONICE.DamageTypeColumnPreset"}}</th>
                     <th class="col-theme">{{localize "DICESONICE.DamageTypeColumnTheme"}}</th>
+                    <th class="col-save">{{localize "DICESONICE.DamageTypeColumnSave"}}</th>
                     <th class="col-actions"></th>
                 </tr>
             </thead>
@@ -38,6 +39,19 @@
                                 <option value="{{cs.id}}" {{#if cs.selected}}selected{{/if}}>{{cs.label}}</option>
                                 {{/each}}
                             </optgroup>
+                            {{/each}}
+                        </select>
+                    </td>
+                    <td class="col-save">
+                        {{#if row.saveIsBroken}}
+                            <span class="broken-ref" title="{{localize 'DICESONICE.DamageTypeSaveBroken'}}">
+                                <i class="fa-solid fa-triangle-exclamation"></i> {{row.saveName}}
+                            </span>
+                        {{/if}}
+                        <select name="save-{{row.key}}">
+                            <option value="">{{localize "DICESONICE.DamageTypeSaveNone"}}</option>
+                            {{#each row.saves as |s|}}
+                            <option value="{{s.name}}" {{#if s.selected}}selected{{/if}}>{{s.name}}</option>
                             {{/each}}
                         </select>
                     </td>

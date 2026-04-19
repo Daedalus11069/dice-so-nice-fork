@@ -1246,6 +1246,7 @@ export class Dice3D {
         if (this.timeoutHandle) {
             clearTimeout(this.timeoutHandle);
         }
+        this.box.cancelFade();
         this.canvas.stop(true);
         this.canvas.show();
         this._raiseCanvas();
@@ -1272,8 +1273,7 @@ export class Dice3D {
                         }
                         if (Dice3D.CONFIG().hideFX === 'fadeOut') {
                             if (hasPersistentDice) {
-                                //just clear ephemeral dice, keep canvas visible
-                                this.box.clearAll();
+                                this.box.fadeOutEphemeral(1000);
                             } else {
                                 this.canvas.fadeOut({
                                     duration: 1000,

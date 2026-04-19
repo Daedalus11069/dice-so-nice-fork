@@ -808,6 +808,50 @@
     padding-bottom: 0.5rem;
 }
 
+.dsn-sidebar-tab .dsn-toolbox-help-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.9em;
+    opacity: 0.85;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-help-list li::before {
+    content: "\2022";
+    margin-right: 0.4rem;
+    opacity: 0.5;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-footer {
+    margin-top: auto;
+    border-top: 1px solid var(--color-border-light-tertiary, rgba(0, 0, 0, 0.15));
+    padding-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.8em;
+    opacity: 0.7;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-stats {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-stat {
+    font-variant-numeric: tabular-nums;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-issue-link {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
 /* Damage type mapping config window */
 .damage-type-config .damage-type-config-body {
     display: flex;
@@ -849,7 +893,7 @@
 }
 
 .damage-type-config .col-label {
-    width: 32%;
+    width: 26%;
 }
 
 .damage-type-config .col-label .builtin-label {
@@ -875,13 +919,24 @@
 }
 
 .damage-type-config .col-preset,
-.damage-type-config .col-theme {
-    width: 28%;
+.damage-type-config .col-theme,
+.damage-type-config .col-save {
+    width: 21%;
 }
 
 .damage-type-config .col-preset select,
-.damage-type-config .col-theme select {
+.damage-type-config .col-theme select,
+.damage-type-config .col-save select {
     width: 100%;
+}
+
+.damage-type-config .col-save .broken-ref {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--color-level-warning, #e0a020);
+    font-size: 0.85em;
+    margin-bottom: 2px;
 }
 
 .damage-type-config .col-actions {

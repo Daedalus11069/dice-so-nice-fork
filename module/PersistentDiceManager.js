@@ -43,6 +43,14 @@ export class PersistentDiceManager {
 		this.throwEngine = throwEngine;
 	}
 
+	_getPersistentTextureCache() {
+		if (!this._persistentTextureCache) {
+			const boardCache = this.diceScene.renderer.scopedTextureCache;
+			this._persistentTextureCache = { ...boardCache, type: "persistent" };
+		}
+		return this._persistentTextureCache;
+	}
+
 	//spawn a persistent die on the tabletop
 	async spawnPersistentDie(type, appearance, position = null, diceLibrary = null, opts = {}) {
 		//cap persistent dice at maxDiceNumber
@@ -52,7 +60,7 @@ export class PersistentDiceManager {
 			return null;
 		}
 
-		const result = await this.throwEngine.createDiceMesh(type, appearance, diceLibrary);
+		const result = await this.throwEngine.createDiceMesh(type, appearance, diceLibrary, this._getPersistentTextureCache());
 		if (!result) return null;
 		const { dicemesh, diceobj, mass } = result;
 
@@ -215,6 +223,12 @@ export class PersistentDiceManager {
 
 		if (this.physicsWorker) {
 			await this.physicsWorker.exec("removeDice", removedIds);
+		}
+
+		// free persistent material cache when all persistent dice are gone
+		if (this.persistentDiceList.length === 0) {
+			this.dicefactory.disposeCachedMaterials("persistent");
+			this._persistentTextureCache = null;
 		}
 	}
 

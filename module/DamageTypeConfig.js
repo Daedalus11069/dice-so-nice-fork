@@ -22,7 +22,7 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
         },
         id: "damage-type-config",
         position: {
-            width: 680,
+            width: 820,
             height: "auto"
         },
         actions: {
@@ -66,6 +66,8 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
                 label: game.i18n.localize(COLORSETS[id].description),
                 preset: entry.preset || "standard",
                 colorset: entry.colorset || "",
+                saveName: entry.saveName || "",
+                saveOwner: entry.saveOwner || "",
                 isBuiltin: true
             });
         }
@@ -78,6 +80,8 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
                 label: entry.label || id,
                 preset: entry.preset || "standard",
                 colorset: entry.colorset || "",
+                saveName: entry.saveName || "",
+                saveOwner: entry.saveOwner || "",
                 isBuiltin: false
             });
         }
@@ -113,21 +117,33 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([group, items]) => ({ group, items }));
 
+        //GM's saves for the save-as-source dropdown
+        const savesObj = game.user.getFlag("dice-so-nice", "saves") ?? {};
+        const saveNames = Object.keys(savesObj);
+
         //per-row, precompute which options are selected so the template doesn't need a comparison helper
-        const renderRows = this._rows.map(r => ({
-            key: r.key,
-            id: r.id,
-            label: r.label,
-            isBuiltin: r.isBuiltin,
-            presets: presetOptions.map(p => ({ ...p, selected: p.id === r.preset })),
-            colorsetGroups: colorsetGroupList.map(g => ({
-                group: g.group,
-                items: g.items.map(it => ({ ...it, selected: it.id === r.colorset }))
-            })),
-            colorsetBlankSelected: (r.colorset === ""),
-            hasPreset: r.preset !== "",
-            hasColorset: r.colorset !== ""
-        }));
+        const renderRows = this._rows.map(r => {
+            const hasSave = !!(r.saveName);
+            const saveIsBroken = hasSave && !savesObj[r.saveName];
+            return {
+                key: r.key,
+                id: r.id,
+                label: r.label,
+                isBuiltin: r.isBuiltin,
+                presets: presetOptions.map(p => ({ ...p, selected: p.id === r.preset })),
+                colorsetGroups: colorsetGroupList.map(g => ({
+                    group: g.group,
+                    items: g.items.map(it => ({ ...it, selected: it.id === r.colorset }))
+                })),
+                colorsetBlankSelected: (r.colorset === ""),
+                hasPreset: r.preset !== "",
+                hasColorset: r.colorset !== "",
+                hasSave,
+                saveIsBroken,
+                saveName: r.saveName,
+                saves: saveNames.map(name => ({ name, selected: name === r.saveName }))
+            };
+        });
 
         return {
             rows: renderRows,
@@ -142,28 +158,47 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
         const html = this.element;
         html.querySelectorAll(".damage-type-row").forEach(row => this._syncRowInterlock(row));
 
-        //theme disables when the preset is non-standard (its colorset wins instead)
+        //theme disables when the preset is non-standard; save disables preset+theme
         html.addEventListener("change", (ev) => {
             const target = ev.target;
             if (!(target instanceof HTMLElement)) return;
-            if (!target.matches("select[name^='preset-']")) return;
             const row = target.closest(".damage-type-row");
             if (!row) return;
+
+            if (target.matches("select[name^='preset-']") || target.matches("select[name^='colorset-']")) {
+                //changing preset or theme clears the save
+                const saveSelect = row.querySelector("select[name^='save-']");
+                if (saveSelect) saveSelect.value = "";
+            } else if (target.matches("select[name^='save-']") && target.value) {
+                //selecting a save resets preset+theme
+                const presetSelect = row.querySelector("select[name^='preset-']");
+                const colorsetSelect = row.querySelector("select[name^='colorset-']");
+                if (presetSelect) presetSelect.value = "standard";
+                if (colorsetSelect) colorsetSelect.value = "";
+            }
             this._captureForm();
             this._syncRowInterlock(row);
         });
     }
 
-    //theme is only selectable when preset is "standard" — any other preset brings its own colorset
+    //interlock: save disables preset+theme; non-standard preset disables theme
     _syncRowInterlock(row) {
         const presetSelect = row.querySelector("select[name^='preset-']");
         const colorsetSelect = row.querySelector("select[name^='colorset-']");
+        const saveSelect = row.querySelector("select[name^='save-']");
         if (!presetSelect || !colorsetSelect) return;
 
-        const isStandard = (presetSelect.value || "standard") === "standard";
-        colorsetSelect.disabled = !isStandard;
-        if (!isStandard) {
-            colorsetSelect.value = "";
+        const hasSave = saveSelect && saveSelect.value;
+        if (hasSave) {
+            presetSelect.disabled = true;
+            colorsetSelect.disabled = true;
+        } else {
+            presetSelect.disabled = false;
+            const isStandard = (presetSelect.value || "standard") === "standard";
+            colorsetSelect.disabled = !isStandard;
+            if (!isStandard) {
+                colorsetSelect.value = "";
+            }
         }
     }
 
@@ -176,6 +211,8 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
             if (!row) continue;
             r.preset = row.querySelector(`[name='preset-${r.key}']`)?.value || "";
             r.colorset = row.querySelector(`[name='colorset-${r.key}']`)?.value || "";
+            r.saveName = row.querySelector(`[name='save-${r.key}']`)?.value || "";
+            r.saveOwner = r.saveName ? game.user.id : "";
             if (!r.isBuiltin) {
                 const labelInput = row.querySelector(`[name='label-${r.key}']`);
                 if (labelInput) {
@@ -197,6 +234,8 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
             label: game.i18n.localize("DICESONICE.DamageTypeNewEntry"),
             preset: "standard",
             colorset: "",
+            saveName: "",
+            saveOwner: "",
             isBuiltin: false
         });
         this.render();
@@ -220,6 +259,8 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
         if (row) {
             row.preset = "standard";
             row.colorset = "";
+            row.saveName = "";
+            row.saveOwner = "";
         }
         this.render();
     }
@@ -229,16 +270,21 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
 
         const final = {};
         for (const r of this._rows) {
-            //skip rows still at default (standard preset + no theme) — they'd do nothing
-            const isDefault = (r.preset === "standard" || !r.preset) && !r.colorset;
+            //skip rows still at default (standard preset + no theme + no save)
+            const isDefault = (r.preset === "standard" || !r.preset) && !r.colorset && !r.saveName;
             if (isDefault) continue;
             if (!r.isBuiltin && !r.id) {
                 ui.notifications.warn(game.i18n.localize("DICESONICE.DamageTypeMissingId"));
                 continue;
             }
             const entry = {};
-            if (r.preset && r.preset !== "standard") entry.preset = r.preset;
-            if (r.colorset) entry.colorset = r.colorset;
+            if (r.saveName) {
+                entry.saveName = r.saveName;
+                entry.saveOwner = r.saveOwner || game.user.id;
+            } else {
+                if (r.preset && r.preset !== "standard") entry.preset = r.preset;
+                if (r.colorset) entry.colorset = r.colorset;
+            }
             if (!r.isBuiltin && r.label) entry.label = r.label;
             final[r.id] = entry;
         }

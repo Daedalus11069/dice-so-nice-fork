@@ -87,8 +87,35 @@
         <option value="none" {{#if dice.visibilityNone}}selected{{/if}}>{{localize "DICESONICE.persistentDiceToolboxVisibilityNone"}}</option>
     </select>
 </section>
+
+<section class="dsn-toolbox-section dsn-toolbox-help">
+    <button type="button" data-action="toggleHelp" class="dsn-toolbox-disclosure">
+        <i class="fa-solid {{#if showHelp}}fa-chevron-down{{else}}fa-chevron-right{{/if}}"></i>
+        <span>{{localize "DICESONICE.persistentDiceHelpTitle"}}</span>
+    </button>
+    {{#if showHelp}}
+    <ul class="dsn-toolbox-help-list">
+        <li>{{localize "DICESONICE.persistentDiceHelpSelect"}}</li>
+        <li>{{localize "DICESONICE.persistentDiceHelpDelete"}}</li>
+        <li>{{localize "DICESONICE.persistentDiceHelpDrag"}}</li>
+        <li>{{localize "DICESONICE.persistentDiceHelpThrow"}}</li>
+    </ul>
+    {{/if}}
+</section>
 {{else}}
 <p class="dsn-toolbox-notice">{{localize "DICESONICE.sidebarTabPersistentDisabled"}}</p>
 {{/if}}
+
+<footer class="dsn-toolbox-footer">
+    <div class="dsn-toolbox-stats">
+        <span class="dsn-toolbox-stat">{{localize "DICESONICE.sidebarFooterDrawCalls"}}: <span data-stat-value="calls">---</span></span>
+        <span class="dsn-toolbox-stat">{{localize "DICESONICE.sidebarFooterTriangles"}}: <span data-stat-value="triangles">---</span></span>
+        <span class="dsn-toolbox-stat">{{localize "DICESONICE.sidebarFooterTextures"}}: <span data-stat-value="textures">---</span></span>
+    </div>
+    <a href="https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues" target="_blank" class="dsn-toolbox-issue-link">
+        <i class="fa-brands fa-gitlab"></i>
+        {{localize "DICESONICE.sidebarFooterReportIssue"}}
+    </a>
+</footer>
 
 {{/unless}}

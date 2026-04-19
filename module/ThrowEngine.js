@@ -185,11 +185,11 @@ export class ThrowEngine {
 	}
 
 	//create a dice mesh (shared setup for ephemeral and persistent)
-	async createDiceMesh(type, appearance, diceLibrary = null) {
+	async createDiceMesh(type, appearance, diceLibrary = null, scopedTextureCache = null) {
 		const diceobj = this.dicefactory.get(type);
 		if (!diceobj) return null;
 
-		let dicemesh = await this.dicefactory.create(this.diceScene.renderer.scopedTextureCache, diceobj.type, appearance, diceLibrary);
+		let dicemesh = await this.dicefactory.create(scopedTextureCache || this.diceScene.renderer.scopedTextureCache, diceobj.type, appearance, diceLibrary);
 		if (!dicemesh) return null;
 
 		let mass = diceobj.mass;

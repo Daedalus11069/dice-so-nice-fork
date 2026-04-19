@@ -697,7 +697,7 @@ export class DiceFactory {
 		if(diceobj.model && appearance.isGhost){
 			diceobj = this.getPresetBySystem(type, "standard");
 		}
-		let scopedScale = scopedTextureCache.type == "board" ? this.baseScale : this.showcaseScale;
+		let scopedScale = (scopedTextureCache.type == "board" || scopedTextureCache.type == "persistent") ? this.baseScale : this.showcaseScale;
 		if (!diceobj) return null;
 
 		//ensure the resolved preset is fully loaded. preloadPresets only covers presets
@@ -720,7 +720,7 @@ export class DiceFactory {
 		if (!geom) return null;
 
 		// If we're on the board, we also create the shape in the physics worker
-		if(scopedTextureCache.type == "board"){
+		if(scopedTextureCache.type == "board" || scopedTextureCache.type == "persistent"){
 			await this.physicsWorker.exec("createShape", { type:diceobj.shape, radius:diceobj.scale * scopedScale });
 		}
 
@@ -1681,7 +1681,7 @@ export class DiceFactory {
 
 	getAppearanceForDice(appearances, dicetype, dicenotation = null){
 		/*
-			We use either (by order of priority): 
+			We use either (by order of priority):
 			1) A notation appearance
 			2) A flavor/notation colorset
 			3) The colorset of the diceobj
@@ -1689,7 +1689,22 @@ export class DiceFactory {
 			5) A preferred system set by a module/system (done in main.js)
 			6) The global colorset of the player
 		*/
-		
+
+		// save-as-source: if the damage type maps to a saved profile, replace appearances
+		if(dicenotation){
+			const detected = this.detectDamageType(dicenotation);
+			if(detected){
+				const mapped = this.resolveDamageTypeMapping(detected);
+				if(mapped?.saveName){
+					const saveAppearance = game.users.get(mapped.saveOwner)
+						?.getFlag("dice-so-nice", "saves")
+						?.[mapped.saveName]
+						?.appearance;
+					if(saveAppearance) appearances = saveAppearance;
+				}
+			}
+		}
+
 		let settings;
 		if(appearances[dicetype])
 			settings = appearances[dicetype];
@@ -1854,7 +1869,7 @@ export class DiceFactory {
 		return null;
 	}
 
-	//resolve a damage type id to a mapping entry {colorset?, preset?}
+	//resolve a damage type id to a mapping entry {colorset?, preset?} or {saveName, saveOwner}
 	//checks the GM-configured damageTypeMap first, then falls back to the legacy name==colorset match
 	resolveDamageTypeMapping(detectedType){
 		if(!detectedType) return null;
@@ -1866,6 +1881,7 @@ export class DiceFactory {
 		}
 		const entry = map[detectedType];
 		if(entry){
+			if(entry.saveName && entry.saveOwner) return { saveName: entry.saveName, saveOwner: entry.saveOwner };
 			if(entry.preset || entry.colorset) return entry;
 		}
 		if(COLORSETS[detectedType]) return { colorset: detectedType, preset: null };
