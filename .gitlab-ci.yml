@@ -13,6 +13,7 @@ before_script:
 stages:
   - build
   - publish
+  - deploy
 
 build:
   stage: build
@@ -68,5 +69,18 @@ publish:
         echo "Failed to publish release"
         exit 1
       fi
+  only:
+    - tags
+
+pages:
+  stage: deploy
+  before_script:
+    - cd docs && npm ci
+  script:
+    - npx astro build
+    - mv public ../public
+  artifacts:
+    paths:
+      - public/
   only:
     - tags

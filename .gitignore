@@ -4,3 +4,5 @@
 dist
 node_modules
 .github
+docs/public/
+docs/node_modules/
