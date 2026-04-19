@@ -2055,32 +2055,34 @@ export class DiceFactory {
 				}
 
 				materialData.perFaceOverrides = {};
-				for(const [faceValue, faceData] of Object.entries(libraryDie.faces || {})) {
-					if(!faceData) continue;
-					const override = {};
-					if(faceData.foreground !== null && faceData.foreground !== undefined) override.foreground = faceData.foreground;
-					if(faceData.background !== null && faceData.background !== undefined) override.background = faceData.background;
-					if(faceData.outline !== null && faceData.outline !== undefined) override.outline = faceData.outline;
-					if(faceData.font !== null && faceData.font !== undefined) override.font = faceData.font;
-					if(faceData.labelText !== null && faceData.labelText !== undefined) override.labelText = faceData.labelText;
-					if(faceData.labelImage !== null && faceData.labelImage !== undefined) {
-						override.labelImage = faceData.labelImage;
-						const loadedImg = DiceLibrary.getLoadedImage(faceData.labelImage);
-						if(loadedImg) {
-							override.labelImageObj = loadedImg;
-							override.labelImageScale = faceData.labelImageScale ?? 100;
-							override.labelImageFlip = !!faceData.labelImageFlip;
-							override.labelImagePosition = faceData.labelImagePosition ?? 50;
+				if(!materialData.isGhost) {
+					for(const [faceValue, faceData] of Object.entries(libraryDie.faces || {})) {
+						if(!faceData) continue;
+						const override = {};
+						if(faceData.foreground !== null && faceData.foreground !== undefined) override.foreground = faceData.foreground;
+						if(faceData.background !== null && faceData.background !== undefined) override.background = faceData.background;
+						if(faceData.outline !== null && faceData.outline !== undefined) override.outline = faceData.outline;
+						if(faceData.font !== null && faceData.font !== undefined) override.font = faceData.font;
+						if(faceData.labelText !== null && faceData.labelText !== undefined) override.labelText = faceData.labelText;
+						if(faceData.labelImage !== null && faceData.labelImage !== undefined) {
+							override.labelImage = faceData.labelImage;
+							const loadedImg = DiceLibrary.getLoadedImage(faceData.labelImage);
+							if(loadedImg) {
+								override.labelImageObj = loadedImg;
+								override.labelImageScale = faceData.labelImageScale ?? 100;
+								override.labelImageFlip = !!faceData.labelImageFlip;
+								override.labelImagePosition = faceData.labelImagePosition ?? 50;
+							}
 						}
-					}
-					if(faceData.backgroundTexture !== null && faceData.backgroundTexture !== undefined) {
-						override.texture = DiceColors.getTexture(faceData.backgroundTexture);
-					}
-					if(faceData.emissive === true) override.emissive = true;
-					else if(faceData.emissive === false) override.emissive = false;
-					if(faceData.fontScale !== null && faceData.fontScale !== undefined) override.fontScale = faceData.fontScale;
-					if(Object.keys(override).length > 0) {
-						materialData.perFaceOverrides[faceValue] = override;
+						if(faceData.backgroundTexture !== null && faceData.backgroundTexture !== undefined) {
+							override.texture = DiceColors.getTexture(faceData.backgroundTexture);
+						}
+						if(faceData.emissive === true) override.emissive = true;
+						else if(faceData.emissive === false) override.emissive = false;
+						if(faceData.fontScale !== null && faceData.fontScale !== undefined) override.fontScale = faceData.fontScale;
+						if(Object.keys(override).length > 0) {
+							materialData.perFaceOverrides[faceValue] = override;
+						}
 					}
 				}
 				materialData.libraryDieId = appearance.libraryDieId;
