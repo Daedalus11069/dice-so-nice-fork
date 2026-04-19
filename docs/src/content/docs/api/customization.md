@@ -145,6 +145,36 @@ dice3d.addDicePreset(
     'd6'
 );
 ```
+
+### Using Font Awesome icons as labels
+
+Foundry VTT ships with **Font Awesome 7 Pro**. You can use any FA icon as a die face label by setting the `font` property and passing the icon's Unicode character in the `labels` array.
+
+Two important details:
+1. The font name must include **literal double quotes** around it: `'"Font Awesome 7 Pro"'`. This is needed for correct CSS font parsing with multi-word font names. DsN automatically applies the `900` font weight (solid style) when it detects this font.
+2. Labels must be the **Unicode character** for the icon, not the CSS class name. You can find the Unicode value on [the Font Awesome icon page](https://fontawesome.com/icons) (look for the Unicode value, e.g. `f005` for the star icon), then use `\uXXXX` in your JavaScript string.
+
+```javascript
+dice3d.addDicePreset({
+    type: 'd6',
+    labels: [
+        '\uf54c',  // skull
+        '\uf005',  // star
+        '\uf06d',  // fire
+        '\uf0e7',  // bolt
+        '\uf21e',  // heartbeat
+        '\uf6cf'   // dice-d20
+    ],
+    font: '"Font Awesome 7 Pro"',
+    fontScale: 0.8,
+    system: 'my-system'
+});
+```
+
+:::note
+This only works with Foundry VTT v14+ which bundles Font Awesome 7 Pro. For older Foundry versions, use the matching font family name (e.g. `'"Font Awesome 6 Pro"'`).
+:::
+
 This example uses the `backgrounds`, `labelScale`, and `scaleModifier` properties:
 
 ```javascript
