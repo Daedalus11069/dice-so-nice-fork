@@ -1,4 +1,4 @@
-import { Clock, Color } from 'three';
+import { Timer, Color } from 'three';
 import { DiceSFX } from '../DiceSFX.js';
 import { ShaderUtils } from './../ShaderUtils';
 
@@ -28,7 +28,7 @@ export class PlayAnimationDark extends DiceSFX {
         } else {
             return false;
         }
-        this.clock = new Clock();
+        this.timer = new Timer();
         this.baseColor = this.glowingMesh.material.color.clone();
         this.baseMaterial = this.glowingMesh.material;
         this.glowingMesh.material = this.baseMaterial.clone();
@@ -43,7 +43,8 @@ export class PlayAnimationDark extends DiceSFX {
     render() {
         if(!this.renderReady)
             return;
-        let x = 1-((PlayAnimationDark.duration - this.clock.getElapsedTime())/PlayAnimationDark.duration);
+        this.timer.update();
+        let x = 1-((PlayAnimationDark.duration - this.timer.getElapsed())/PlayAnimationDark.duration);
         if(x>1){
             this.destroy();
         } else {

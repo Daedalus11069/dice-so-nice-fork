@@ -1,6 +1,6 @@
 import {
 	ACESFilmicToneMapping,
-	Clock,
+	Timer,
 	Color,
 	CubeTextureLoader,
 	DirectionalLight,
@@ -61,7 +61,7 @@ export class DiceScene {
 			far: null
 		};
 
-		this.clock = new Clock();
+		this.timer = new Timer();
 
 		this.colors = {
 			ambient: 0xf0f0f0,
@@ -293,7 +293,8 @@ export class DiceScene {
 		//update animated dice mixers
 		if (this.animatedDiceDetected) {
 			let animatedMaterials = new Set();
-			let delta = this.clock.getDelta();
+			this.timer.update();
+			let delta = this.timer.getDelta();
 
 			this.scene.traverse(obj => {
 				if(obj.mixer)

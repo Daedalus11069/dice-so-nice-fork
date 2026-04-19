@@ -1,4 +1,4 @@
-import { Box3, CatmullRomCurve3, Clock, Vector3 } from 'three';
+import { Box3, CatmullRomCurve3, Timer, Vector3 } from 'three';
 import { DiceSFX } from '../DiceSFX.js';
 import { DiceSFXManager } from './../DiceSFXManager';
 import { ShaderUtils } from './../ShaderUtils';
@@ -35,7 +35,7 @@ export class PlayAnimationThormund extends DiceSFX {
     /**@override play */
     async play() {
         this.step = 1;
-        this.clock = new Clock();
+        this.timer = new Timer();
         this.thormund = PlayAnimationThormund.model.clone();
         let scale = this.box.dicefactory.baseScale/100;
         const L = LEGACY_TO_METERS;
@@ -87,12 +87,13 @@ export class PlayAnimationThormund extends DiceSFX {
         if(!this.renderReady)
             return;
         let duration = this.step == 1? PlayAnimationThormund.duration1:PlayAnimationThormund.duration2;
-        let x = 1-((duration - this.clock.getElapsedTime())/duration);
+        this.timer.update();
+        let x = 1-((duration - this.timer.getElapsed())/duration);
         if(x>1){
             if(this.step == 1){
                 this.step++;
                 x = 0;
-                this.clock.start();
+                this.timer.reset();
                 this.render();
             }
             else
