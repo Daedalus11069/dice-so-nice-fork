@@ -51,9 +51,12 @@ The GM can configure which appearance is used for each damage type. The **Damage
 From the mapping dialog, the GM can:
 
 - **Map each damage type** to a specific dice preset (system) and/or theme (colorset).
+- **Map a damage type to a saved configuration** - The "Save" column lets you pick one of your saved dice configurations (created from the Profile & Data tab). When a save is selected, it overrides the preset and theme columns, applying the full saved appearance instead. This is useful when you want a damage type to use a complete custom look that you have already set up.
 - **Add custom damage types** by providing an id and a display label.
 - **Delete custom damage types** that are no longer needed.
 - **Reset to defaults** to restore the built-in mappings.
+
+If a saved configuration referenced by a mapping is deleted, the mapping will show a broken reference indicator. You can fix it by selecting a different save or clearing the save column.
 
 Built-in damage types include: fire, acid, cold, radiant, poison, thunder, lightning, air, water, earth, force, psychic, necrotic, and ice.
 
