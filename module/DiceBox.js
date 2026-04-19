@@ -10,7 +10,6 @@ import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import Stats from 'stats-gl';
 
 import {
-	PCFSoftShadowMap,
 	PCFShadowMap,
 	Vector2
 } from 'three';
@@ -277,7 +276,7 @@ export class DiceBox {
 		this.light.castShadow = this.dicefactory.shadows;
 		this.desk.receiveShadow = this.dicefactory.shadows;
 		this.renderer.shadowMap.enabled = this.dicefactory.shadows;
-		this.renderer.shadowMap.type = this.dicefactory.shadowQuality == "high" || this.dicefactory.shadowQuality == "medium" ? PCFSoftShadowMap : PCFShadowMap;
+		this.renderer.shadowMap.type = PCFShadowMap;
 
 		await this.dicefactory.preloadPresets(true, null, config.appearance);
 

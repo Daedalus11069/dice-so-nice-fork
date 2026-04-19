@@ -10,7 +10,6 @@ import {
 	Layers,
 	Mesh,
 	MeshBasicMaterial,
-	PCFSoftShadowMap,
 	PCFShadowMap,
 	PerspectiveCamera,
 	PlaneGeometry,
@@ -124,7 +123,7 @@ export class DiceScene {
 
 			this.container.appendChild(this.renderer.domElement);
 			this.renderer.shadowMap.enabled = this.dicefactory.shadows;
-			this.renderer.shadowMap.type = this.dicefactory.shadowQuality == "high" || this.dicefactory.shadowQuality == "medium" ? PCFSoftShadowMap : PCFShadowMap;
+			this.renderer.shadowMap.type = PCFShadowMap;
 			this.renderer.setClearColor(0x000000, 0.0);
 
 			this.setScene(this.config.dimensions);
@@ -370,7 +369,7 @@ export class DiceScene {
 	//update shadow and renderer quality after dicefactory settings change
 	updateRenderSettings() {
 		this.renderer.shadowMap.enabled = this.dicefactory.shadows;
-		this.renderer.shadowMap.type = this.dicefactory.shadowQuality == "high" ? PCFSoftShadowMap : PCFShadowMap;
+		this.renderer.shadowMap.type = PCFShadowMap;
 		this.light.castShadow = this.dicefactory.shadows;
 		this.desk.receiveShadow = this.dicefactory.shadows;
 	}

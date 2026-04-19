@@ -1,4 +1,4 @@
-import { Clock, Mesh, MeshStandardMaterial, PlaneGeometry } from 'three';
+import { Mesh, MeshStandardMaterial, PlaneGeometry } from 'three';
 import { DiceSFX } from '../DiceSFX.js';
 import { DiceSFXManager } from './../DiceSFXManager';
 import { LEGACY_TO_METERS } from '../SceneConstants.js';
@@ -32,7 +32,6 @@ export class PlayAnimationImpact extends DiceSFX {
 
     /**@override play */
     async play() {
-        this.clock = new Clock();
         this.plane = PlayAnimationImpact.planeImpact.clone();
         this.plane.receiveShadow = this.box.shadows;
 
