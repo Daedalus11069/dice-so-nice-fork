@@ -258,7 +258,8 @@ Hooks.once('init', () => {
         choices: Utils.localize({
             "0": "DICESONICE.ghostDiceDisabled",
             "1": "DICESONICE.ghostDiceForAll",
-            "2": "DICESONICE.ghostDiceForRollAuthor"
+            "2": "DICESONICE.ghostDiceForRollAuthor",
+            "3": "DICESONICE.ghostDiceForPlayerRollsOnly"
         }),
         default: false,
         config: true
@@ -346,7 +347,9 @@ const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, ds
 
     const hide3dDiceOnSecretRolls = game.settings.get("dice-so-nice", "hide3dDiceOnSecretRolls");
     const showGhostDice = game.settings.get("dice-so-nice", "showGhostDice");
-    const shouldShowGhostDice = (showGhostDice === "1" || (showGhostDice === "2" && game.user.id === chatMessage.author.id) && hide3dDiceOnSecretRolls);
+    const shouldShowGhostDice = showGhostDice === "1" ||
+        (showGhostDice === "2" && game.user.id === chatMessage.author.id && hide3dDiceOnSecretRolls) ||
+        (showGhostDice === "3" && !chatMessage.author.isGM && hide3dDiceOnSecretRolls);
     
     const isContentVisible = chatMessage.isContentVisible;
     const shouldAnimateRollTable = game.settings.get("dice-so-nice", "animateRollTable");

@@ -170,6 +170,7 @@
     "DICESONICE.ghostDiceDisabled": "Disable Ghost dice",
     "DICESONICE.ghostDiceForAll": "To all players",
     "DICESONICE.ghostDiceForRollAuthor": "To the roll author only",
+    "DICESONICE.ghostDiceForPlayerRollsOnly": "For player rolls only (hide GM rolls)",
     "DICESONICE.navAppearanceHint": "(Click on a die to customize it)",
     "DICESONICE.Add": "Add",
     "DICESONICE.Delete": "Delete",
