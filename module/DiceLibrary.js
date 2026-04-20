@@ -153,9 +153,10 @@ export class DiceLibrary {
         return library.find(d => d.id === id) || null;
     }
 
-    //preload label images for library dice in active appearances (same pattern as preloadPresets)
+    //preload label images and custom textures for library dice in active appearances
     static async preloadAssets(userID = null) {
         const urls = new Set();
+        const customTextures = new Map();
         const collectFromUser = (user) => {
             const appearance = user.getFlag("dice-so-nice", "appearance");
             if (!appearance) return;
@@ -168,9 +169,24 @@ export class DiceLibrary {
                 const owner = ownerId ? game.users.get(ownerId) : user;
                 if (!owner) continue;
                 const die = DiceLibrary.getFromUser(owner, libId);
-                if (!die?.faces) continue;
+                if (!die) continue;
+
+                if (die.baseAppearance?.texture?.startsWith("custom:")) {
+                    const path = die.baseAppearance.texture.slice(7);
+                    if (!customTextures.has(path)) {
+                        customTextures.set(path, die.baseAppearance.textureComposite || "multiply");
+                    }
+                }
+
+                if (!die.faces) continue;
                 for (const faceData of Object.values(die.faces)) {
                     if (faceData?.labelImage) urls.add(faceData.labelImage);
+                    if (faceData?.backgroundTexture?.startsWith("custom:")) {
+                        const path = faceData.backgroundTexture.slice(7);
+                        if (!customTextures.has(path)) {
+                            customTextures.set(path, faceData.backgroundTextureComposite || die.baseAppearance?.textureComposite || "multiply");
+                        }
+                    }
                 }
             }
         };
@@ -182,20 +198,30 @@ export class DiceLibrary {
             game.users.forEach(user => collectFromUser(user));
         }
 
-        if (urls.size === 0) return;
-
-        const loader = new AssetsLoader();
         const promises = [];
-        for (const url of urls) {
-            if (DiceLibrary._imageCache[url]) continue;
+
+        for (const [path, composite] of customTextures) {
             promises.push(
-                loader.load([url]).then(result => {
-                    DiceLibrary._imageCache[url] = result[url];
-                }).catch(err => {
-                    console.warn(`[Dice So Nice] Failed to preload label image: ${url}`, err);
+                DiceColors.registerCustomTexture(path, composite).catch(err => {
+                    console.warn(`[Dice So Nice] Failed to preload custom texture: ${path}`, err);
                 })
             );
         }
+
+        if (urls.size > 0) {
+            const loader = new AssetsLoader();
+            for (const url of urls) {
+                if (DiceLibrary._imageCache[url]) continue;
+                promises.push(
+                    loader.load([url]).then(result => {
+                        DiceLibrary._imageCache[url] = result[url];
+                    }).catch(err => {
+                        console.warn(`[Dice So Nice] Failed to preload label image: ${url}`, err);
+                    })
+                );
+            }
+        }
+
         await Promise.all(promises);
     }
 

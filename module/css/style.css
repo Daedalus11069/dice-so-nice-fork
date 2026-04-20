@@ -454,6 +454,25 @@
     gap: 0.3rem;
 }
 
+.dice-editor-app .custom-texture-fields {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.dice-editor-app .custom-texture-fields input[type="text"] {
+    flex: 1;
+}
+
+.dice-editor-app .custom-texture-clear {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    line-height: 28px;
+    text-align: center;
+}
+
 .dice-library-dialog-app .window-content {
     display: flex;
     flex-direction: column;

@@ -714,6 +714,20 @@ export class DiceColors {
 		});
 	}
 	
+	static registerCustomTexture(path, composite = "multiply") {
+		const key = `custom:${path}`;
+		const textureEntry = {
+			name: path.split("/").pop(),
+			composite,
+			source: path,
+			bump: ''
+		};
+		TEXTURELIST[key] = textureEntry;
+		return new Promise((resolve) => {
+			DiceColors.loadTextures({ [key]: textureEntry }, () => resolve(key));
+		});
+	}
+
 	static getTexture(texturename) {
 	
 		if (Array.isArray(texturename)) {
@@ -736,7 +750,7 @@ export class DiceColors {
 		}
 	
 		if(texturename == 'random') {
-			let names = Object.keys(DiceColors.diceTextures);
+			let names = Object.keys(DiceColors.diceTextures).filter(k => !k.startsWith("custom:"));
 			return this.getTexture(names[Math.floor(Math.random() * names.length)]);
 		}
 		//Init not done yet, let the init load the texture

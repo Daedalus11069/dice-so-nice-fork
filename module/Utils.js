@@ -263,7 +263,7 @@ export class Utils {
     };
 
     static prepareTextureList() {
-        return Object.keys(TEXTURELIST).reduce((i18nCfg, key) => {
+        return Object.keys(TEXTURELIST).filter(k => !k.startsWith("custom:")).reduce((i18nCfg, key) => {
             i18nCfg[key] = game.i18n.localize(TEXTURELIST[key].name);
             return i18nCfg;
         }, {}
@@ -388,7 +388,7 @@ export class Utils {
     }
 
     //reset references to resources that no longer exist
-    static sanitizeAppearance(appearance) {
+    static sanitizeAppearance(appearance, user = null) {
         const dicefactory = game.dice3d.DiceFactory;
 
         for (const scope in appearance) {
@@ -406,7 +406,7 @@ export class Utils {
             }
 
             if (settings.texture && typeof settings.texture === 'string'
-                && settings.texture !== "none" && !TEXTURELIST[settings.texture]) {
+                && settings.texture !== "none" && !settings.texture.startsWith("custom:") && !TEXTURELIST[settings.texture]) {
                 settings.texture = "none";
             }
 
@@ -420,6 +420,10 @@ export class Utils {
                     if (!owner || !DiceLibrary.getFromUser(owner, settings.libraryDieId)) {
                         delete settings.libraryDieId;
                         delete settings.libraryDieOwner;
+                    }
+                } else if (user) {
+                    if (!DiceLibrary.getFromUser(user, settings.libraryDieId)) {
+                        delete settings.libraryDieId;
                     }
                 } else {
                     const library = game.dice3d?.diceLibrary;

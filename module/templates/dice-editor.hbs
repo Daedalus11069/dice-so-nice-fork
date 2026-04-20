@@ -46,12 +46,29 @@
             <div class="form-group">
                 <label>{{localize "DICESONICE.texture"}}</label>
                 <div class="form-fields">
-                    <select name="baseTexture">
-                        {{selectOptions textureList selected=baseAppearance.texture}}
+                    <select name="baseTexture" {{#if isCustomTexture}}disabled{{/if}}>
+                        {{selectOptions textureList selected=builtinTexture}}
                     </select>
                 </div>
             </div>
-
+            <input type="hidden" name="baseTextureEffective" value="{{baseAppearance.texture}}" />
+            <div class="form-group">
+                <label>{{localize "DICESONICE.editorCustomTexture"}}</label>
+                <div class="form-fields custom-texture-fields">
+                    <input type="text" name="baseCustomTexturePath" value="{{customTexturePath}}" readonly placeholder="" />
+                    <button type="button" class="file-picker" data-base-texture-filepicker><i class="fas fa-file-import"></i></button>
+                    <button type="button" class="custom-texture-clear" data-base-texture-clear title="{{localize 'DICESONICE.editorClearCustomTexture'}}" {{#unless isCustomTexture}}style="display:none"{{/unless}}><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div class="form-group custom-texture-composite" {{#unless isCustomTexture}}style="display:none"{{/unless}}>
+                <label>{{localize "DICESONICE.editorBlendMode"}}</label>
+                <div class="form-fields">
+                    <select name="baseTextureComposite">
+                        {{selectOptions compositeOptions selected=baseTextureComposite}}
+                    </select>
+                </div>
+            </div>
+            <hr />
             <div class="dice-editor-face-props" data-face-props style="display:none;">
                 <h3>{{localize "DICESONICE.editorFaceProps"}}</h3>
                 {{{facePropsHtml}}}

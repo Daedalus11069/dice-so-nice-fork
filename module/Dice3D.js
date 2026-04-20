@@ -118,7 +118,7 @@ export class Dice3D {
         let userAppearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : {};
         let appearance = foundry.utils.mergeObject(Dice3D.DEFAULT_APPEARANCE(user), userAppearance, { applyOperators: true });
         appearance = foundry.utils.mergeObject(appearance, { dimensions: foundry.data.operators.ForcedDeletion }, { applyOperators: true });
-        return Utils.sanitizeAppearance(appearance);
+        return Utils.sanitizeAppearance(appearance, user);
     }
 
     static SFX(user = game.user) {
