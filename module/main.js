@@ -166,13 +166,17 @@ Hooks.once('init', () => {
         config: true
     });
     
-    //Settings for forcing the dice appearance of the character owner during an initative roll instead of the message author
-    game.settings.register("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative", {
-        name: "DICESONICE.forceCharacterOwnerAppearanceForInitiative",
-        hint: "DICESONICE.forceCharacterOwnerAppearanceForInitiativeHint",
+    game.settings.register("dice-so-nice", "forceCharacterOwnerAppearance", {
+        name: "DICESONICE.forceCharacterOwnerAppearance",
+        hint: "DICESONICE.forceCharacterOwnerAppearanceHint",
         scope: "world",
-        type: Boolean,
-        default: true,
+        type: String,
+        choices: Utils.localize({
+            "0": "DICESONICE.forceCharacterOwnerAppearanceDisabled",
+            "1": "DICESONICE.forceCharacterOwnerAppearanceInitiative",
+            "2": "DICESONICE.forceCharacterOwnerAppearanceAll"
+        }),
+        default: "1",
         config: true
     });
 

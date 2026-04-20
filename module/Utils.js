@@ -26,7 +26,7 @@ export function removeTicker(fn) {
  */
 export class Utils {
 
-    static DATA_FORMAT_VERSION = "4.2";
+    static DATA_FORMAT_VERSION = "4.3";
     static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "enabled", "rollingArea", "advancedGlass", "ambiance"];
 
     /**
@@ -201,6 +201,18 @@ export class Utils {
             //showGhostDice is now a string with 3 values. 0, 1 or 2
             //If the setting was previously false, set it to 0. If it was true, set it to 1
             await game.settings.set("dice-so-nice", "showGhostDice", game.settings.get("dice-so-nice", "showGhostDice") ? '1' : '0');
+
+            migrated = true;
+        }
+
+        if(Utils.isVersionLessThan(formatversion, "4.3")) {
+            // migrate boolean forceCharacterOwnerAppearanceForInitiative to select forceCharacterOwnerAppearance
+            try {
+                const oldValue = game.settings.get("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative");
+                await game.settings.set("dice-so-nice", "forceCharacterOwnerAppearance", oldValue ? "1" : "0");
+            } catch(e) {
+                // old setting doesn't exist (fresh install), keep the default
+            }
 
             migrated = true;
         }
