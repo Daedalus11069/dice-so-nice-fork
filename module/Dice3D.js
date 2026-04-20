@@ -101,7 +101,7 @@ export class Dice3D {
     }
 
     static ALL_DEFAULT_OPTIONS(user = game.user) {
-        let options = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, { appearance: Dice3D.DEFAULT_APPEARANCE(user) }, { performDeletions: true });
+        let options = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, { appearance: Dice3D.DEFAULT_APPEARANCE(user) }, { applyOperators: true });
         options.appearance.global.system = game.dice3d.DiceFactory.preferredSystem;
         options.appearance.global.colorset = game.dice3d.DiceFactory.preferredColorset;
         return options;
@@ -109,15 +109,15 @@ export class Dice3D {
 
     static CONFIG(user = game.user) {
         let userSettings = user.getFlag("dice-so-nice", "settings") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "settings")) : {};
-        let config = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, userSettings, { performDeletions: true });
-        foundry.utils.mergeObject(config, { "-=appearance": null, "-=sfxLine": null }, { performDeletions: true });
+        let config = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, userSettings, { applyOperators: true });
+        foundry.utils.mergeObject(config, { appearance: foundry.data.operators.ForcedDeletion, sfxLine: foundry.data.operators.ForcedDeletion }, { applyOperators: true });
         return config;
     }
 
     static APPEARANCE(user = game.user) {
         let userAppearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : {};
-        let appearance = foundry.utils.mergeObject(Dice3D.DEFAULT_APPEARANCE(user), userAppearance, { performDeletions: true });
-        appearance = foundry.utils.mergeObject(appearance, { "-=dimensions": null }, { performDeletions: true });
+        let appearance = foundry.utils.mergeObject(Dice3D.DEFAULT_APPEARANCE(user), userAppearance, { applyOperators: true });
+        appearance = foundry.utils.mergeObject(appearance, { dimensions: foundry.data.operators.ForcedDeletion }, { applyOperators: true });
         return Utils.sanitizeAppearance(appearance);
     }
 
@@ -159,7 +159,7 @@ export class Dice3D {
                 }
             }
         });
-        let config = foundry.utils.mergeObject({ appearance: Dice3D.APPEARANCE(user) }, { specialEffects: specialEffects }, { performDeletions: true });
+        let config = foundry.utils.mergeObject({ appearance: Dice3D.APPEARANCE(user) }, { specialEffects: specialEffects }, { applyOperators: true });
         if (dicefactory && !game.user.getFlag("dice-so-nice", "appearance")) {
             if (dicefactory.preferredSystem != "standard")
                 config.appearance.global.system = dicefactory.preferredSystem;
@@ -171,7 +171,7 @@ export class Dice3D {
     }
 
     static ALL_CONFIG(user = game.user) {
-        let ret = foundry.utils.mergeObject(Dice3D.CONFIG(user), { appearance: Dice3D.APPEARANCE(user) }, { performDeletions: true });
+        let ret = foundry.utils.mergeObject(Dice3D.CONFIG(user), { appearance: Dice3D.APPEARANCE(user) }, { applyOperators: true });
         ret.specialEffects = Dice3D.SFX(user);
         return ret;
     }
@@ -256,7 +256,7 @@ export class Dice3D {
             font: "custom",
             visibility: "visible"
         }
-        colorset = foundry.utils.mergeObject(defaultValues, colorset, { performDeletions: true });
+        colorset = foundry.utils.mergeObject(defaultValues, colorset, { applyOperators: true });
         COLORSETS[colorset.name] = colorset;
         DiceColors.initColorSets(colorset);
 

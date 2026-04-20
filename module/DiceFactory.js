@@ -371,7 +371,7 @@ export class DiceFactory {
 			this.systems.get("standard").dice.forEach((obj) =>{
 				activePresets.push(obj);
 			});
-			foundry.utils.mergeObject(appearance, config,{performDeletions:true});
+			foundry.utils.mergeObject(appearance, config,{applyOperators:true});
 			if(!foundry.utils.isEmpty(appearance)){
 				for (let scope in appearance) {
 					if (appearance.hasOwnProperty(scope)) {
@@ -1759,7 +1759,7 @@ export class DiceFactory {
 				if(opt[1] == "custom")
 					delete colorsetData[opt[0]];
 			});
-			foundry.utils.mergeObject(appearance, colorsetData,{performDeletions:true});
+			foundry.utils.mergeObject(appearance, colorsetData,{applyOperators:true});
 			appearance.colorset = diceobj.colorset;
 		}
 		
@@ -1813,7 +1813,7 @@ export class DiceFactory {
 							if(opt[1] == "custom")
 								delete colorsetData[opt[0]];
 						});
-						foundry.utils.mergeObject(appearance, colorsetData,{performDeletions:true});
+						foundry.utils.mergeObject(appearance, colorsetData,{applyOperators:true});
 						appearance.colorset = mappedDiceobj.colorset;
 					}
 				}
@@ -1822,7 +1822,7 @@ export class DiceFactory {
 			// Then we overwrite the colorset data with the appearance to let players override the colorset default colors
 			if(dicenotation.options.appearance){
 				const previousSystem = appearance.system;
-				foundry.utils.mergeObject(appearance, dicenotation.options.appearance,{performDeletions:true});
+				foundry.utils.mergeObject(appearance, dicenotation.options.appearance,{applyOperators:true});
 				//if the override swapped to a different system, re-resolve its diceobj so the correct
 				//colorset/textures follow (otherwise we'd render the new system's system id with the old system's textures)
 				if(appearance.system && appearance.system !== previousSystem && this.systems.has(appearance.system)){
@@ -1836,11 +1836,11 @@ export class DiceFactory {
 						if(overrideDiceobj?.colorset){
 							const colorsetData = {...DiceColors.getColorSet(overrideDiceobj.colorset)};
 							Object.entries(colorsetData).forEach(([k, v]) => { if(v === "custom") delete colorsetData[k]; });
-							foundry.utils.mergeObject(appearance, colorsetData, {performDeletions:true});
+							foundry.utils.mergeObject(appearance, colorsetData, {applyOperators:true});
 							appearance.colorset = overrideDiceobj.colorset;
 						}
 						//last: re-apply any explicit overrides from dicenotation.options.appearance on top
-						foundry.utils.mergeObject(appearance, dicenotation.options.appearance, {performDeletions:true});
+						foundry.utils.mergeObject(appearance, dicenotation.options.appearance, {applyOperators:true});
 					}
 				}
 			}

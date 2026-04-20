@@ -243,7 +243,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         if (this.reset)
             specialEffects = [];
         this.triggerTypeList = [...triggerTypeList, ...DiceSFXManager.EXTRA_TRIGGER_TYPE];
-        foundry.utils.mergeObject(this.possibleResultList, DiceSFXManager.EXTRA_TRIGGER_RESULTS, { performDeletions: true });
+        foundry.utils.mergeObject(this.possibleResultList, DiceSFXManager.EXTRA_TRIGGER_RESULTS, { applyOperators: true });
 
         //Filter out the SFX that are not registered
         if (specialEffects) {
@@ -513,7 +513,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     let data = new DiceNotation(roll);
 
                     let specialEffects = this.getShowcaseSFX();
-                    let customization = foundry.utils.mergeObject({ appearance: config.appearance }, { specialEffects: specialEffects }, { performDeletions: true });
+                    let customization = foundry.utils.mergeObject({ appearance: config.appearance }, { specialEffects: specialEffects }, { applyOperators: true });
                     customization.diceLibrary = config.diceLibrary;
 
                     game.dice3d._showAnimation(data, customization);
@@ -1631,7 +1631,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         await game.user.unsetFlag("dice-so-nice", "settings");
 
         //system settings won't be merged here because insertValues is false
-        let appearance = foundry.utils.mergeObject(Dice3D.APPEARANCE(), formData.appearance, { insertKeys: true, insertValues: false, performDeletions: true });
+        let appearance = foundry.utils.mergeObject(Dice3D.APPEARANCE(), formData.appearance, { insertKeys: true, insertValues: false, applyOperators: true });
 
         //add back system settings and library die refs (mergeObject drops them)
         for (let scope of scopedAppearance) {
@@ -1650,7 +1650,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         }
 
         delete formData.appearance;
-        let settings = foundry.utils.mergeObject(Dice3D.CONFIG(), formData, { insertKeys: false, insertValues: false, performDeletions: true });
+        let settings = foundry.utils.mergeObject(Dice3D.CONFIG(), formData, { insertKeys: false, insertValues: false, applyOperators: true });
 
         // preserve rollingArea config
         settings.rollingArea = currentSettings.rollingArea;

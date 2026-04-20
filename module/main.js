@@ -600,13 +600,3 @@ Hooks.on("collapseSidebar", (sidebar, collapsed) => {
         }
     }, { once: true });
 });
-
-/** Targeted deprecation warning silencing for future breaking change updates that we'll introduce in the next major version 
- * The rationale for this is that we want to avoid console spam while still supporting Dice So Nice in the previous major version of Foundry VTT
-*/
-
-// Silence https://github.com/foundryvtt/foundryvtt/issues/13090 during v14
-if(!foundry.utils.isNewerVersion(game.version, "15")) {
-    const RegExMergeObject = new RegExp(String.raw`mergeObject.*?/dice-so-nice/`, "gs");
-    CONFIG.compatibility.excludePatterns.push(RegExMergeObject);
-}

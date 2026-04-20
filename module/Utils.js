@@ -95,15 +95,15 @@ export class Utils {
                     let appearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : null;
                     if (appearance && appearance.hasOwnProperty("labelColor")) {
                         let data = {
-                            "-=colorset": null,
-                            "-=diceColor": null,
-                            "-=edgeColor": null,
-                            "-=font": null,
-                            "-=labelColor": null,
-                            "-=material": null,
-                            "-=outlineColor": null,
-                            "-=system": null,
-                            "-=texture": null
+                            colorset: foundry.data.operators.ForcedDeletion,
+                            diceColor: foundry.data.operators.ForcedDeletion,
+                            edgeColor: foundry.data.operators.ForcedDeletion,
+                            font: foundry.data.operators.ForcedDeletion,
+                            labelColor: foundry.data.operators.ForcedDeletion,
+                            material: foundry.data.operators.ForcedDeletion,
+                            outlineColor: foundry.data.operators.ForcedDeletion,
+                            system: foundry.data.operators.ForcedDeletion,
+                            texture: foundry.data.operators.ForcedDeletion
                         };
                         await user.setFlag("dice-so-nice", "appearance", data);
                     }
@@ -112,15 +112,15 @@ export class Utils {
                 let appearance = game.user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(game.user.getFlag("dice-so-nice", "appearance")) : null;
                 if (appearance && appearance.hasOwnProperty("labelColor")) {
                     let data = {
-                        "-=colorset": null,
-                        "-=diceColor": null,
-                        "-=edgeColor": null,
-                        "-=font": null,
-                        "-=labelColor": null,
-                        "-=material": null,
-                        "-=outlineColor": null,
-                        "-=system": null,
-                        "-=texture": null
+                        colorset: foundry.data.operators.ForcedDeletion,
+                        diceColor: foundry.data.operators.ForcedDeletion,
+                        edgeColor: foundry.data.operators.ForcedDeletion,
+                        font: foundry.data.operators.ForcedDeletion,
+                        labelColor: foundry.data.operators.ForcedDeletion,
+                        material: foundry.data.operators.ForcedDeletion,
+                        outlineColor: foundry.data.operators.ForcedDeletion,
+                        system: foundry.data.operators.ForcedDeletion,
+                        texture: foundry.data.operators.ForcedDeletion
                     };
                     await game.user.setFlag("dice-so-nice", "appearance", data);
                 }
@@ -134,9 +134,9 @@ export class Utils {
             //v1 to v2
             let settings = game.user.getFlag("dice-so-nice", "settings") ? foundry.utils.duplicate(game.user.getFlag("dice-so-nice", "settings")) : {};
             if (settings.diceColor || settings.labelColor) {
-                let newSettings = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_OPTIONS, settings, { insertKeys: false, insertValues: false, performDeletions: true });
-                let appearance = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_APPEARANCE(), settings, { insertKeys: false, insertValues: false, performDeletions: true });
-                await game.settings.set("dice-so-nice", "settings", foundry.utils.mergeObject(newSettings, { "-=dimensions": null, "-=fxList": null }, { performDeletions: true }));
+                let newSettings = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_OPTIONS, settings, { insertKeys: false, insertValues: false, applyOperators: true });
+                let appearance = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_APPEARANCE(), settings, { insertKeys: false, insertValues: false, applyOperators: true });
+                await game.settings.set("dice-so-nice", "settings", foundry.utils.mergeObject(newSettings, { dimensions: foundry.data.operators.ForcedDeletion, fxList: foundry.data.operators.ForcedDeletion }, { applyOperators: true }));
                 await game.user.setFlag("dice-so-nice", "appearance", appearance);
                 migrated = true;
             }
@@ -179,15 +179,15 @@ export class Utils {
                 let appearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : null;
                 if (appearance && appearance.hasOwnProperty("labelColor")) {
                     let data = {
-                        "-=colorset": null,
-                        "-=diceColor": null,
-                        "-=edgeColor": null,
-                        "-=font": null,
-                        "-=labelColor": null,
-                        "-=material": null,
-                        "-=outlineColor": null,
-                        "-=system": null,
-                        "-=texture": null
+                        colorset: foundry.data.operators.ForcedDeletion,
+                        diceColor: foundry.data.operators.ForcedDeletion,
+                        edgeColor: foundry.data.operators.ForcedDeletion,
+                        font: foundry.data.operators.ForcedDeletion,
+                        labelColor: foundry.data.operators.ForcedDeletion,
+                        material: foundry.data.operators.ForcedDeletion,
+                        outlineColor: foundry.data.operators.ForcedDeletion,
+                        system: foundry.data.operators.ForcedDeletion,
+                        texture: foundry.data.operators.ForcedDeletion
                     };
                     await user.setFlag("dice-so-nice", "appearance", data);
                 }

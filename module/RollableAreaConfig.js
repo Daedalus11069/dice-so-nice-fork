@@ -182,7 +182,7 @@ export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2
     async saveSettingsAndReload(rollingArea) {
         let settings = foundry.utils.mergeObject(Dice3D.CONFIG(), {
             rollingArea: rollingArea
-        },{performDeletions:true});
+        },{applyOperators:true});
         await game.user.setFlag('dice-so-nice', 'settings', settings);
         foundry.applications.settings.SettingsConfig.reloadConfirm();
     }

@@ -793,7 +793,7 @@ export class DiceColors {
 			if(!COLORSETS[name].fontScale)
 				COLORSETS[name].fontScale = DICE_SCALE;
 			else
-				COLORSETS[name].fontScale = foundry.utils.mergeObject(DICE_SCALE,COLORSETS[name].fontScale,{inplace:false,performDeletions:true});
+				COLORSETS[name].fontScale = foundry.utils.mergeObject(DICE_SCALE,COLORSETS[name].fontScale,{inplace:false,applyOperators:true});
 			if(!COLORSETS[name].visibility)
 				COLORSETS[name].visibility = "visible";
 		}
