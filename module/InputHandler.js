@@ -91,9 +91,10 @@ export class InputHandler {
 
 	findHoveredDie() {
 		const persistentDiceList = this.persistentDiceManager.persistentDiceList;
-		//persistent dice can be interacted with even during ephemeral rolls
-		const canInteractPersistent = this._isVisible && !this.mouse.constraintDown && persistentDiceList.length > 0;
-		if ((this._isVisible && !this.throwEngine.running && !this.mouse.constraintDown) || canInteractPersistent) {
+		const persistentThrowPlaying = persistentDiceList.some(d => d.persistentThrow);
+		const anyReplayActive = this.throwEngine.running || persistentThrowPlaying;
+		const canInteractPersistent = this._isVisible && !this.mouse.constraintDown && !anyReplayActive && persistentDiceList.length > 0;
+		if ((this._isVisible && !anyReplayActive && !this.mouse.constraintDown) || canInteractPersistent) {
 			this.diceScene.raycaster.setFromCamera(this.mouse.pos, this.diceScene.camera);
 			const intersects = this.diceScene.raycaster.intersectObjects([...this.throwEngine.diceList, ...this.throwEngine.deadDiceList, ...persistentDiceList], true);
 			if (intersects.length) {
@@ -478,9 +479,12 @@ export class InputHandler {
 
 		if (positions.length < 3) return forceThrow ? randomMinThrow() : null;
 
-		const first = positions[0];
-		const last = positions[positions.length - 1];
-		const dt = (last.time - first.time) / 1000; // seconds
+		//use only the last 3 samples (~80ms) so a quick direction change
+		//overrides earlier motion in the buffer
+		const tail = positions.slice(-3);
+		const first = tail[0];
+		const last = tail[tail.length - 1];
+		const dt = (last.time - first.time) / 1000;
 		if (dt < 0.001) return forceThrow ? randomMinThrow() : null;
 
 		const vx = (last.x - first.x) / dt;
