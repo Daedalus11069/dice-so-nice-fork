@@ -26,15 +26,36 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             closeOnSubmit: true
         },
         window: {
-            title: "DICESONICE.configTitle",
             contentClasses: ["standard-form"]
         },
         id: "dice-config",
         position: {
             width: 680,
             height: "auto"
+        },
+        actions: {
+            resetActor: DiceConfig._onResetActor
         }
     };
+
+    constructor(options = {}) {
+        super(options);
+        this.document = options.document ?? game.user;
+        this.isUser = this.document instanceof User;
+        this.isActor = this.document instanceof Actor;
+    }
+
+    get title() {
+        if (this.isActor) {
+            return `${game.i18n.localize("DICESONICE.configTitle")} - ${this.document.name}`;
+        }
+        return game.i18n.localize("DICESONICE.configTitle");
+    }
+
+    get id() {
+        if (this.isActor) return `dice-config-${this.document.id}`;
+        return "dice-config";
+    }
 
     static TABS = {
         "dsn-main": {
@@ -89,6 +110,18 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             context.isGM = game.user.isGM;
         }
         return context;
+    }
+
+    _configureRenderParts(options) {
+        const parts = super._configureRenderParts(options);
+        if (this.isActor) {
+            for (const key of Object.keys(parts)) {
+                if (!["general", "footer"].includes(key)) {
+                    delete parts[key];
+                }
+            }
+        }
+        return parts;
     }
 
     async _prepareContext(options) {
@@ -156,9 +189,11 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 "strong": "DICESONICE.ThrowingForceStrong"
             })
         },
-            this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG()
+            this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(game.user, this.isActor ? this.document : null)
         );
         delete data.sfxLine;
+
+        data.isUser = this.isUser;
 
         //remove MSAA if not supported
         if (game.canvas.app.renderer.context.webGLVersion < 2) {
@@ -176,7 +211,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         this.canvas = $('<div id="dice-configuration-canvas"></div>')[0];
         this.diceFactory = game.dice3d.box.dicefactory;
         let config = foundry.utils.mergeObject(
-            this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(),
+            this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(game.user, this.isActor ? this.document : null),
             { dimensions: { width: 634, height: 245 }, autoscale: false, scale: 60 }
         );
 
@@ -193,7 +228,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         this.showcaseView = new ShowcaseView(this.diceScene, this.diceFactory);
         this.showcaseView.showExtraDice = config.showExtraDice;
 
-        if (!game.user.getFlag("dice-so-nice", "appearance")) {
+        if (!game.user.getFlag("dice-so-nice", "appearance") && !this.document.getFlag("dice-so-nice", "appearance")) {
             if (this.diceFactory.preferredSystem != "standard")
                 config.appearance.global.system = this.diceFactory.preferredSystem;
             if (this.diceFactory.preferredColorset != "standard")
@@ -383,6 +418,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             { type: "button", action: "close", icon: "fa-solid fa-ban", label: "DICESONICE.Cancel" }
         ];
 
+        if (this.isActor) {
+            data.buttons.unshift({ type: "button", action: "resetActor", icon: "fa-solid fa-undo", label: "DICESONICE.Reset" });
+        }
+
         return data;
     }
 
@@ -414,9 +453,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
         $(html).find("#dice-configuration-canvas-container").append(this.canvas);
 
-
-        this.toggleHideAfterRoll();
-        this.toggleAutoScale();
+        if (this.isUser) {
+            this.toggleHideAfterRoll();
+            this.toggleAutoScale();
+        }
         this.toggleCustomization();
         this.filterSystems();
         this.setPreferredOptions();
@@ -885,7 +925,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 let dice = this.showcaseView.findShowcaseDie(pos);
                 if (dice) {
                     let diceType = this.showcaseView.findRootObject(dice.object).userData;
-                    if (!game.user.getFlag("dice-so-nice", "appearance") && (this.diceFactory.preferredSystem != "standard" || this.diceFactory.preferredColorset != "custom"))
+                    if (!this.document.getFlag("dice-so-nice", "appearance") && (this.diceFactory.preferredSystem != "standard" || this.diceFactory.preferredColorset != "custom"))
                         this.getShowcaseAppearance();
                     if ($(this.element).find(`.dsn-appearance-tabs [data-tab="${diceType}"]`).length) {
                         this.activateAppearanceTab(diceType);
@@ -1386,7 +1426,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     setPreferredOptions() {
-        if (!game.user.getFlag("dice-so-nice", "appearance")) {
+        if (!game.user.getFlag("dice-so-nice", "appearance") && !this.document.getFlag("dice-so-nice", "appearance")) {
             if (this.diceFactory.preferredSystem != "standard")
                 $(this.element).find('.tabAppearance[data-tab="global"] [data-system]').val(this.diceFactory.preferredSystem);
             if (this.diceFactory.preferredColorset != "custom")
@@ -1405,24 +1445,34 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     getShowcaseAppearance() {
-        let config = {
-            autoscale: false,
-            scale: 60,
-            shadowQuality: $('[data-shadowQuality]').val(),
-            imageQuality: $('[data-imageQuality]').val(),
-            antialiasing: $('[data-antialiasing]').val(),
-            bumpMapping: $('[data-bumpMapping]').is(':checked'),
-            glow: $('[data-glow]').is(':checked'),
-            sounds: $('[data-sounds]').is(':checked'),
-            throwingForce: $('[data-throwingForce]').val(),
-            useHighDPI: $('[data-useHighDPI]').is(':checked'),
-            advancedGlass: $('[data-advancedGlass]').is(':checked'),
-            showExtraDice: $('[data-showExtraDice]').is(':checked'),
-            muteSoundSecretRolls: $('[data-muteSoundSecretRolls]').is(':checked'),
-            enableFlavorColorset: $('[data-enableFlavorColorset]').is(':checked'),
-            immersiveDarkness: $('[data-immersiveDarkness]').is(':checked'),
-            appearance: {}
-        };
+        let config;
+        if (this.isActor) {
+            let userConfig = Dice3D.ALL_CONFIG();
+            config = foundry.utils.mergeObject(userConfig, {
+                autoscale: false,
+                scale: 60,
+                appearance: {}
+            });
+        } else {
+            config = {
+                autoscale: false,
+                scale: 60,
+                shadowQuality: $('[data-shadowQuality]').val(),
+                imageQuality: $('[data-imageQuality]').val(),
+                antialiasing: $('[data-antialiasing]').val(),
+                bumpMapping: $('[data-bumpMapping]').is(':checked'),
+                glow: $('[data-glow]').is(':checked'),
+                sounds: $('[data-sounds]').is(':checked'),
+                throwingForce: $('[data-throwingForce]').val(),
+                useHighDPI: $('[data-useHighDPI]').is(':checked'),
+                advancedGlass: $('[data-advancedGlass]').is(':checked'),
+                showExtraDice: $('[data-showExtraDice]').is(':checked'),
+                muteSoundSecretRolls: $('[data-muteSoundSecretRolls]').is(':checked'),
+                enableFlavorColorset: $('[data-enableFlavorColorset]').is(':checked'),
+                immersiveDarkness: $('[data-immersiveDarkness]').is(':checked'),
+                appearance: {}
+            };
+        }
         $(this.element).find('.tabAppearance').each((index, element) => {
             config.appearance[$(element).data("tab")] = {
                 labelColor: $(element).find('[data-labelColor]').val(),
@@ -1523,9 +1573,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             let config = this.getShowcaseAppearance();
             this.diceFactory.disposeCachedMaterials("showcase");
 
-            //update showcase quality settings
-            this.diceFactory.setQualitySettings(config);
-            this.diceScene.updateRenderSettings();
+            if (this.isUser) {
+                this.diceFactory.setQualitySettings(config);
+                this.diceScene.updateRenderSettings();
+            }
             await this.diceFactory.preloadPresets(true, null, config.appearance);
 
             this.showcaseView.showExtraDice = config.showExtraDice;
@@ -1567,8 +1618,13 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     async _updateObject(event, formData) {
-        //Remove custom settings if custom isn't selected to prevent losing them in the user save
         formData = this.parseInputs(formData.object);
+
+        if (this.isActor) {
+            return this._updateActorAppearance(formData);
+        }
+
+        //Remove custom settings if custom isn't selected to prevent losing them in the user save
         let sfxLine = formData.sfxLine;
         if (sfxLine) {
             sfxLine = Object.values(sfxLine);
@@ -1673,6 +1729,72 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         } else {
             game.dice3d.update(settings);
         }
+    }
+
+    async _updateActorAppearance(formData) {
+        let scopedAppearance = Object.keys(formData.appearance);
+        for (let scope of scopedAppearance) {
+            if (formData.appearance[scope].libraryDieId) {
+                const parsed = DiceConfig._parseLibraryDieValue(formData.appearance[scope].libraryDieId);
+                formData.appearance[scope].libraryDieId = parsed.libraryDieId || "";
+                formData.appearance[scope].libraryDieOwner = parsed.libraryDieOwner || game.user.id;
+            } else {
+                delete formData.appearance[scope].libraryDieId;
+                delete formData.appearance[scope].libraryDieOwner;
+            }
+
+            if (formData.appearance[scope].colorset != "custom") {
+                delete formData.appearance[scope].labelColor;
+                delete formData.appearance[scope].diceColor;
+                delete formData.appearance[scope].outlineColor;
+                delete formData.appearance[scope].edgeColor;
+            }
+
+            const system = this.diceFactory.systems.get(formData.appearance[scope].system);
+            if (system && system.settings.length > 0) {
+                const systemSettingsIDs = system.settings.map(s => s.id);
+                formData.appearance[scope].systemSettings = Object.fromEntries(
+                    Object.entries(formData.appearance[scope].systemSettings).filter(([key]) => systemSettingsIDs.includes(key))
+                );
+            }
+        }
+
+        await this.document.unsetFlag("dice-so-nice", "appearance");
+        await this.document.setFlag("dice-so-nice", "appearance", formData.appearance);
+
+        const uuid = this.document.uuid;
+        if (game.user.isGM) {
+            let preloadList = game.settings.get("dice-so-nice", "documentsForPreload");
+            if (!preloadList.includes(uuid)) {
+                preloadList = [...preloadList, uuid];
+                await game.settings.set("dice-so-nice", "documentsForPreload", preloadList);
+            }
+        }
+
+        game.socket.emit("module.dice-so-nice", { type: "update", user: game.user.id, document: uuid });
+        ui.notifications.info(game.i18n.localize("DICESONICE.saveMessage"));
+    }
+
+    static async _onResetActor() {
+        if (!this.isActor) return;
+
+        const confirmed = await foundry.applications.api.DialogV2.confirm({
+            window: { title: game.i18n.localize("DICESONICE.Reset") },
+            content: game.i18n.localize("DICESONICE.ResetActorConfirm")
+        });
+        if (!confirmed) return;
+
+        await this.document.unsetFlag("dice-so-nice", "appearance");
+
+        const uuid = this.document.uuid;
+        if (game.user.isGM) {
+            let preloadList = game.settings.get("dice-so-nice", "documentsForPreload");
+            preloadList = preloadList.filter(u => u !== uuid);
+            await game.settings.set("dice-so-nice", "documentsForPreload", preloadList);
+        }
+
+        game.socket.emit("module.dice-so-nice", { type: "update", user: game.user.id, document: uuid });
+        this.close();
     }
 
     close(options) {

@@ -254,6 +254,13 @@ Hooks.once('init', () => {
         default: {}
     });
 
+    game.settings.register("dice-so-nice", "documentsForPreload", {
+        scope: "world",
+        config: false,
+        type: Array,
+        default: []
+    });
+
     game.settings.register("dice-so-nice", "showGhostDice", {
         name: "DICESONICE.showGhostDice",
         hint: "DICESONICE.showGhostDiceHint",
@@ -315,6 +322,18 @@ Hooks.once('init', () => {
         precedence: foundry.CONST.KEYBINDING_PRECEDENCE?.NORMAL ?? 0
     });
     window.addEventListener("keydown", Utils.onDismissEphemeralKeydown);
+
+    Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => {
+        if (!app.document.isOwner) return;
+        controls.push({
+            icon: "fas fa-dice-d20",
+            label: "DICESONICE.configTitle",
+            action: "dice-so-nice-config",
+            onClick: () => {
+                new DiceConfig({ document: app.document }).render({ force: true });
+            }
+        });
+    });
 
 });
 

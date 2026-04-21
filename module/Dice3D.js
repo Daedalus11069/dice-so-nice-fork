@@ -110,14 +110,22 @@ export class Dice3D {
     static CONFIG(user = game.user) {
         let userSettings = user.getFlag("dice-so-nice", "settings") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "settings")) : {};
         let config = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, userSettings, { applyOperators: true });
-        foundry.utils.mergeObject(config, { appearance: foundry.data.operators.ForcedDeletion, sfxLine: foundry.data.operators.ForcedDeletion }, { applyOperators: true });
+        delete config.appearance;
+        delete config.sfxLine;
         return config;
     }
 
-    static APPEARANCE(user = game.user) {
+    static APPEARANCE(user = game.user, actor = null) {
         let userAppearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : {};
         let appearance = foundry.utils.mergeObject(Dice3D.DEFAULT_APPEARANCE(user), userAppearance, { applyOperators: true });
-        appearance = foundry.utils.mergeObject(appearance, { dimensions: foundry.data.operators.ForcedDeletion }, { applyOperators: true });
+        delete appearance.dimensions;
+        if (actor) {
+            let actorAppearance = actor.getFlag("dice-so-nice", "appearance");
+            if (actorAppearance) {
+                actorAppearance = foundry.utils.duplicate(actorAppearance);
+                appearance = foundry.utils.mergeObject(appearance, actorAppearance, { applyOperators: true });
+            }
+        }
         return Utils.sanitizeAppearance(appearance, user);
     }
 
@@ -148,7 +156,7 @@ export class Dice3D {
     /**
      * Get the full customizations settings for the _showAnimation method 
      */
-    static ALL_CUSTOMIZATION(user = game.user, dicefactory = null) {
+    static ALL_CUSTOMIZATION(user = game.user, dicefactory = null, actor = null) {
         let specialEffects = Dice3D.SFX(user) || [];
         game.users.forEach((other) => {
             if (other.isGM && other.id != user.id) {
@@ -159,8 +167,8 @@ export class Dice3D {
                 }
             }
         });
-        let config = foundry.utils.mergeObject({ appearance: Dice3D.APPEARANCE(user) }, { specialEffects: specialEffects }, { applyOperators: true });
-        if (dicefactory && !game.user.getFlag("dice-so-nice", "appearance")) {
+        let config = foundry.utils.mergeObject({ appearance: Dice3D.APPEARANCE(user, actor) }, { specialEffects: specialEffects }, { applyOperators: true });
+        if (dicefactory && !user.getFlag("dice-so-nice", "appearance") && !actor?.getFlag("dice-so-nice", "appearance")) {
             if (dicefactory.preferredSystem != "standard")
                 config.appearance.global.system = dicefactory.preferredSystem;
             if (dicefactory.preferredColorset != "custom")
@@ -170,8 +178,8 @@ export class Dice3D {
         return config;
     }
 
-    static ALL_CONFIG(user = game.user) {
-        let ret = foundry.utils.mergeObject(Dice3D.CONFIG(user), { appearance: Dice3D.APPEARANCE(user) }, { applyOperators: true });
+    static ALL_CONFIG(user = game.user, actor = null) {
+        let ret = foundry.utils.mergeObject(Dice3D.CONFIG(user), { appearance: Dice3D.APPEARANCE(user, actor) }, { applyOperators: true });
         ret.specialEffects = Dice3D.SFX(user);
         return ret;
     }
@@ -376,6 +384,7 @@ export class Dice3D {
             await this.diceLibrary.load();
             await DiceLibrary.preloadAssets();
             await this.DiceFactory.preloadPresets();
+            await this._preloadActorDocuments();
             //restore persistent dice from flags
             await this._restoreAllPersistentDice();
         });
@@ -388,6 +397,28 @@ export class Dice3D {
 
     get canInteract() {
         return !this.box.running || this.box.persistentDiceList.length > 0;
+    }
+
+    async _preloadActorDocuments() {
+        let preloadList = game.settings.get("dice-so-nice", "documentsForPreload");
+        if (!preloadList?.length) return;
+
+        let cleaned = false;
+        const validUuids = [];
+        for (const uuid of preloadList) {
+            const doc = foundry.utils.fromUuidSync(uuid);
+            if (!doc) {
+                cleaned = true;
+                continue;
+            }
+            validUuids.push(uuid);
+            await DiceLibrary.preloadAssets(null, uuid);
+            await this.DiceFactory.preloadPresets(false, null, {}, uuid);
+        }
+
+        if (cleaned && game.user.isGM) {
+            await game.settings.set("dice-so-nice", "documentsForPreload", validUuids);
+        }
     }
 
     /**
@@ -547,14 +578,26 @@ export class Dice3D {
             switch (request.type) {
                 case "show":
                     if (!request.users || request.users.includes(game.user.id))
-                        this.show(request.data, game.users.get(request.user));
+                        this.show(request.data, game.users.get(request.user), false, null, false, request.speaker);
                     break;
                 case "update":
-                    if (request.user == game.user.id || Dice3D.CONFIG().showOthersSFX)
-                        DiceSFXManager.init();
-                    if (request.user != game.user.id) {
-                        DiceLibrary.preloadAssets(request.user);
-                        this.DiceFactory.preloadPresets(false, request.user);
+                    if (request.document) {
+                        DiceLibrary.preloadAssets(null, request.document);
+                        this.DiceFactory.preloadPresets(false, null, {}, request.document);
+                        if (game.user.isGM) {
+                            let preloadList = game.settings.get("dice-so-nice", "documentsForPreload");
+                            if (!preloadList.includes(request.document)) {
+                                preloadList = [...preloadList, request.document];
+                                game.settings.set("dice-so-nice", "documentsForPreload", preloadList);
+                            }
+                        }
+                    } else {
+                        if (request.user == game.user.id || Dice3D.CONFIG().showOthersSFX)
+                            DiceSFXManager.init();
+                        if (request.user != game.user.id) {
+                            DiceLibrary.preloadAssets(request.user);
+                            this.DiceFactory.preloadPresets(false, request.user);
+                        }
                     }
                     break;
                 case "gmPush":
@@ -1054,8 +1097,9 @@ export class Dice3D {
         //We allow the hook to modify the roll to be shown without altering the original roll reference
         //This is useful for example to show a different roll than the one made by the user without relying on the manual showForRoll method
         let hookedRoll = context.dsnRoll || context.roll;
-        let notation = new DiceNotation(hookedRoll, Dice3D.ALL_CONFIG(user), user);
-        return this.show(notation, context.user, synchronize, context.users, context.blind);
+        let actor = speaker?.actor ? game.actors.get(speaker.actor) : null;
+        let notation = new DiceNotation(hookedRoll, Dice3D.ALL_CONFIG(user, actor), user);
+        return this.show(notation, context.user, synchronize, context.users, context.blind, speaker);
     }
 
     /**
@@ -1068,7 +1112,7 @@ export class Dice3D {
      * @param blind if the roll is blind for the current user
      * @returns {Promise<boolean>} when resolved true if the animation was displayed, false if not.
      */
-    show(data, user = game.user, synchronize = false, users = null, blind) {
+    show(data, user = game.user, synchronize = false, users = null, blind, speaker = null) {
         return new Promise((resolve, reject) => {
 
             if (!data.throws) throw new Error("Roll data should be not null");
@@ -1076,21 +1120,23 @@ export class Dice3D {
             if (!data.throws.length || !this.isEnabled()) {
                 resolve(false);
             } else {
+                let actor = speaker?.actor ? game.actors.get(speaker.actor) : null;
+
                 if (synchronize) {
                     users = users && users.length > 0 ? (users[0]?.id ? users.map(user => user.id) : users) : users;
-                    game.socket.emit("module.dice-so-nice", { type: "show", data: data, user: user.id, users: users });
+                    game.socket.emit("module.dice-so-nice", { type: "show", data: data, user: user.id, users: users, speaker: speaker });
                 }
 
                 if (!blind) {
-                    if (document.hidden) {
+                    if (window.document.hidden) {
                         this.hiddenAnimationQueue.push({
                             data: data,
-                            config: Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory),
+                            config: Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory, actor),
                             timestamp: (new Date()).getTime(),
                             resolve: resolve
                         });
                     } else {
-                        this._showAnimation(data, Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory)).then(displayed => {
+                        this._showAnimation(data, Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory, actor)).then(displayed => {
                             resolve(displayed);
                         });
                     }

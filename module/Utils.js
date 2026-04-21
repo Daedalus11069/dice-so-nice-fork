@@ -136,7 +136,9 @@ export class Utils {
             if (settings.diceColor || settings.labelColor) {
                 let newSettings = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_OPTIONS, settings, { insertKeys: false, insertValues: false, applyOperators: true });
                 let appearance = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_APPEARANCE(), settings, { insertKeys: false, insertValues: false, applyOperators: true });
-                await game.settings.set("dice-so-nice", "settings", foundry.utils.mergeObject(newSettings, { dimensions: foundry.data.operators.ForcedDeletion, fxList: foundry.data.operators.ForcedDeletion }, { applyOperators: true }));
+                delete newSettings.dimensions;
+                delete newSettings.fxList;
+                await game.settings.set("dice-so-nice", "settings", newSettings);
                 await game.user.setFlag("dice-so-nice", "appearance", appearance);
                 migrated = true;
             }

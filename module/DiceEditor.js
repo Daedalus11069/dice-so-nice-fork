@@ -55,7 +55,34 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             const appearances = diceConfig
                 ? diceConfig.getShowcaseAppearance().appearance
                 : (game.user.getFlag("dice-so-nice", "appearance") || {});
-            const resolved = factory.getAppearanceForDice(appearances, dieType);
+            let resolved = factory.getAppearanceForDice(appearances, dieType);
+
+            //if a library die is already selected, init from its stored appearance
+            if (resolved.libraryDieId) {
+                const owner = resolved.libraryDieOwner ? game.users.get(resolved.libraryDieOwner) : game.user;
+                const existingDie = owner ? DiceLibrary.getFromUser(owner, resolved.libraryDieId) : null;
+                if (existingDie?.baseAppearance) {
+                    const base = existingDie.baseAppearance;
+                    resolved = {
+                        foreground: base.labelColor || "#FFFFFF",
+                        background: base.diceColor || "#000000",
+                        outline: base.outlineColor || "",
+                        edge: base.edgeColor || "",
+                        texture: base.texture || "none",
+                        material: base.material || "plastic",
+                        font: base.font || "auto",
+                        system: base.system || "standard",
+                        colorset: "custom"
+                    };
+                }
+            }
+
+            //custom 3D models are not compatible with the dice factory material maker,
+            //fall back to standard system appearance
+            const preset = factory.getPresetBySystem(dieType, resolved.system || "standard");
+            if (preset && preset.modelFile) {
+                resolved = factory.getAppearanceForDice({ global: { system: "standard" } }, dieType);
+            }
             this.libraryDie = DiceLibrary.createEmptyDie(dieType, `Custom ${dieType.toUpperCase()}`);
 
             //themes use arrays for random variation, pick one snapshot

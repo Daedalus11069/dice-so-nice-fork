@@ -28,6 +28,7 @@
     "DICESONICE.3xSpeed": "3x",
     "DICESONICE.Save": "Save",
     "DICESONICE.Reset": "Reset to Default",
+    "DICESONICE.ResetActorConfirm": "Are you sure you want to reset this actor's dice appearance to the default?",
     "DICESONICE.Cancel": "Cancel",
     "DICESONICE.Apply": "Apply",
     "DICESONICE.SaveAs": "Save as…",

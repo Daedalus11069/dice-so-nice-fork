@@ -154,11 +154,10 @@ export class DiceLibrary {
     }
 
     //preload label images and custom textures for library dice in active appearances
-    static async preloadAssets(userID = null) {
+    static async preloadAssets(userID = null, documentUuid = null) {
         const urls = new Set();
         const customTextures = new Map();
-        const collectFromUser = (user) => {
-            const appearance = user.getFlag("dice-so-nice", "appearance");
+        const collectFromAppearance = (appearance, fallbackOwner = null) => {
             if (!appearance) return;
 
             for (const scope in appearance) {
@@ -166,7 +165,7 @@ export class DiceLibrary {
                 const libId = appearance[scope]?.libraryDieId;
                 if (!libId) continue;
                 const ownerId = appearance[scope]?.libraryDieOwner;
-                const owner = ownerId ? game.users.get(ownerId) : user;
+                const owner = ownerId ? game.users.get(ownerId) : fallbackOwner;
                 if (!owner) continue;
                 const die = DiceLibrary.getFromUser(owner, libId);
                 if (!die) continue;
@@ -191,11 +190,14 @@ export class DiceLibrary {
             }
         };
 
-        if (userID) {
+        if (documentUuid) {
+            const doc = foundry.utils.fromUuidSync(documentUuid);
+            if (doc) collectFromAppearance(doc.getFlag("dice-so-nice", "appearance"));
+        } else if (userID) {
             const user = game.users.get(userID);
-            if (user) collectFromUser(user);
+            if (user) collectFromAppearance(user.getFlag("dice-so-nice", "appearance"), user);
         } else {
-            game.users.forEach(user => collectFromUser(user));
+            game.users.forEach(user => collectFromAppearance(user.getFlag("dice-so-nice", "appearance"), user));
         }
 
         const promises = [];
@@ -260,7 +262,7 @@ export class DiceLibrary {
         const myId = game.user.id;
         const selectedId = selectedOverride ?? appearance?.libraryDieId ?? "";
         const selectedOwner = appearance?.libraryDieOwner ?? "";
-        const selectedVal = selectedOwner ? `${selectedOwner}:${selectedId}` : selectedId;
+        const selectedVal = (selectedOwner && selectedOwner !== myId) ? `${selectedOwner}:${selectedId}` : selectedId;
 
         const groups = [];
 
