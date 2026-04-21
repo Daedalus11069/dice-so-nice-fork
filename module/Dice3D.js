@@ -12,6 +12,7 @@ import { DiceSFX } from './DiceSFX.js';
 import { DiceSystem } from './DiceSystem.js';
 import { DiceLibrary } from './DiceLibrary.js';
 import { InitiativeMask } from './InitiativeMask.js';
+import { CompanionLink } from './CompanionLink.js';
 /**
  * Main class to handle 3D Dice animations.
  */
@@ -902,7 +903,15 @@ export class Dice3D {
             }
 
             InitiativeMask.release(chatMessage.id);
-            Hooks.callAll("diceSoNiceRollComplete", chatMessage.id);
+
+            chatMessage._dice3dPendingRenders = (chatMessage._dice3dPendingRenders || 1) - 1;
+            let companionIds = [];
+            if (chatMessage._dice3dPendingRenders <= 0) {
+                chatMessage._dice3dPendingRenders = 0;
+                companionIds = CompanionLink.release(chatMessage.id);
+            }
+
+            Hooks.callAll("diceSoNiceRollComplete", chatMessage.id, companionIds);
 
             if (window.ui.chat.isAtBottom || chatMessage.author?.id === game.user.id)
                 window.ui.chat.scrollBottom({ popout: false });

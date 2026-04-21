@@ -4,6 +4,7 @@ import { RollableAreaConfig } from './RollableAreaConfig.js';
 import { DamageTypeConfig } from './DamageTypeConfig.js';
 import { DsnSidebarTab } from './DsnSidebarTab.js';
 import { InitiativeMask } from './InitiativeMask.js';
+import { CompanionLink } from './CompanionLink.js';
 import { Utils } from './Utils.js';
 
 /**
@@ -432,8 +433,24 @@ Hooks.on('createChatMessage', (chatMessage) => {
         delete chatMessage.sound;
     }
 
+    // companion message linking: hide non-roll messages tied to an animating primary
+    const linkedTo = chatMessage.getFlag("dice-so-nice", "linkedTo");
+    if (linkedTo) {
+        if (game.dice3d?.messageHookDisabled) return;
+        if (game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) return;
+        if (chatMessage.isRoll) {
+            // has rolls of its own, treat as a normal roll (linkedTo ignored)
+        } else {
+            const primary = game.messages.get(linkedTo);
+            if (primary?._dice3dPendingRenders > 0) {
+                CompanionLink.register(chatMessage.id, linkedTo);
+            }
+            return;
+        }
+    }
+
     if (!shouldInterceptMessage(chatMessage)) return;
-    
+
     let rolls = chatMessage.isRoll ? chatMessage.rolls : null;
     let maxRollOrder = rolls ? 0 : -1;
 
@@ -478,6 +495,7 @@ Hooks.on('createChatMessage', (chatMessage) => {
         delete chatMessage.sound;
     }
     chatMessage._dice3danimating = true;
+    chatMessage._dice3dPendingRenders = (chatMessage._dice3dPendingRenders || 0) + 1;
 
     if (isInitiativeRoll && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages"))
         InitiativeMask.flag(chatMessage);
@@ -498,6 +516,10 @@ Hooks.on("preUpdateCombatant", (combatant, changes) => {
  */
 Hooks.on("renderChatMessageHTML", (message, html, data) => {
     if (game.dice3d && game.dice3d.messageHookDisabled) {
+        return;
+    }
+    if (CompanionLink.isHidden(message.id) && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
+        html.classList.add("dsn-hide");
         return;
     }
     if (message._dice3danimating && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
@@ -566,9 +588,14 @@ Hooks.on("updateChatMessage", (message, updateData, options) => {
 
     if (options.dsnCountAddedRoll > 0) {
         message._dice3danimating = true;
+        message._dice3dPendingRenders = (message._dice3dPendingRenders || 0) + 1;
         message._dice3dCountNewRolls = options.dsnCountAddedRoll;
         game.dice3d.renderRolls(message, message.rolls.slice(options.dsnIndexAddedRoll));
     }
+});
+
+Hooks.on("deleteChatMessage", (message) => {
+    CompanionLink.cleanup(message.id);
 });
 
 document.addEventListener("visibilitychange", function () {
