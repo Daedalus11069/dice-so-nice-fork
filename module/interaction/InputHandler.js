@@ -5,7 +5,7 @@ import {
 	Vector2,
 	Vector3
 } from 'three';
-import { LEGACY_TO_METERS, GRAB_LIFT_EPHEMERAL, GRAB_LIFT_PERSISTENT } from './SceneConstants.js';
+import { LEGACY_TO_METERS, GRAB_LIFT_EPHEMERAL, GRAB_LIFT_PERSISTENT } from '../engine/SceneConstants.js';
 
 //drag planes at each lift height (avoids per-frame allocations)
 const DRAG_PLANE_PERSISTENT = new Plane(new Vector3(0, 1, 0), -GRAB_LIFT_PERSISTENT);

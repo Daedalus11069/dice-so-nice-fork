@@ -5,11 +5,11 @@ import {
     Vector2,
     Vector3
 } from 'three';
-import { DiceScene } from './DiceScene.js';
-import { LEGACY_TO_METERS } from './SceneConstants.js';
-import { Dice3D } from './Dice3D.js';
-import { DICE_SHAPE } from './DiceModels.js';
-import { removeTicker } from './Utils.js';
+import { DiceScene } from '../engine/DiceScene.js';
+import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
+import { Dice3D } from '../Dice3D.js';
+import { DICE_SHAPE } from '../engine/DiceModels.js';
+import { removeTicker } from '../Utils.js';
 
 //wraps a DiceScene with manual mesh rotation + face raycasting
 export class DiceEditorPreview {

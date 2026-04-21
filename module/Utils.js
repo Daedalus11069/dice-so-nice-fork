@@ -1,5 +1,5 @@
-import { TEXTURELIST, COLORSETS } from './DiceColors.js';
-import { DiceLibrary } from './DiceLibrary.js';
+import { TEXTURELIST, COLORSETS } from './engine/DiceColors.js';
+import { DiceLibrary } from './engine/DiceLibrary.js';
 
 //remove a handler from a PIXI ticker even when the context changed
 export function removeTicker(fn) {

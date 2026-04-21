@@ -2,13 +2,13 @@ import {DicePreset, D4_TRIPLET_VALUES} from './DicePreset.js';
 import {BASE_PRESETS_LIST, EXTRA_PRESETS_LIST} from './DiceDefaultPresets.js';
 import {DiceColors, DICE_SCALE, COLORSETS} from './DiceColors.js';
 import {DICE_MODELS, DICE_SHAPE} from './DiceModels.js';
-import {DiceSystem} from './DiceSystem.js';
+import {DiceSystem} from '../DiceSystem.js';
 import {DiceLibrary} from './DiceLibrary.js';
 import {TARGET_D6_EDGE_METERS} from './SceneConstants.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { ShaderUtils } from './ShaderUtils';
-import PhysicsWorker from 'web-worker:./web-workers/PhysicsWorker.js';
+import PhysicsWorker from 'web-worker:../web-workers/PhysicsWorker.js';
 import WebworkerPromise from 'webworker-promise';
 
 import {

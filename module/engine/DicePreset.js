@@ -1,5 +1,5 @@
 import { ShaderUtils } from './ShaderUtils';
-import { AssetsLoader } from './AssetsLoader.js';
+import { AssetsLoader } from '../AssetsLoader.js';
 
 //d4 row 0 vertex values (1-based): each triplet is the 3 vertex values shown on
 //one orientation of the d4 face. rows 1-3 of the tab in registerFaces() are

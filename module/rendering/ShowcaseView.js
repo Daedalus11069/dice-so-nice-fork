@@ -1,6 +1,6 @@
 import { Mesh, PlaneGeometry, ShadowMaterial } from 'three';
-import { LEGACY_TO_METERS } from './SceneConstants.js';
-import { removeTicker } from './Utils.js';
+import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
+import { removeTicker } from '../Utils.js';
 
 //showcase grid layout, selector animation, and die raycasting
 export class ShowcaseView {

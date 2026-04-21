@@ -1,6 +1,6 @@
-import { DiceSFXManager } from './DiceSFXManager.js';
-import { COMPOUND_DICE } from './DiceNotation.js';
-import { LEGACY_TO_METERS, GRAB_LIFT_PERSISTENT } from './SceneConstants.js';
+import { DiceSFXManager } from '../sfx/DiceSFXManager.js';
+import { COMPOUND_DICE } from '../DiceNotation.js';
+import { LEGACY_TO_METERS, GRAB_LIFT_PERSISTENT } from '../engine/SceneConstants.js';
 
 import {
 	Euler,

@@ -1,9 +1,9 @@
-import { DiceEditorPreview } from './DiceEditorPreview.js';
-import { DiceLibrary } from './DiceLibrary.js';
-import { DiceColors } from './DiceColors.js';
-import { DICE_SHAPE } from './DiceModels.js';
-import { Utils } from './Utils.js';
-import { GlyphPicker } from './glyph-picker/GlyphPicker.js';
+import { DiceEditorPreview } from '../rendering/DiceEditorPreview.js';
+import { DiceLibrary } from '../engine/DiceLibrary.js';
+import { DiceColors } from '../engine/DiceColors.js';
+import { DICE_SHAPE } from '../engine/DiceModels.js';
+import { Utils } from '../Utils.js';
+import { GlyphPicker } from '../glyph-picker/GlyphPicker.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 

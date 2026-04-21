@@ -1,17 +1,17 @@
-import { DiceFactory } from './DiceFactory.js';
-import { DiceBox } from './DiceBox.js';
-import { DiceColors, TEXTURELIST, COLORSETS } from './DiceColors.js';
+import { DiceFactory } from './engine/DiceFactory.js';
+import { DiceBox } from './rendering/DiceBox.js';
+import { DiceColors, TEXTURELIST, COLORSETS } from './engine/DiceColors.js';
 import { DiceNotation } from './DiceNotation.js';
-import { DiceSFXManager } from './DiceSFXManager.js';
+import { DiceSFXManager } from './sfx/DiceSFXManager.js';
 import { Accumulator } from './Accumulator.js';
 import { Utils } from './Utils.js';
 import { ThinFilmFresnelMap } from './libs/ThinFilmFresnelMap.js';
 import { TextureLoader } from 'three';
 import { DiceTourMain } from './tours/DiceTourMain.js';
-import { DiceSFX } from './DiceSFX.js';
+import { DiceSFX } from './sfx/DiceSFX.js';
 import { DiceSystem } from './DiceSystem.js';
-import { DiceLibrary } from './DiceLibrary.js';
-import { InitiativeMask } from './InitiativeMask.js';
+import { DiceLibrary } from './engine/DiceLibrary.js';
+import { InitiativeMask } from './ui/InitiativeMask.js';
 import { CompanionLink } from './CompanionLink.js';
 /**
  * Main class to handle 3D Dice animations.

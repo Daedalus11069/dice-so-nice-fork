@@ -1,8 +1,8 @@
 import { Box3, CatmullRomCurve3, Timer, Vector3 } from 'three';
-import { DiceSFX } from '../DiceSFX.js';
-import { DiceSFXManager } from './../DiceSFXManager';
-import { ShaderUtils } from './../ShaderUtils';
-import { LEGACY_TO_METERS } from '../SceneConstants.js';
+import { DiceSFX } from './DiceSFX.js';
+import { DiceSFXManager } from './DiceSFXManager.js';
+import { ShaderUtils } from '../engine/ShaderUtils';
+import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
 
 
 export class PlayAnimationThormund extends DiceSFX {

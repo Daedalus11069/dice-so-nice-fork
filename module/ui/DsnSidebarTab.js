@@ -1,5 +1,5 @@
 import { DiceConfig } from './DiceConfig.js';
-import { COMPOUND_DICE } from './DiceNotation.js';
+import { COMPOUND_DICE } from '../DiceNotation.js';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { AbstractSidebarTab } = foundry.applications.sidebar;

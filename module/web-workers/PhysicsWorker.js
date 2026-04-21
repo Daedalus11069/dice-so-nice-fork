@@ -1,7 +1,7 @@
 import { World, Material, NaiveBroadphase, ContactMaterial, Body, Plane, Vec3, Sphere, PointToPointConstraint, Cylinder, ConvexPolyhedron } from 'cannon-es';
-import { DICE_SHAPE } from '../DiceModels.js';
+import { DICE_SHAPE } from '../engine/DiceModels.js';
 import { Vector3 } from 'three';
-import { LEGACY_TO_METERS } from '../SceneConstants.js';
+import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
 import RegisterPromise from 'webworker-promise/lib/register';
 
 //cannon-es only behaves well at legacy scale (~1000x meters), so the worker

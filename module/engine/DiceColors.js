@@ -1,4 +1,4 @@
-import { AssetsLoader } from "./AssetsLoader.js";
+import { AssetsLoader } from "../AssetsLoader.js";
 
 export const TEXTURELIST = {
 	'none': {

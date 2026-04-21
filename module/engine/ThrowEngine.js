@@ -1,6 +1,6 @@
 import { DICE_MODELS } from './DiceModels.js';
-import { DiceSFXManager } from './DiceSFXManager.js';
-import { DiceSystem } from './DiceSystem.js';
+import { DiceSFXManager } from '../sfx/DiceSFXManager.js';
+import { DiceSystem } from '../DiceSystem.js';
 import { LEGACY_TO_METERS } from './SceneConstants.js';
 import {
 	Color,

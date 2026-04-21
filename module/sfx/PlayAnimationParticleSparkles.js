@@ -1,8 +1,8 @@
 import { AdditiveBlending, Box3, Sprite, SpriteMaterial, Vector3 } from 'three';
-import { DiceSFX } from '../DiceSFX.js';
+import { DiceSFX } from './DiceSFX.js';
 import { Proton } from '../libs/three.proton.js';
-import { DiceSFXManager } from './../DiceSFXManager';
-import { LEGACY_TO_METERS } from '../SceneConstants.js';
+import { DiceSFXManager } from './DiceSFXManager.js';
+import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
 
 export class PlayAnimationParticleSparkles extends DiceSFX {
     static id = "PlayAnimationParticleSparkles";

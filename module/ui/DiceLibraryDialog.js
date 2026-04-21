@@ -1,5 +1,5 @@
 import { DiceEditor } from './DiceEditor.js';
-import { DiceLibrary, LIBRARY_DIE_TYPES } from './DiceLibrary.js';
+import { DiceLibrary, LIBRARY_DIE_TYPES } from '../engine/DiceLibrary.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 

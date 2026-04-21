@@ -1,6 +1,6 @@
 "use strict"
 
-import { DiceSFXManager } from './DiceSFXManager.js';
+import { DiceSFXManager } from './sfx/DiceSFXManager.js';
 
 export const COMPOUND_DICE = {
 	100:   [{ type: 'd100',   divisor: 10   }, { type: 'd10',  divisor: 1    }],

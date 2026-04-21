@@ -1,6 +1,6 @@
 import { Timer, Color } from 'three';
-import { DiceSFX } from '../DiceSFX.js';
-import { ShaderUtils } from './../ShaderUtils';
+import { DiceSFX } from './DiceSFX.js';
+import { ShaderUtils } from '../engine/ShaderUtils';
 
 export class PlayAnimationDark extends DiceSFX {
     static id = "PlayAnimationDark";

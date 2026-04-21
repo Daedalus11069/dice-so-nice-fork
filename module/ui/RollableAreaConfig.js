@@ -1,4 +1,4 @@
-import {Dice3D} from "./Dice3D.js";
+import {Dice3D} from "../Dice3D.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 

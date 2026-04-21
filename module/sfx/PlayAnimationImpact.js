@@ -1,7 +1,7 @@
 import { Mesh, MeshStandardMaterial, PlaneGeometry } from 'three';
-import { DiceSFX } from '../DiceSFX.js';
-import { DiceSFXManager } from './../DiceSFXManager';
-import { LEGACY_TO_METERS } from '../SceneConstants.js';
+import { DiceSFX } from './DiceSFX.js';
+import { DiceSFXManager } from './DiceSFXManager.js';
+import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
 
 export class PlayAnimationImpact extends DiceSFX {
     static id = "PlayAnimationImpact";

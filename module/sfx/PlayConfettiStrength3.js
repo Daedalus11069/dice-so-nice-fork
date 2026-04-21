@@ -1,4 +1,4 @@
-import { DiceSFX } from '../DiceSFX.js';
+import { DiceSFX } from './DiceSFX.js';
 
 export class PlayConfettiStrength3 extends DiceSFX {
     static id = "PlayConfettiStrength3";

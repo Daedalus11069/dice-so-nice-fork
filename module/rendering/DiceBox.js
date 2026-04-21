@@ -1,11 +1,11 @@
-import { DiceScene } from './DiceScene.js';
-import { DiceSFXManager } from './DiceSFXManager.js';
-import { DiceSystem } from './DiceSystem.js';
-import { InputHandler } from './InputHandler.js';
-import { PersistentDiceManager } from './PersistentDiceManager.js';
-import { SoundManager } from './SoundManager.js';
-import { ThrowEngine } from './ThrowEngine.js';
-import { removeTicker } from './Utils.js';
+import { DiceScene } from '../engine/DiceScene.js';
+import { DiceSFXManager } from '../sfx/DiceSFXManager.js';
+import { DiceSystem } from '../DiceSystem.js';
+import { InputHandler } from '../interaction/InputHandler.js';
+import { PersistentDiceManager } from '../interaction/PersistentDiceManager.js';
+import { SoundManager } from '../engine/SoundManager.js';
+import { ThrowEngine } from '../engine/ThrowEngine.js';
+import { removeTicker } from '../Utils.js';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import Stats from 'stats-gl';
 

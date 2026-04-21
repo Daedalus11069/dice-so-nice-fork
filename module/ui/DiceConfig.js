@@ -1,12 +1,12 @@
-import { Dice3D } from './Dice3D.js';
-import { DiceScene } from './DiceScene.js';
-import { DiceSFXManager } from './DiceSFXManager.js';
-import { ShowcaseView } from './ShowcaseView.js';
-import { Utils } from './Utils.js';
-import { DiceNotation, COMPOUND_DICE } from './DiceNotation.js';
-import { DiceColors, DICE_SCALE } from './DiceColors.js';
-import { DiceSystem } from './DiceSystem.js';
-import { DiceLibrary, LIBRARY_DIE_TYPES } from './DiceLibrary.js';
+import { Dice3D } from '../Dice3D.js';
+import { DiceScene } from '../engine/DiceScene.js';
+import { DiceSFXManager } from '../sfx/DiceSFXManager.js';
+import { ShowcaseView } from '../rendering/ShowcaseView.js';
+import { Utils } from '../Utils.js';
+import { DiceNotation, COMPOUND_DICE } from '../DiceNotation.js';
+import { DiceColors, DICE_SCALE } from '../engine/DiceColors.js';
+import { DiceSystem } from '../DiceSystem.js';
+import { DiceLibrary, LIBRARY_DIE_TYPES } from '../engine/DiceLibrary.js';
 import { DiceLibraryDialog } from './DiceLibraryDialog.js';
 import { DiceEditor } from './DiceEditor.js';
 

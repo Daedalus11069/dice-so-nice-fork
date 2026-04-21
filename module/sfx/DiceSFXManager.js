@@ -1,21 +1,21 @@
 import { TextureLoader } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-import { PlayAnimationBright } from './sfx/PlayAnimationBright.js';
-import { PlayAnimationDark } from './sfx/PlayAnimationDark.js';
-import { PlayAnimationImpact } from './sfx/PlayAnimationImpact.js';
-import { PlayAnimationOutline } from './sfx/PlayAnimationOutline.js';
-import { PlayAnimationParticleSparkles } from './sfx/PlayAnimationParticleSparkles.js';
-import { PlayAnimationParticleSpiral } from './sfx/PlayAnimationParticleSpiral.js';
-import { PlayAnimationParticleVortex } from './sfx/PlayAnimationParticleVortex.js';
-import { PlayAnimationThormund } from './sfx/PlayAnimationThormund.js';
-import { PlayConfettiStrength1 } from './sfx/PlayConfettiStrength1.js';
-import { PlayConfettiStrength2 } from './sfx/PlayConfettiStrength2.js';
-import { PlayConfettiStrength3 } from './sfx/PlayConfettiStrength3.js';
-import { PlayMacro } from './sfx/PlayMacro.js';
-import { PlaySoundCustom } from './sfx/PlaySoundCustom.js';
-import { PlaySoundEpicFail } from './sfx/PlaySoundEpicFail.js';
-import { PlaySoundEpicWin } from './sfx/PlaySoundEpicWin.js';
+import { PlayAnimationBright } from './PlayAnimationBright.js';
+import { PlayAnimationDark } from './PlayAnimationDark.js';
+import { PlayAnimationImpact } from './PlayAnimationImpact.js';
+import { PlayAnimationOutline } from './PlayAnimationOutline.js';
+import { PlayAnimationParticleSparkles } from './PlayAnimationParticleSparkles.js';
+import { PlayAnimationParticleSpiral } from './PlayAnimationParticleSpiral.js';
+import { PlayAnimationParticleVortex } from './PlayAnimationParticleVortex.js';
+import { PlayAnimationThormund } from './PlayAnimationThormund.js';
+import { PlayConfettiStrength1 } from './PlayConfettiStrength1.js';
+import { PlayConfettiStrength2 } from './PlayConfettiStrength2.js';
+import { PlayConfettiStrength3 } from './PlayConfettiStrength3.js';
+import { PlayMacro } from './PlayMacro.js';
+import { PlaySoundCustom } from './PlaySoundCustom.js';
+import { PlaySoundEpicFail } from './PlaySoundEpicFail.js';
+import { PlaySoundEpicWin } from './PlaySoundEpicWin.js';
 
 export const DiceSFXManager = {
     SFX_MODE_CLASS : {

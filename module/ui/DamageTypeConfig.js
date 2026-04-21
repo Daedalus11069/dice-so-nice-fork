@@ -1,5 +1,5 @@
-import { COLORSETS } from './DiceColors.js';
-import { Utils } from './Utils.js';
+import { COLORSETS } from '../engine/DiceColors.js';
+import { Utils } from '../Utils.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 

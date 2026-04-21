@@ -1,9 +1,9 @@
 import { Dice3D } from './Dice3D.js';
-import { DiceConfig } from './DiceConfig.js';
-import { RollableAreaConfig } from './RollableAreaConfig.js';
-import { DamageTypeConfig } from './DamageTypeConfig.js';
-import { DsnSidebarTab } from './DsnSidebarTab.js';
-import { InitiativeMask } from './InitiativeMask.js';
+import { DiceConfig } from './ui/DiceConfig.js';
+import { RollableAreaConfig } from './ui/RollableAreaConfig.js';
+import { DamageTypeConfig } from './ui/DamageTypeConfig.js';
+import { DsnSidebarTab } from './ui/DsnSidebarTab.js';
+import { InitiativeMask } from './ui/InitiativeMask.js';
 import { CompanionLink } from './CompanionLink.js';
 import { Utils } from './Utils.js';
 
