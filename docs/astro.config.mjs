@@ -29,6 +29,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Getting Started', slug: 'guide/getting-started' },
 						{ label: 'Appearance', slug: 'guide/appearance' },
+						{ label: 'Per-Actor Appearance', slug: 'guide/actor-appearance' },
 						{ label: 'Preferences', slug: 'guide/preferences' },
 						{ label: 'Special Effects', slug: 'guide/special-effects' },
 						{ label: 'Display', slug: 'guide/performance' },
@@ -49,6 +50,7 @@ export default defineConfig({
 								{ label: 'Integration', slug: 'api/integration' },
 								{ label: 'Hooks', slug: 'api/hooks' },
 								{ label: 'Roll API', slug: 'api/roll' },
+								{ label: 'Companion Messages', slug: 'api/companion-messages' },
 							],
 						},
 						{

@@ -8,14 +8,15 @@ If you are a system or module developer looking for information on how to have y
 ## Step 1: Understanding how 'Dice So Nice!' works
 Once enabled, Dice So Nice! intercepts new chat messages and checks `chatMessage.isRoll` (which returns true when the message's `rolls` array has entries). When a roll is detected, Dice So Nice! hides the chat message and displays a 3D animation using the roll data attached to the message. This covers the majority of cases when using vanilla Foundry.
 
-Customized Systems and Modules, however, may implement differently the way the roll is resolved. Therefore they may not want to rely on a single Chat message being rendered, or they may not even use the `Roll` class entirely, favoring custom random strategies for calculating the result.
+## Step 2: Pick the right integration path
 
-In this case, 'Dice so Nice' exposes APIs to trigger the animation and have a notification when finished.
-[You can find this API by following this link](/foundryvtt-dice-so-nice/api/roll/)
+Most systems and modules work with one of the following approaches:
 
-## Step 2: Decide if you can use a single Chat message for your needs or if you'll need a more complicated flow
-While we recommend using the 'Chat message detection' system, if your needs are too complicated, please follow the link above and read our Roll API.
-If you can make your system/module work with a simple Chat Message, go to Step 3.
+- **Single chat message with Roll objects.** This is the standard path and requires no special integration. If your roll produces a chat message with a `rolls` array, Dice So Nice! detects and animates it automatically. Go to Step 3.
+
+- **Multiple chat messages for one logical roll.** Some systems create several messages for a single action (e.g. a roll card and a separate result card). In that case, put the Roll on the primary message and use [Companion Messages](/foundryvtt-dice-so-nice/api/companion-messages/) to link the others. Companions stay hidden during the animation and are revealed when the dice land. Go to Step 3 for the primary message, then see the Companion Messages page for the linking flag.
+
+- **No Roll class or no chat message at all.** If your system uses a custom random strategy or needs to trigger an animation without posting to chat, use the [Roll API](/foundryvtt-dice-so-nice/api/roll/) directly.
 
 ## Step 3: Create a Chat Message with the required data
 For a chat message to be detected by Dice So Nice!, it needs a `rolls` array containing `Roll` objects. In modern Foundry, a message with a `rolls` array is automatically recognized as a roll (`isRoll` returns true).
@@ -69,6 +70,9 @@ roll.toMessage();
 ```
 
 ## Step 5: Further options
-If you wish to add more features to your 'Dice So Nice!' integration like custom dice, multi-colored rolls, and more, please check the rest of our API.
-[Roll API](/foundryvtt-dice-so-nice/api/roll/)
-[Customization API](/foundryvtt-dice-so-nice/api/customization/)
+If you wish to add more features to your integration, the rest of the API has you covered:
+
+- [Roll API](/foundryvtt-dice-so-nice/api/roll/) - trigger animations programmatically, hide specific dice, disable detection
+- [Companion Messages](/foundryvtt-dice-so-nice/api/companion-messages/) - link non-roll messages to a roll animation
+- [Colors & Themes](/foundryvtt-dice-so-nice/api/customization/) - register custom color themes and presets
+- [Hooks](/foundryvtt-dice-so-nice/api/hooks/) - react to animation lifecycle events

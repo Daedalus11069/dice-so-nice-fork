@@ -40,6 +40,10 @@ When a die type is selected, you can also open the [Dice Library](/foundryvtt-di
 
 Enable **Extra Dice Customization** to access appearance settings for special dice types like d3, d5, d7, d14, d16, d24, and d30. These dice are less common but used by some game systems (e.g., DCC).
 
+## Per-Actor Appearance
+
+You can also configure a unique dice appearance for individual characters. See [Per-Actor Appearance](/foundryvtt-dice-so-nice/guide/actor-appearance/) for details.
+
 ## Disabling 3D Dice
 
 If a player does not want 3D dice animations, they can disable them from the Appearance tab. This only affects that player. Other players continue to see their own 3D dice normally.

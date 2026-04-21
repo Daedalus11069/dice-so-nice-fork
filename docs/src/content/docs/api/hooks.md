@@ -85,8 +85,9 @@ Hooks.on('diceSoNiceRollStart', (messageId, context) => {
 ## diceSoNiceRollComplete
 Called only when a roll complete after being caught in a Chat message. This hook is therefore not called by using the Roll API. If you need to detect when a Roll is complete while using the Roll class, you can wait for the Promise to resolve.
 * `messageId`: ID of the message that triggered the roll.
+* `companionIds`: Array of [companion message](/foundryvtt-dice-so-nice/api/companion-messages/) IDs that were revealed with this roll. Empty array if no companions were linked.
 ```javascript
-Hooks.on('diceSoNiceRollComplete', (messageId) => {
+Hooks.on('diceSoNiceRollComplete', (messageId, companionIds) => {
     //...
 });
 ```
