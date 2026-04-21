@@ -462,6 +462,7 @@ export class Dice3D {
         this._boxReady = this.box.initialize();
         this.box.onPersistentEvent = (type, data) => this._emitPersistentEvent(type, data);
         this.box.sfxListForUser = (user) => Dice3D.ALL_CUSTOMIZATION(user).specialEffects || [];
+        this.box.onQueueThrow = (throwData) => this._showPersistentThrow(throwData);
     }
 
     _computeDimensions(rollingArea) {
@@ -1161,6 +1162,16 @@ export class Dice3D {
         });
     }
 
+    _showPersistentThrow(throwData) {
+        return new Promise((resolve) => {
+            this.nextAnimation.addItem({
+                type: "persistent",
+                params: throwData,
+                resolve: resolve
+            });
+        });
+    }
+
     /**
      * Initializes the animation queue system.
      * Sets up an empty queue array for managing dice roll animations
@@ -1206,33 +1217,59 @@ export class Dice3D {
         const timing = game.settings.get("dice-so-nice", "enabledSimultaneousRolls") ? 400 : 0;
 
         this.nextAnimation = new Accumulator(timing, async (items) => {
-            // If dice are disabled or queue is too long, resolve all items as false
             if (!this.isEnabled() || this.queue.length >= 10) {
+                items.forEach(item => item.resolve(false));
+                if (this.box.inputHandler) this.box.inputHandler.clearPendingThrowDice();
+                return;
+            }
+
+            //partition items by type
+            const ephemeralItems = items.filter(i => i.type !== "persistent");
+            const persistentItems = items.filter(i => i.type === "persistent");
+
+            const commands = ephemeralItems.length > 0 ? DiceNotation.mergeQueuedRollCommands(ephemeralItems) : [];
+            const flatThrows = commands.flat();
+
+            //merge persistent items into a single throwData for the unified batch
+            let mergedPersistentData = null;
+            if (persistentItems.length > 0) {
+                const allHeldDice = [];
+                const mergedForcedByMesh = new Map();
+                let roll = null, primaries = null, sfxList = [];
+                for (const item of persistentItems) {
+                    const p = item.params;
+                    allHeldDice.push(...p.heldDice);
+                    for (const [mesh, val] of p.forcedByMesh) {
+                        mergedForcedByMesh.set(mesh, val);
+                    }
+                    if (!roll && p.roll) { roll = p.roll; primaries = p.primaries; }
+                    if (p.sfxList) sfxList.push(...p.sfxList);
+                }
+                mergedPersistentData = {
+                    heldDice: allHeldDice,
+                    velocity: persistentItems[0].params.velocity,
+                    forcedByMesh: mergedForcedByMesh,
+                    roll,
+                    primaries,
+                    sfxList: sfxList.length > 0 ? sfxList : undefined
+                };
+            }
+
+            if (flatThrows.length === 0 && !mergedPersistentData) {
                 items.forEach(item => item.resolve(false));
                 return;
             }
 
-            // Merge multiple roll commands into a single command array
-            const commands = DiceNotation.mergeQueuedRollCommands(items);
-            let remainingAnimations = commands.length;
-
-            // Chain the animations using promises
             this._currentAnimation = this._currentAnimation.then(async () => {
-                // Process each dice throw command
-                for (const diceThrow of commands) {
-                    this.queue.push(() => new Promise(async (resolve) => {
-                        this._beforeShow();
-                        await this.box.start_throw(diceThrow, () => {
-                            remainingAnimations--;
-                            // When all animations are complete, resolve items and cleanup
-                            if (remainingAnimations === 0) {
-                                items.forEach(item => item.resolve(true));
-                                this._afterShow();
-                            }
-                            resolve();
-                        });
-                    }));
-                }
+                this.queue.push(() => new Promise(async (resolve) => {
+                    this._beforeShow();
+                    await this.box.startUnifiedBatch(flatThrows, mergedPersistentData, () => {
+                        items.forEach(item => item.resolve(true));
+                        this._afterShow();
+                        resolve();
+                    });
+                }));
+
                 return this._processQueue();
             });
 
@@ -1607,6 +1644,22 @@ export class Dice3D {
     async _onRemotePersistentPickup(request) {
         const { persistentIds } = request.data;
         if (!Array.isArray(persistentIds)) return;
+
+        //yield locally-held dice that the remote player is picking up
+        const inputHandler = this.box.inputHandler;
+        if (inputHandler) {
+            const locallyHeldIds = [];
+            for (const pid of persistentIds) {
+                const mesh = this._findPersistentMeshById(pid);
+                if (mesh?.userData?.constrained) {
+                    locallyHeldIds.push(mesh.id);
+                }
+            }
+            if (locallyHeldIds.length > 0) {
+                await inputHandler.yieldHeldDice(locallyHeldIds);
+            }
+        }
+
         const meshes = [];
         for (const pid of persistentIds) {
             const mesh = this._findPersistentMeshById(pid);
@@ -1694,7 +1747,6 @@ export class Dice3D {
 
         await this.box.persistentDiceManager.removeRemoteConstraints(heldDice);
         this.box.updateSelectionOutlines();
-        this._beforeShow();
 
         //convert velocity from pct to world units
         const velocity = {
@@ -1707,7 +1759,7 @@ export class Dice3D {
         const throwerUser = game.users.get(request.user);
         const sfxList = throwerUser ? Dice3D.ALL_CUSTOMIZATION(throwerUser).specialEffects || [] : [];
 
-        //simulate + face swap with pre-determined results
+        //route through queue for serialized execution
         await this.box.replayRemoteThrow(heldDice, velocity, forcedByMesh, sfxList);
     }
 }

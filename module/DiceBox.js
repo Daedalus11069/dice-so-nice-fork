@@ -50,6 +50,7 @@ export class DiceBox {
 		//deferred callback values set before persistentDiceManager is created
 		this._deferredOnPersistentEvent = null;
 		this._deferredSfxListForUser = null;
+		this._deferredOnQueueThrow = null;
 
 		this.layers = {
 			dice: 0,
@@ -110,6 +111,15 @@ export class DiceBox {
 	set sfxListForUser(value) {
 		if (this.persistentDiceManager) this.persistentDiceManager.sfxListForUser = value;
 		else this._deferredSfxListForUser = value;
+	}
+
+	get onQueueThrow() {
+		return this.persistentDiceManager ? this.persistentDiceManager.onQueueThrow : this._deferredOnQueueThrow;
+	}
+
+	set onQueueThrow(value) {
+		if (this.persistentDiceManager) this.persistentDiceManager.onQueueThrow = value;
+		else this._deferredOnQueueThrow = value;
 	}
 
 	initialize() {
@@ -195,9 +205,14 @@ export class DiceBox {
 					this.persistentDiceManager.sfxListForUser = this._deferredSfxListForUser;
 					this._deferredSfxListForUser = null;
 				}
+				if (this._deferredOnQueueThrow) {
+					this.persistentDiceManager.onQueueThrow = this._deferredOnQueueThrow;
+					this._deferredOnQueueThrow = null;
+				}
 
 				this.throwEngine = new ThrowEngine(this.diceScene, this.physicsWorker, this.dicefactory, this.soundManager);
 				this.throwEngine.sfxContext = this;
+				this.throwEngine.persistentDiceManager = this.persistentDiceManager;
 				this.throwEngine.persistentDiceList = this.persistentDiceManager.persistentDiceList;
 				this.throwEngine.onClearAll = () => this.clearAll();
 
@@ -382,24 +397,23 @@ export class DiceBox {
 				this.throwEngine.addDiceToScene();
 			}
 
+			if (this.inputHandler) this.inputHandler.updatePreRoll(time_diff);
+			this.persistentDiceManager.updateRemoteAnimations(time_diff);
+
+			const anyPersistentThrowPlaying = this.persistentDiceList.some(d => d.persistentThrow);
+
 			if (neededSteps && this.throwEngine.rolling) {
 				this.throwEngine.updateThrowPlayback(neededSteps);
-			} else if (!this.throwEngine.rolling) {
-				if (this.inputHandler) this.inputHandler.updatePreRoll(time_diff);
-
-				this.persistentDiceManager.updateRemoteAnimations(time_diff);
-
+			} else if (!this.throwEngine.rolling && !anyPersistentThrowPlaying) {
 				this.physicsWorker.exec('playStep', {
 					time_diff: time_diff
 				}).then((result) => {
-					//If nothing is returned, skip the rest of the function
 					if (!result || !result.ids)
 						return;
 					const { ids, quaternionsBuffers, positionsBuffers, worldAsleep } = result;
 
 					if (worldAsleep)
 						return;
-					// Create a mapping of IDs to their index in the 'ids' array
 					const quaternions = new Float32Array(quaternionsBuffers);
 					const positions = new Float32Array(positionsBuffers);
 					const idToIndex = new Map();
@@ -410,9 +424,7 @@ export class DiceBox {
 					for (const child of this.scene.children) {
 						if (!child.children || !child.children.length) continue;
 						let dicemesh = child.children[0];
-						//skip any die currently in persistent-throw buffer playback
 						if (dicemesh.persistentThrow) continue;
-						//update ephemeral dice and persistent dice (live physics)
 						const isEphemeral = dicemesh.sim != undefined && !dicemesh.sim.dead;
 						const isPersistent = dicemesh.userData?.persistent;
 						if ((isEphemeral || isPersistent) && idToIndex.has(dicemesh.id)) {
@@ -425,8 +437,6 @@ export class DiceBox {
 			}
 		}
 
-		//play back pre-recorded buffers for persistent dice mid-throw
-		this.persistentDiceManager.updatePersistentPlayback(neededSteps, this.throwEngine.speed);
 
 		// fade-out update for ephemeral dice
 		if (this.fadingDice.length > 0) {
@@ -483,12 +493,29 @@ export class DiceBox {
 			//if animated dice still on the table, keep animating
 			if (this.throwEngine.running) {
 				this.throwEngine.fireResultEvents();
-				this.throwEngine.handleSpecialEffectsInit().then(() => {
-					this.throwEngine.rolling = false;
-					//clean up sim data so persistent dice return to live physics
+				this.throwEngine.handlePersistentThrowCompletion()
+					.then(() => this.throwEngine.handleSpecialEffectsInit())
+					.then(async () => {
+					//clean up sim data so remaining persistent dice return to live physics
 					for (const die of this.persistentDiceList) {
 						delete die.sim;
 					}
+					//restore collision response and sync body positions while still rolling
+					//so playStep doesn't read stale positions from the sim
+					if (this.throwEngine._ghostifiedIds?.length > 0) {
+						await this.physicsWorker.exec("setCollisionResponse", { ids: this.throwEngine._ghostifiedIds, enabled: true });
+						this.throwEngine._ghostifiedIds = [];
+					}
+					const bodyUpdates = [];
+					for (const die of this.persistentDiceList) {
+						if (die.parent) {
+							bodyUpdates.push({ id: die.id, position: { x: die.parent.position.x, y: die.parent.position.y, z: die.parent.position.z } });
+						}
+					}
+					if (bodyUpdates.length > 0) {
+						await this.physicsWorker.exec("setBodyPositions", { updates: bodyUpdates });
+					}
+					this.throwEngine.rolling = false;
 					this.throwEngine.callback(this.throwEngine.throws);
 					if (!this.diceScene.animatedDiceDetected && !(this.allowInteractivity && (this.throwEngine.deadDiceList.length + this.throwEngine.diceList.length) > 0) && !DiceSFXManager.renderQueue.length && this.persistentDiceList.length === 0 && this.fadingDice.length === 0)
 						removeTicker(this.animateThrow);
@@ -498,11 +525,12 @@ export class DiceBox {
 		}
 	}
 
-	async start_throw(throws, callback) {
+	async startUnifiedBatch(throws, persistentThrowData, callback) {
 		if (this.throwEngine.rolling) return;
 		this.isVisible = true;
 		this._preparingThrow = true;
-		await this.throwEngine.start_throw(throws, callback);
+		if (this.inputHandler) this.inputHandler.clearPendingThrowDice();
+		await this.throwEngine.startUnifiedBatch(throws, persistentThrowData, callback);
 		this._preparingThrow = false;
 		this.last_time = 0;
 		removeTicker(this.animateThrow);
@@ -513,6 +541,11 @@ export class DiceBox {
 		this.cancelFade();
 		await this.throwEngine.clearAll();
 		DiceSFXManager.clearQueue();
+		//clean up any leaked throw metadata on persistent dice
+		for (const die of this.persistentDiceList) {
+			delete die.sim;
+			delete die.persistentThrow;
+		}
 		//keep ticker alive if persistent dice or fading dice exist
 		if (this.persistentDiceList.length === 0 && this.fadingDice.length === 0) {
 			removeTicker(this.animateThrow);

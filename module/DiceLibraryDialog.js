@@ -96,11 +96,6 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
         return { sections, hasAnySections: sections.length > 0, dieTypeOptions };
     }
 
-    /** @deprecated Use DiceLibrary.buildLibraryDiceGroups instead */
-    static buildLibraryDiceGroups(dieType, appearance, selectedOverride = null) {
-        return DiceLibrary.buildLibraryDiceGroups(dieType, appearance, selectedOverride);
-    }
-
     _onRender(context, options) {
         const html = $(this.element);
 

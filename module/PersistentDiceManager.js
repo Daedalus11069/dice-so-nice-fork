@@ -32,6 +32,8 @@ export class PersistentDiceManager {
 		this.onSelectionChanged = null;
 		//callback at end of replayRemoteThrow (DiceBox triggers updateRemoteOutlines)
 		this.onRemoteThrowReplayed = null;
+		//callback to route persistent throws through the animation queue (set by Dice3D)
+		this.onQueueThrow = null;
 		//callback to resolve SFX list for a user (set by Dice3D via DiceBox)
 		this.sfxListForUser = null;
 
@@ -363,96 +365,6 @@ export class PersistentDiceManager {
 		}
 	}
 
-	//per-frame: play back pre-recorded buffers for dice (persistent and struck ephemerals) mid-throw
-	updatePersistentPlayback(neededSteps, speed) {
-		for (const dicemesh of this.persistentDiceList) {
-			this._advancePlayback(dicemesh, neededSteps, speed);
-		}
-		//ephemeral struck bystanders also get buffer playback
-		if (this.throwEngine) {
-			for (const dicemesh of this.throwEngine.diceList) {
-				this._advancePlayback(dicemesh, neededSteps, speed);
-			}
-			for (const dicemesh of this.throwEngine.deadDiceList) {
-				this._advancePlayback(dicemesh, neededSteps, speed);
-			}
-		}
-	}
-
-	_advancePlayback(dicemesh, neededSteps, speed) {
-		const pt = dicemesh.persistentThrow;
-		if (!dicemesh.sim || !pt) return;
-
-		//advance playback, clamped to buffer length
-		const steps = Math.max(neededSteps, 1) * speed;
-		const prevIteration = pt.iteration;
-		pt.iteration = Math.min(pt.iteration + steps, pt.iterations);
-
-		//replay collision sounds between previous and current frame
-		if (pt.detectedCollides) {
-			const startFrame = Math.max(Math.floor(prevIteration), pt.lastCollideFrame + 1);
-			const endFrame = Math.min(Math.floor(pt.iteration), pt.iterations);
-			for (let f = startFrame; f <= endFrame; f++) {
-				const c = pt.detectedCollides[f];
-				if (c) this.soundManager.playAudioSprite(...c);
-			}
-			pt.lastCollideFrame = endFrame;
-		}
-
-		if (pt.iteration >= pt.iterations) {
-			//playback complete
-			const fi = pt.iterations;
-			if (dicemesh.parent) {
-				dicemesh.parent.position.fromArray(dicemesh.sim.stepPositions, fi * 3);
-				if (pt.rawQuat) {
-					//throwing die: parent=raw quat, child=swap correction
-					const rq = pt.rawQuat;
-					dicemesh.parent.quaternion.set(rq.x, rq.y, rq.z, rq.w);
-				} else {
-					//struck die: no swap, hand off to live physics
-					dicemesh.parent.quaternion.fromArray(dicemesh.sim.stepQuaternions, fi * 4);
-				}
-			}
-			if (pt.swapQuat) {
-				dicemesh.quaternion.copy(pt.swapQuat);
-			}
-			//send chat message
-			if (pt.roll) {
-				pt.roll.toMessage({
-					flavor: `${pt.diceType} - Persistent Dice`,
-					flags: { "dice-so-nice": { persistent: true } }
-				}).catch(err => {
-					console.error("[Dice So Nice] Failed to create persistent dice chat message:", err);
-					if (ui?.notifications) ui.notifications.warn("Dice So Nice: persistent roll failed to post to chat (see console).");
-				});
-			}
-			//fire SFX at throw completion
-			if (dicemesh.specialEffects) {
-				for (const sfx of dicemesh.specialEffects) {
-					DiceSFXManager.playSFX(sfx, this.sfxContext, dicemesh);
-				}
-				delete dicemesh.specialEffects;
-			}
-			if (dicemesh.userData?.persistent) {
-				//persistent dice: full reset, live physics takes over
-				delete dicemesh.sim;
-			} else {
-				//ephemeral: keep sim struct so isEphemeral check in playStep branch stays true,
-				//but empty the buffers (matches throwFinished post-throw state)
-				dicemesh.sim.stepPositions = new Float32Array(1001 * 3);
-				dicemesh.sim.stepQuaternions = new Float32Array(1001 * 4);
-			}
-			delete dicemesh.persistentThrow;
-		} else {
-			//floor to integer frame index
-			const iter = Math.floor(pt.iteration);
-			if (dicemesh.parent && iter < pt.iterations) {
-				dicemesh.parent.position.fromArray(dicemesh.sim.stepPositions, iter * 3);
-				dicemesh.parent.quaternion.fromArray(dicemesh.sim.stepQuaternions, iter * 4);
-			}
-		}
-	}
-
 	//build id->mesh lookup spanning persistent dice and any active/settled ephemerals
 	_buildMeshByIdMap() {
 		const map = new Map();
@@ -464,27 +376,19 @@ export class PersistentDiceManager {
 		return map;
 	}
 
-	//assign sim+persistentThrow to a struck bystander (persistent or ephemeral)
-	_assignStruckBystanderSim(struckMesh, positionsBuffer, quaternionsBuffer, iterationsNeeded) {
-		//preserve existing sim.dead for ephemerals (persistent dice don't have prior sim)
-		const prevDead = struckMesh.sim?.dead ?? false;
-		struckMesh.sim = {
-			dead: prevDead,
-			stepPositions: new Float32Array(positionsBuffer),
-			stepQuaternions: new Float32Array(quaternionsBuffer)
-		};
-		struckMesh.persistentThrow = {
-			iterations: iterationsNeeded,
-			iteration: 0
-		};
-	}
-
 	//throw held persistent dice: combined Roll, one sim, one chat message
 	async throwPersistentDice(heldDice, velocity) {
 		if (!heldDice || heldDice.length === 0) return;
 
-		//1. reset mesh quaternions to identity
-		for (const d of heldDice) d.quaternion.set(0, 0, 0, 1);
+		//filter out dice that were yielded to another player mid-gesture
+		heldDice = heldDice.filter(d => {
+			if (d.userData?.yielded) {
+				d.userData.yielded = false;
+				return false;
+			}
+			return true;
+		});
+		if (heldDice.length === 0) return;
 
 		//2. build combined Foundry roll
 		//d100 secondaries derive their face from the primary's result, not their own term
@@ -583,135 +487,35 @@ export class PersistentDiceManager {
 			});
 		}
 
-		//3. impulse map: shared linear velocity, random angular per die
-		const ANGULAR_SPEED_TUMBLE = 50;
-		const ANGULAR_SPEED_SPIN = 20;
-		const impulses = {};
-		for (const d of heldDice) {
-			impulses[d.id] = {
-				velocity: velocity,
-				angularVelocity: {
-					x: (Math.random() - 0.5) * ANGULAR_SPEED_TUMBLE,
-					y: (Math.random() - 0.5) * ANGULAR_SPEED_TUMBLE,
-					z: (Math.random() - 0.5) * ANGULAR_SPEED_SPIN
-				}
-			};
+		//route to queue (Accumulator) for serialized execution
+		if (this.onQueueThrow) {
+			return this.onQueueThrow({ heldDice, velocity, forcedByMesh, roll, primaries });
 		}
 
-		//4. one background simulation (impulses applied atomically before first step)
-		const ids = heldDice.map(d => d.id);
-		const simResult = await this.physicsWorker.exec("simulatePersistentThrow", {
-			ids: ids,
-			impulses: impulses,
-			framerate: this.throwEngine.framerate
-		});
-
-		if (!simResult) {
-			console.warn("[Dice So Nice] Persistent throw simulation failed");
-			return;
-		}
-
-		const { diceIds, positionsBuffers, quaternionsBuffers, iterationsNeeded, detectedCollides } = simResult;
-
-		//resolve collisions to playable audio sprites
-		const resolvedCollides = detectedCollides
-			? this.soundManager.generateCollisionSounds(detectedCollides)
-			: null;
-
-		const meshById = this._buildMeshByIdMap();
-
-		const consumedSimIndices = new Set();
-
-		const typeLabels = Array.from(new Set(primaries.map(d => d.notation.type.toUpperCase()))).join(", ");
-
-		//5. per-die: face swap + buffer playback. First valid die carries chat+sound
-		let chatCarrierAssigned = false;
-		for (let i = 0; i < heldDice.length; i++) {
-			const dicemesh = heldDice[i];
-			const diceobj = this.dicefactory.get(dicemesh.notation.type);
-			if (!diceobj) continue;
-
-			if (!forcedByMesh.has(dicemesh)) {
-				console.warn("[Dice So Nice] Held die has no derived face value - skipping", { id: dicemesh.id });
-				continue;
-			}
-
-			const simIdx = diceIds.indexOf(dicemesh.id);
-			if (simIdx === -1) {
-				console.warn("[Dice So Nice] Thrown die not found in sim payload", { id: dicemesh.id });
-				continue;
-			}
-			consumedSimIndices.add(simIdx);
-
-			const stepPositions = new Float32Array(positionsBuffers[simIdx]);
-			const stepQuaternions = new Float32Array(quaternionsBuffers[simIdx]);
-
-			//raw physics quat for final-frame handoff (no swap doubling)
-			const rawFinalQuat = await this.physicsWorker.exec("getBodyQuaternion", dicemesh.id);
-
-			//apply face swap
-			dicemesh.quaternion.set(0, 0, 0, 1);
-			dicemesh.forcedResult = forcedByMesh.get(dicemesh);
-			await this.throwEngine.swapDiceFace(dicemesh);
-
-			//bake swap into every frame so forced face shows throughout playback
-			const swapQuat = dicemesh.quaternion.clone();
-			this.throwEngine.bakeSwapIntoQuaternionBuffer(stepQuaternions, swapQuat, iterationsNeeded);
-
-			//switch to buffer playback (reset mesh quat to avoid doubling swap)
-			dicemesh.quaternion.set(0, 0, 0, 1);
-			dicemesh.sim = {
-				dead: false,
-				stepQuaternions: stepQuaternions,
-				stepPositions: stepPositions
-			};
-			const isChatCarrier = !chatCarrierAssigned;
-			dicemesh.persistentThrow = {
-				swapQuat: swapQuat.clone(),
-				rawQuat: rawFinalQuat,
-				iterations: iterationsNeeded,
-				iteration: 0,
-				roll: isChatCarrier ? roll : null,
-				diceType: isChatCarrier ? typeLabels : null,
-				detectedCollides: isChatCarrier ? resolvedCollides : null,
-				lastCollideFrame: -1
-			};
-			if (isChatCarrier) chatCarrierAssigned = true;
-		}
-		if (!chatCarrierAssigned) {
-			console.warn("[Dice So Nice] Persistent batch throw produced no chat carrier - every die was skipped", { ids: heldDice.map(d => d.id) });
-		}
-
-		//5b. populate SFX on thrown dice
-		if (this.sfxListForUser) {
-			const sfxList = this.sfxListForUser(game.user);
-			for (const dicemesh of heldDice) {
-				if (dicemesh.forcedResult == null) continue;
-				const matched = this._matchPersistentSFX(
-					sfxList, dicemesh.notation.type,
-					dicemesh.forcedResult, dicemesh.notation.compositeResult || null, dicemesh.notation.compositeType || null
-				);
-				if (matched.length > 0) dicemesh.specialEffects = matched;
-			}
-		}
-
-		//6. buffer playback for struck bystander dice (persistent or ephemeral, no face swap, no chat)
-		for (let i = 0; i < diceIds.length; i++) {
-			if (consumedSimIndices.has(i)) continue;
-			const struckMesh = meshById.get(diceIds[i]);
-			if (!struckMesh) continue;
-			this._assignStruckBystanderSim(struckMesh, positionsBuffers[i], quaternionsBuffers[i], iterationsNeeded);
-		}
+		console.warn("[Dice So Nice] throwPersistentDice: onQueueThrow not wired, throw dropped");
 	}
 
 	//replay a persistent throw from another client (no Roll, no chat)
 	async replayRemoteThrow(heldDice, velocity, forcedByMesh, sfxList = []) {
 		if (!heldDice || heldDice.length === 0) return;
 
-		//1. reset mesh quaternions
-		for (const d of heldDice) d.quaternion.set(0, 0, 0, 1);
+		const throwData = { heldDice, velocity, forcedByMesh, roll: null, primaries: heldDice, sfxList };
 
-		//2. build impulse map
+		//route to queue for serialized execution
+		if (this.onQueueThrow) {
+			await this.onQueueThrow(throwData);
+			if (this.onRemoteThrowReplayed) {
+				const userId = heldDice[0]?.userData?.ownerUserId;
+				if (userId) this.onRemoteThrowReplayed(userId);
+			}
+			return;
+		}
+
+		console.warn("[Dice So Nice] replayRemoteThrow: onQueueThrow not wired, throw dropped");
+	}
+
+	//build impulse map for a persistent throw (shared velocity, random angular per die)
+	buildImpulseMap(heldDice, velocity) {
 		const ANGULAR_SPEED_TUMBLE = 50;
 		const ANGULAR_SPEED_SPIN = 20;
 		const impulses = {};
@@ -725,86 +529,19 @@ export class PersistentDiceManager {
 				}
 			};
 		}
+		return impulses;
+	}
 
-		//3. run simulation
-		const ids = heldDice.map(d => d.id);
-		const simResult = await this.physicsWorker.exec("simulatePersistentThrow", {
-			ids, impulses, framerate: this.throwEngine.framerate
-		});
-		if (!simResult) return;
-
-		const { diceIds, positionsBuffers, quaternionsBuffers, iterationsNeeded, detectedCollides } = simResult;
-		const resolvedCollides = detectedCollides
-			? this.soundManager.generateCollisionSounds(detectedCollides)
-			: null;
-
-		const meshById = this._buildMeshByIdMap();
-		const consumedSimIndices = new Set();
-
-		//4. face swap + buffer playback (no chat carrier)
-		let soundCarrierAssigned = false;
-		for (let i = 0; i < heldDice.length; i++) {
-			const dicemesh = heldDice[i];
-			const diceobj = this.dicefactory.get(dicemesh.notation.type);
-			if (!diceobj) continue;
-			if (!forcedByMesh.has(dicemesh)) continue;
-
-			const simIdx = diceIds.indexOf(dicemesh.id);
-			if (simIdx === -1) continue;
-			consumedSimIndices.add(simIdx);
-
-			const stepPositions = new Float32Array(positionsBuffers[simIdx]);
-			const stepQuaternions = new Float32Array(quaternionsBuffers[simIdx]);
-			const rawFinalQuat = await this.physicsWorker.exec("getBodyQuaternion", dicemesh.id);
-
-			dicemesh.quaternion.set(0, 0, 0, 1);
-			dicemesh.forcedResult = forcedByMesh.get(dicemesh);
-			await this.throwEngine.swapDiceFace(dicemesh);
-
-			const swapQuat = dicemesh.quaternion.clone();
-			this.throwEngine.bakeSwapIntoQuaternionBuffer(stepQuaternions, swapQuat, iterationsNeeded);
-
-			dicemesh.quaternion.set(0, 0, 0, 1);
-			dicemesh.sim = { dead: false, stepQuaternions, stepPositions };
-			const isSoundCarrier = !soundCarrierAssigned;
-			dicemesh.persistentThrow = {
-				swapQuat: swapQuat.clone(),
-				rawQuat: rawFinalQuat,
-				iterations: iterationsNeeded,
-				iteration: 0,
-				//no roll/diceType - first die carries collision sounds only
-				roll: null,
-				diceType: null,
-				detectedCollides: isSoundCarrier ? resolvedCollides : null,
-				lastCollideFrame: -1
-			};
-			if (isSoundCarrier) soundCarrierAssigned = true;
-		}
-
-		//4b. populate SFX using thrower's config
-		if (sfxList.length > 0) {
-			for (const dicemesh of heldDice) {
-				if (dicemesh.forcedResult == null) continue;
-				const matched = this._matchPersistentSFX(
-					sfxList, dicemesh.notation.type,
-					dicemesh.forcedResult, dicemesh.notation.compositeResult || null, dicemesh.notation.compositeType || null
-				);
-				if (matched.length > 0) dicemesh.specialEffects = matched;
-			}
-		}
-
-		//5. buffer playback for struck bystander dice (persistent or ephemeral)
-		for (let i = 0; i < diceIds.length; i++) {
-			if (consumedSimIndices.has(i)) continue;
-			const struckMesh = meshById.get(diceIds[i]);
-			if (!struckMesh) continue;
-			this._assignStruckBystanderSim(struckMesh, positionsBuffers[i], quaternionsBuffers[i], iterationsNeeded);
-		}
-
-		//notify DiceBox so it can update remote outlines
-		if (this.onRemoteThrowReplayed) {
-			const userId = heldDice[0]?.userData?.ownerUserId;
-			if (userId) this.onRemoteThrowReplayed(userId);
+	//apply SFX matching to thrown persistent dice
+	matchSFX(heldDice, sfxList) {
+		if (!Array.isArray(sfxList) || sfxList.length === 0) return;
+		for (const dicemesh of heldDice) {
+			if (dicemesh.forcedResult == null) continue;
+			const matched = this._matchPersistentSFX(
+				sfxList, dicemesh.notation.type,
+				dicemesh.forcedResult, dicemesh.notation.compositeResult || null, dicemesh.notation.compositeType || null
+			);
+			if (matched.length > 0) dicemesh.specialEffects = matched;
 		}
 	}
 
@@ -822,24 +559,4 @@ export class PersistentDiceManager {
 		});
 	}
 
-	//populate specialEffects on thrown persistent dice and fire SFX for them
-	_triggerPersistentSFX(dicemeshes, sfxList) {
-		const promises = [];
-		for (const dicemesh of dicemeshes) {
-			const matched = this._matchPersistentSFX(
-				sfxList,
-				dicemesh.notation.type,
-				dicemesh.forcedResult,
-				dicemesh.notation.compositeResult || null,
-				dicemesh.notation.compositeType || null
-			);
-			if (matched.length > 0) {
-				dicemesh.specialEffects = matched;
-				for (const sfx of matched) {
-					promises.push(DiceSFXManager.playSFX(sfx, this.sfxContext, dicemesh));
-				}
-			}
-		}
-		return Promise.all(promises);
-	}
 }

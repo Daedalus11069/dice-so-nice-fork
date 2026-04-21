@@ -45,6 +45,9 @@ export class ThrowEngine {
 		//set by DiceBox to the DiceBox instance - SFX subclasses access box.scene, box.camera, etc.
 		this.sfxContext = null;
 
+		//set by DiceBox - reference to PersistentDiceManager for unified batch orchestration
+		this.persistentDiceManager = null;
+
 		//set by DiceBox - reference to persistent dice array for simulateThrow
 		this.persistentDiceList = [];
 	}
@@ -282,51 +285,6 @@ export class ThrowEngine {
 		return stopped;
 	}
 
-	async simulateThrow() {
-		this.rolling = true;
-
-		const workerData = {
-			minIterations: this.minIterations,
-			nbIterationsBetweenRolls: this.nbIterationsBetweenRolls,
-			framerate: this.framerate,
-			canBeFlipped: game.settings.get("dice-so-nice", "diceCanBeFlipped")
-		}
-
-		const simResult = await this.physicsWorker.exec('simulateThrow', workerData);
-		if (!simResult) {
-			console.error("[Dice So Nice] simulateThrow returned no result");
-			this.rolling = false;
-			return;
-		}
-		const { ids, quaternionsBuffers, positionsBuffers, detectedCollides, deads, iterationsNeeded } = simResult;
-
-		const quaternions = quaternionsBuffers.map(buffer => new Float32Array(buffer));
-		const positions = positionsBuffers.map(buffer => new Float32Array(buffer));
-
-		this.iterationsNeeded = iterationsNeeded;
-
-		// Create a mapping of IDs to their index in the 'ids' array
-		const idToIndex = new Map();
-		ids.forEach((id, index) => {
-			idToIndex.set(id, index);
-		});
-
-		const combinedDiceList = [...this.diceList, ...this.deadDiceList, ...this.persistentDiceList];
-
-		combinedDiceList.forEach(dice => {
-			const index = idToIndex.get(dice.id);
-			if (index !== undefined) {
-				dice.sim = {
-					dead: deads[index],
-					stepQuaternions: quaternions[index],
-					stepPositions: positions[index]
-				}
-			}
-		});
-
-		this.detectedCollides = this.soundManager.generateCollisionSounds(detectedCollides);
-	}
-
 	addDiceToScene() {
 		for (let i = 0; i < this.diceList.length; i++) {
 			if (this.diceList[i].startAtIteration == this.iteration) {
@@ -356,6 +314,8 @@ export class ThrowEngine {
 		for (const child of this.diceScene.scene.children) {
 			let dicemesh = child.children && child.children.length && child.children[0].sim != undefined && (!child.children[0].sim.dead || child.children[0].sim.dead > this.iteration) ? child.children[0] : null;
 
+			if (dicemesh && dicemesh.userData?.constrained) continue;
+
 			if (dicemesh && dicemesh.sim.stepPositions[this.iteration * 3]) {
 				child.position.fromArray(dicemesh.sim.stepPositions, this.iteration * 3);
 				child.quaternion.fromArray(dicemesh.sim.stepQuaternions, this.iteration * 4);
@@ -366,39 +326,6 @@ export class ThrowEngine {
 		if (this.detectedCollides[this.iteration]) {
 			this.soundManager.playAudioSprite(...this.detectedCollides[this.iteration]);
 		}
-	}
-
-	async start_throw(throws, callback) {
-		if (this.rolling) return;
-		this.throws = null;
-		this.callback = null;
-		let countNewDice = 0;
-		throws.forEach(notation => {
-			let vector = {
-				x: (Math.random() * 2 - 0.5) * this.diceScene.display.innerWidth,
-				y: -(Math.random() * 2 - 0.5) * this.diceScene.display.innerHeight
-			};
-			let dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
-			let throwingForceModifier = 0.8;
-			switch (this.throwingForce) {
-				case "weak":
-					throwingForceModifier = 0.5;
-					break;
-				case "strong":
-					throwingForceModifier = 1.8;
-					break;
-			}
-			let boost = ((Math.random() + 3) * throwingForceModifier) * dist;
-
-			notation = this.getVectors(notation, vector, boost, dist);
-			countNewDice += notation.dice.length;
-		});
-
-		let maxDiceNumber = game.settings.get("dice-so-nice", "maxDiceNumber");
-		if (this.deadDiceList.length + this.diceList.length + countNewDice > maxDiceNumber) {
-			if (this.onClearAll) await this.onClearAll();
-		}
-		await this.rollDice(throws, callback);
 	}
 
 	clearDice() {
@@ -420,43 +347,238 @@ export class ThrowEngine {
 			await this.physicsWorker.exec("removeDice", diceToRemove);
 	}
 
-	async rollDice(throws, callback) {
+	//unified batch: handles any mix of ephemeral throws and persistent dice in one sim
+	async startUnifiedBatch(throws, persistentThrowData, callback) {
+		if (this.rolling) return;
+
+		this.throws = null;
+		this.callback = null;
 		this.clearDice();
 
-		this.minIterations = (throws.length - 1) * this.nbIterationsBetweenRolls;
+		// === EPHEMERAL PREPARE ===
 
-		for (let j = 0; j < throws.length; j++) {
-			let notationVectors = throws[j];
+		let countNewDice = 0;
+		if (throws && throws.length > 0) {
+			for (const notation of throws) {
+				let vector = {
+					x: (Math.random() * 2 - 0.5) * this.diceScene.display.innerWidth,
+					y: -(Math.random() * 2 - 0.5) * this.diceScene.display.innerHeight
+				};
+				let dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+				let throwingForceModifier = 0.8;
+				switch (this.throwingForce) {
+					case "weak": throwingForceModifier = 0.5; break;
+					case "strong": throwingForceModifier = 1.8; break;
+				}
+				let boost = ((Math.random() + 3) * throwingForceModifier) * dist;
+				this.getVectors(notation, vector, boost, dist);
+				countNewDice += notation.dice.length;
+			}
 
-			for (let i = 0, len = notationVectors.dice.length; i < len; ++i) {
-				notationVectors.dice[i].startAtIteration = j * this.nbIterationsBetweenRolls;
-				let appearance = this.dicefactory.getAppearanceForDice(notationVectors.dsnConfig.appearance, notationVectors.dice[i].type, notationVectors.dice[i]);
-				await this.spawnDice(notationVectors.dice[i], appearance, notationVectors.dsnConfig.diceLibrary);
+			let maxDiceNumber = game.settings.get("dice-so-nice", "maxDiceNumber");
+			if (this.deadDiceList.length + this.diceList.length + countNewDice > maxDiceNumber) {
+				if (this.onClearAll) await this.onClearAll();
+			}
+
+			this.minIterations = (throws.length - 1) * this.nbIterationsBetweenRolls;
+
+			for (let j = 0; j < throws.length; j++) {
+				let notationVectors = throws[j];
+				for (let i = 0, len = notationVectors.dice.length; i < len; ++i) {
+					notationVectors.dice[i].startAtIteration = j * this.nbIterationsBetweenRolls;
+					let appearance = this.dicefactory.getAppearanceForDice(notationVectors.dsnConfig.appearance, notationVectors.dice[i].type, notationVectors.dice[i]);
+					await this.spawnDice(notationVectors.dice[i], appearance, notationVectors.dsnConfig.diceLibrary);
+				}
+			}
+		} else {
+			this.minIterations = 0;
+		}
+
+		// === PERSISTENT PREPARE ===
+
+		let impulses = null;
+		const thrownPersistentIds = new Set();
+		if (persistentThrowData) {
+			const { heldDice, velocity } = persistentThrowData;
+			for (const d of heldDice) thrownPersistentIds.add(d.id);
+
+			impulses = this.persistentDiceManager.buildImpulseMap(heldDice, velocity);
+
+			const bodyUpdates = [];
+			for (const d of heldDice) {
+				if (d.parent) {
+					bodyUpdates.push({ id: d.id, position: { x: d.parent.position.x, y: d.parent.position.y, z: d.parent.position.z } });
+				}
+			}
+			if (bodyUpdates.length > 0) {
+				await this.physicsWorker.exec("setBodyPositions", { updates: bodyUpdates });
+			}
+
+			for (const d of heldDice) d.quaternion.set(0, 0, 0, 1);
+		}
+
+		// ghostify constrained persistent dice not being thrown
+		const ghostifiedIds = [];
+		for (const die of this.persistentDiceList) {
+			if (die.userData?.constrained && !thrownPersistentIds.has(die.id)) {
+				ghostifiedIds.push(die.id);
+			}
+		}
+		if (ghostifiedIds.length > 0) {
+			await this.physicsWorker.exec("setCollisionResponse", { ids: ghostifiedIds, enabled: false });
+		}
+		this._ghostifiedIds = ghostifiedIds;
+
+		// === SIMULATE (one unified worker call) ===
+
+		this.rolling = true;
+
+		const simResult = await this.physicsWorker.exec('simulateThrow', {
+			minIterations: this.minIterations,
+			nbIterationsBetweenRolls: this.nbIterationsBetweenRolls,
+			framerate: this.framerate,
+			canBeFlipped: game.settings.get("dice-so-nice", "diceCanBeFlipped"),
+			impulses: impulses
+		});
+
+		if (!simResult) {
+			console.error("[Dice So Nice] startUnifiedBatch: simulateThrow returned no result");
+			this.rolling = false;
+			if (ghostifiedIds.length > 0) {
+				await this.physicsWorker.exec("setCollisionResponse", { ids: ghostifiedIds, enabled: true });
+			}
+			callback?.(throws);
+			return;
+		}
+
+		const { ids, quaternionsBuffers, positionsBuffers, detectedCollides, deads, iterationsNeeded } = simResult;
+		const quaternions = quaternionsBuffers.map(buffer => new Float32Array(buffer));
+		const positions = positionsBuffers.map(buffer => new Float32Array(buffer));
+
+		this.iterationsNeeded = iterationsNeeded;
+
+		const idToIndex = new Map();
+		ids.forEach((id, index) => idToIndex.set(id, index));
+
+		// === POST-SIM: EPHEMERAL DICE ===
+
+		const consumedSimIndices = new Set();
+		const ephemeralDiceList = [...this.diceList, ...this.deadDiceList];
+
+		for (const dice of ephemeralDiceList) {
+			const index = idToIndex.get(dice.id);
+			if (index !== undefined) {
+				dice.sim = {
+					dead: deads[index],
+					stepQuaternions: quaternions[index],
+					stepPositions: positions[index]
+				};
+				consumedSimIndices.add(index);
 			}
 		}
 
-		await this.simulateThrow();
-		this.iteration = 0;
-
-		// swap faces if needed based on fvtt roll result
-		for (let i = 0, len = this.diceList.length; i < len; ++i) {
-			let dicemesh = this.diceList[i];
+		for (const dicemesh of this.diceList) {
 			if (!dicemesh) continue;
 			await this.swapDiceFace(dicemesh);
 		}
 
 		this.diceScene.animatedDiceDetected = await this.checkForAnimatedDice();
 
-		//reset the result
-		for (let i = 0, len = this.diceList.length; i < len; ++i) {
-			if (!this.diceList[i]) continue;
-			this.diceList[i].result = null;
+		for (const dicemesh of this.diceList) {
+			if (dicemesh) dicemesh.result = null;
 		}
 
-		// animate the previously simulated roll
+		// === POST-SIM: PERSISTENT THROWN DICE ===
+
+		if (persistentThrowData) {
+			const { heldDice, forcedByMesh, roll, primaries, sfxList: externalSfxList } = persistentThrowData;
+
+			const typeLabels = primaries
+				? Array.from(new Set(primaries.map(d => d.notation.type.toUpperCase()))).join(", ")
+				: "";
+
+			let chatCarrierAssigned = false;
+			for (const dicemesh of heldDice) {
+				const diceobj = this.dicefactory.get(dicemesh.notation.type);
+				if (!diceobj) continue;
+
+				if (!forcedByMesh.has(dicemesh)) {
+					console.warn("[Dice So Nice] Held die has no derived face value - skipping", { id: dicemesh.id });
+					continue;
+				}
+
+				const simIdx = idToIndex.get(dicemesh.id);
+				if (simIdx === undefined) {
+					console.warn("[Dice So Nice] Thrown die not found in sim payload", { id: dicemesh.id });
+					continue;
+				}
+				consumedSimIndices.add(simIdx);
+
+				const stepPositions = positions[simIdx];
+				const stepQuaternions = quaternions[simIdx];
+
+				const rawFinalQuat = await this.physicsWorker.exec("getBodyQuaternion", dicemesh.id);
+
+				dicemesh.quaternion.set(0, 0, 0, 1);
+				dicemesh.forcedResult = forcedByMesh.get(dicemesh);
+				await this.swapDiceFace(dicemesh);
+
+				const swapQuat = dicemesh.quaternion.clone();
+				this.bakeSwapIntoQuaternionBuffer(stepQuaternions, swapQuat, iterationsNeeded);
+
+				dicemesh.quaternion.set(0, 0, 0, 1);
+				dicemesh.sim = {
+					dead: false,
+					stepQuaternions: stepQuaternions,
+					stepPositions: stepPositions
+				};
+
+				const isChatCarrier = !chatCarrierAssigned;
+				dicemesh.persistentThrow = {
+					swapQuat: swapQuat.clone(),
+					rawQuat: rawFinalQuat,
+					roll: isChatCarrier ? roll : null,
+					diceType: isChatCarrier ? typeLabels : null,
+					ghostifiedIds: isChatCarrier ? ghostifiedIds : null
+				};
+				if (isChatCarrier) chatCarrierAssigned = true;
+			}
+
+			if (!chatCarrierAssigned && heldDice.length > 0) {
+				console.warn("[Dice So Nice] Persistent batch throw produced no chat carrier");
+			}
+
+			const pdm = this.persistentDiceManager;
+			if (pdm) {
+				const sfxList = externalSfxList || (pdm.sfxListForUser ? pdm.sfxListForUser(game.user) : []);
+				pdm.matchSFX(heldDice, sfxList);
+			}
+
+		}
+
+		// === POST-SIM: PERSISTENT BYSTANDERS ===
+		// struck bystanders replay via updateThrowPlayback (runs for all throws, not just persistent)
+		const pdmBystander = this.persistentDiceManager;
+		if (pdmBystander) {
+			const meshById = pdmBystander._buildMeshByIdMap();
+			for (let i = 0; i < ids.length; i++) {
+				if (consumedSimIndices.has(i)) continue;
+				const struckMesh = meshById.get(ids[i]);
+				if (!struckMesh || struckMesh.userData?.constrained) continue;
+				struckMesh.sim = {
+					dead: struckMesh.sim?.dead ?? false,
+					stepPositions: positions[i],
+					stepQuaternions: quaternions[i]
+				};
+			}
+		}
+
+		// === PLAYBACK SETUP ===
+
+		this.detectedCollides = this.soundManager.generateCollisionSounds(detectedCollides);
+		this.iteration = 0;
 		this.rolling = true;
 		this.running = (new Date()).getTime();
-
 		this.callback = callback;
 		this.throws = throws;
 	}
@@ -481,6 +603,51 @@ export class ThrowEngine {
 		for (let i = 0; i < this.diceList.length; i++) {
 			this.dicefactory.systems.get(this.diceList[i].userData.system).fire(DiceSystem.DICE_EVENT_TYPE.RESULT, { dice: this.diceList[i] });
 		}
+	}
+
+	async handlePersistentThrowCompletion() {
+		const promises = [];
+		for (const dicemesh of this.persistentDiceList) {
+			const pt = dicemesh.persistentThrow;
+			if (!pt) continue;
+
+			if (dicemesh.sim && dicemesh.parent) {
+				const fi = this.iterationsNeeded;
+				dicemesh.parent.position.fromArray(dicemesh.sim.stepPositions, fi * 3);
+				if (pt.rawQuat) {
+					const rq = pt.rawQuat;
+					dicemesh.parent.quaternion.set(rq.x, rq.y, rq.z, rq.w);
+				} else {
+					dicemesh.parent.quaternion.fromArray(dicemesh.sim.stepQuaternions, fi * 4);
+				}
+			}
+			if (pt.swapQuat) {
+				dicemesh.quaternion.copy(pt.swapQuat);
+			}
+
+			if (pt.roll) {
+				promises.push(
+					pt.roll.toMessage({
+						flavor: `${pt.diceType} - Persistent Dice`,
+						flags: { "dice-so-nice": { persistent: true } }
+					}).catch(err => {
+						console.error("[Dice So Nice] Failed to create persistent dice chat message:", err);
+						if (ui?.notifications) ui.notifications.warn("Dice So Nice: persistent roll failed to post to chat (see console).");
+					})
+				);
+			}
+
+			if (dicemesh.specialEffects) {
+				for (const sfx of dicemesh.specialEffects) {
+					promises.push(DiceSFXManager.playSFX(sfx, this.sfxContext, dicemesh));
+				}
+				delete dicemesh.specialEffects;
+			}
+
+			delete dicemesh.sim;
+			delete dicemesh.persistentThrow;
+		}
+		return Promise.all(promises);
 	}
 
 	async handleSpecialEffectsInit() {

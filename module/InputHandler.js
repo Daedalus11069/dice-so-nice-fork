@@ -18,6 +18,7 @@ const REMOTE_SNAP_THRESHOLD = 0.1 * LEGACY_TO_METERS;
 
 const THROW_VELOCITY_THRESHOLD = 800 * LEGACY_TO_METERS;
 const MIN_THROW_VELOCITY = 1200 * LEGACY_TO_METERS;
+const THROW_LOFT_Y = 2333 * LEGACY_TO_METERS;
 
 export class InputHandler {
 
@@ -37,6 +38,8 @@ export class InputHandler {
 			dragPositions: [],
 			//currently held persistent dice (one cursor drives the whole group)
 			heldPersistentDice: [],
+			//dice released during replay, awaiting queue processing (keep pre-roll rotation)
+			pendingThrowDice: [],
 			//sticky pre-roll: gesture commits to throw on release
 			preRoll: false,
 			//gesture accumulators: shakeCount (direction reversals), spinAccum (rotational sweep)
@@ -61,22 +64,33 @@ export class InputHandler {
 		this.onDiceClicked = null;
 	}
 
+	clearPendingThrowDice() {
+		for (const d of this.mouse.pendingThrowDice) {
+			if (d.userData) d.userData.preRollRates = null;
+		}
+		this.mouse.pendingThrowDice = [];
+	}
+
 	//per-frame: chaotic rotation for held dice during pre-roll
 	updatePreRoll(timeDiff) {
-		if (!this.mouse.preRoll || this.mouse.heldPersistentDice.length === 0) return;
+		if (!this.mouse.preRoll && this.mouse.pendingThrowDice.length === 0) return;
+		if (this.mouse.heldPersistentDice.length === 0 && this.mouse.pendingThrowDice.length === 0) return;
 
-		for (const dicemesh of this.mouse.heldPersistentDice) {
-			const r = dicemesh.userData?.preRollRates;
-			if (!r) continue;
-			r.t += timeDiff;
-			const ex = r.x * timeDiff;
-			const ey = r.y * timeDiff;
-			//z oscillates sinusoidally for wobble
-			const w = 2 * Math.PI * r.zFreq;
-			const ez = r.zAmp * w * Math.cos(w * r.t) * timeDiff;
-			this._preRollEuler.set(ex, ey, ez, 'XYZ');
-			this._preRollDeltaQuat.setFromEuler(this._preRollEuler);
-			dicemesh.quaternion.multiply(this._preRollDeltaQuat);
+		const lists = [this.mouse.heldPersistentDice, this.mouse.pendingThrowDice];
+		for (const list of lists) {
+			for (const dicemesh of list) {
+				const r = dicemesh.userData?.preRollRates;
+				if (!r) continue;
+				r.t += timeDiff;
+				const ex = r.x * timeDiff;
+				const ey = r.y * timeDiff;
+				//z oscillates sinusoidally for wobble
+				const w = 2 * Math.PI * r.zFreq;
+				const ez = r.zAmp * w * Math.cos(w * r.t) * timeDiff;
+				this._preRollEuler.set(ex, ey, ez, 'XYZ');
+				this._preRollDeltaQuat.setFromEuler(this._preRollEuler);
+				dicemesh.quaternion.multiply(this._preRollDeltaQuat);
+			}
 		}
 	}
 
@@ -152,9 +166,12 @@ export class InputHandler {
 					const positions = {};
 					for (const d of this.mouse.heldPersistentDice) {
 						const off = d.userData?.pickupOffset;
-						positions[d.id] = off
+						const target = off
 							? { x: pos.x + off.x, y: pos.y, z: pos.z + off.z }
 							: { x: pos.x, y: pos.y, z: pos.z };
+						positions[d.id] = target;
+						//direct mesh write only during replay when playStep is suppressed
+						if (d.parent && this.throwEngine.rolling) d.parent.position.set(target.x, target.y, target.z);
 					}
 					await this.physicsWorker.exec("updateConstraint", { positions });
 
@@ -179,8 +196,8 @@ export class InputHandler {
 						}
 					}
 				} else {
-					//ephemeral die - legacy single-pos path
-					await this.physicsWorker.exec("updateConstraint", { pos });
+					//ephemeral die - single constraint
+					await this.physicsWorker.exec("updateConstraint", { positions: { [this.mouse.constrainedEphemeralId]: pos } });
 				}
 
 				//ring buffer for velocity calculation (time-gated to ~25Hz
@@ -213,18 +230,18 @@ export class InputHandler {
 								const cross = (d1x * d2z - d1z * d2x) / (mag1 * mag2);
 
 								//sharp reversal => shake tick
-								if (dot < -0.35) this.mouse.shakeCount++;
+								if (dot < -0.5) this.mouse.shakeCount++;
 
 								//integrate signed rotational sweep
 								this.mouse.spinAccum += cross;
 							} else {
 								//decay accumulators on non-gesture motion
-								this.mouse.shakeCount = Math.max(0, this.mouse.shakeCount - 0.25);
-								this.mouse.spinAccum *= 0.92;
+								this.mouse.shakeCount = Math.max(0, this.mouse.shakeCount - 0.5);
+								this.mouse.spinAccum *= 0.85;
 							}
 
-							const SHAKE_TRIGGER = 3;
-							const SPIN_TRIGGER = 3;
+							const SHAKE_TRIGGER = 5;
+							const SPIN_TRIGGER = 5;
 							if (this.mouse.shakeCount >= SHAKE_TRIGGER ||
 								Math.abs(this.mouse.spinAccum) >= SPIN_TRIGGER) {
 								this._activatePreRoll();
@@ -302,6 +319,7 @@ export class InputHandler {
 					//ephemeral die pickup
 					await this.physicsWorker.exec("addConstraint", { id: root.id, pos });
 					this.mouse.constraint = true;
+					this.mouse.constrainedEphemeralId = root.id;
 				}
 
 				if (this.onDiceClicked) this.onDiceClicked(root, pos);
@@ -339,6 +357,34 @@ export class InputHandler {
 				? this._computeThrowVelocity(true)
 				: null;
 
+			//detect if a replay is active (throw-during-replay path)
+			const persistentThrowPlaying = this.persistentDiceManager.persistentDiceList.some(d => d.persistentThrow);
+			const anyReplayActive = this.throwEngine.running || persistentThrowPlaying;
+
+			if (heldDice.length > 0 && throwVelocity && anyReplayActive) {
+				//pending throw: keep preRollRates, move to pendingThrowDice, queue for later
+				for (const d of heldDice) {
+					if (d.userData) {
+						delete d.userData.pickupOffset;
+						d.userData.constrained = false;
+					}
+				}
+				this.mouse.heldPersistentDice = [];
+				this.mouse.pendingThrowDice = [...this.mouse.pendingThrowDice, ...heldDice];
+				this.mouse.dragPositions = [];
+
+				try {
+					await this.physicsWorker.exec("removeConstraint", { ids: heldDice.map(d => d.id) });
+					await this.persistentDiceManager.throwPersistentDice(heldDice, throwVelocity);
+				} catch (err) {
+					console.error("[Dice So Nice] Persistent throw (pending) failed:", err);
+				} finally {
+					if (canvas.mouseInteractionManager)
+						canvas.mouseInteractionManager.activate();
+				}
+				return true;
+			}
+
 			//clear pre-roll rotation before throw (angular velocity hides the snap)
 			if (heldDice.length > 0 && wasPreRoll) {
 				for (const d of heldDice) d.quaternion.set(0, 0, 0, 1);
@@ -349,6 +395,7 @@ export class InputHandler {
 				if (d.userData) {
 					delete d.userData.pickupOffset;
 					d.userData.preRollRates = null;
+					d.userData.constrained = false;
 				}
 			}
 
@@ -399,6 +446,54 @@ export class InputHandler {
 		if (wasPreRoll && this.onSelectionChanged) this.onSelectionChanged();
 	}
 
+	async yieldHeldDice(dieIds) {
+		const idSet = new Set(dieIds);
+		const yielded = [];
+		const remaining = [];
+		for (const d of this.mouse.heldPersistentDice) {
+			if (idSet.has(d.id)) {
+				yielded.push(d);
+			} else {
+				remaining.push(d);
+			}
+		}
+
+		//also remove from pending throw dice (queued but not yet executed)
+		this.mouse.pendingThrowDice = this.mouse.pendingThrowDice.filter(d => {
+			if (idSet.has(d.id)) {
+				if (d.userData) {
+					d.userData.preRollRates = null;
+					d.userData.yielded = true;
+				}
+				return false;
+			}
+			return true;
+		});
+
+		if (yielded.length === 0) return;
+
+		for (const d of yielded) {
+			if (d.userData) {
+				delete d.userData.pickupOffset;
+				d.userData.preRollRates = null;
+				d.userData.constrained = false;
+				d.userData.yielded = true;
+			}
+		}
+
+		await this.physicsWorker.exec("removeConstraint", { ids: yielded.map(d => d.id) });
+
+		this.mouse.heldPersistentDice = remaining;
+		if (remaining.length === 0) {
+			this.mouse.constraintDown = false;
+			this.mouse.constraint = false;
+			this._resetPreRollState();
+			this.mouse.dragPositions = [];
+			if (canvas.mouseInteractionManager)
+				canvas.mouseInteractionManager.activate();
+		}
+	}
+
 	//pick up persistent dice as a held group
 	async _beginPersistentGrab(heldDice, pos) {
 		this.diceScene.raycaster.setFromCamera(this.mouse.pos, this.diceScene.camera);
@@ -414,6 +509,7 @@ export class InputHandler {
 				x: worldPos.x - cursorDesk.x,
 				z: worldPos.z - cursorDesk.z
 			};
+			die.userData.constrained = true;
 			await this.physicsWorker.exec("addConstraint", { id: die.id, pos: anchorPos });
 		}
 		this.mouse.constraint = true;
@@ -472,7 +568,7 @@ export class InputHandler {
 			const angle = Math.random() * Math.PI * 2;
 			return {
 				x: Math.cos(angle) * MIN_THROW_VELOCITY,
-				y: 0,
+				y: THROW_LOFT_Y,
 				z: Math.sin(angle) * MIN_THROW_VELOCITY
 			};
 		};
@@ -497,10 +593,10 @@ export class InputHandler {
 		if (speed < MIN_THROW_VELOCITY) {
 			if (speed < 1e-6) return randomMinThrow();
 			const scale = MIN_THROW_VELOCITY / speed;
-			return { x: vx * scale, y: 0, z: vz * scale };
+			return { x: vx * scale, y: THROW_LOFT_Y, z: vz * scale };
 		}
 
-		return { x: vx, y: 0, z: vz };
+		return { x: vx, y: THROW_LOFT_Y, z: vz };
 	}
 
 	//world (x, z) → normalized [0,1] percentage

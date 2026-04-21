@@ -296,9 +296,8 @@ Hooks.once('init', () => {
                 { key: "Backspace" }
             ],
             onDown: () => {
-                const box = game.dice3d?.box;
-                if (!box || box.selectedPersistentDiceIds.size === 0) return false;
-                box.removeSelectedPersistentDice();
+                if (!game.dice3d?.box || game.dice3d.box.selectedPersistentDiceIds.size === 0) return false;
+                game.dice3d.removeSelectedPersistentDice();
                 return true; // Consume so Foundry's canvas delete doesn't also fire.
             },
             precedence: foundry.CONST.KEYBINDING_PRECEDENCE?.NORMAL ?? 0
