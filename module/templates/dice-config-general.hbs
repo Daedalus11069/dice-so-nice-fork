@@ -3,10 +3,12 @@
         <div id="dice-configuration-canvas-container"></div>
         <div class="dsn-settings-container">
             <hr />
+            {{#if isUser}}
             <div class="form-group">
                 <label>{{localize "DICESONICE.enable"}}</label>
                 <input type="checkbox" name="enabled" data-dtype="Boolean" {{checked enabled}} />
             </div>
+            {{/if}}
             <div class="form-group">
                 <label>{{localize "DICESONICE.showExtraDice"}}</label>
                 <input type="checkbox" name="showExtraDice" data-showExtraDice data-dtype="Boolean" {{checked showExtraDice}} />

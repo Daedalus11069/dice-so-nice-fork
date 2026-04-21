@@ -12,6 +12,12 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
  * Form application to configure settings of the 3D Dice.
  */
 export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
+    constructor(options={}) {
+        super(options);
+        this.document = options.document ?? game.user;
+        this.isUser = this.document instanceof foundry.documents.User;
+        this.isActor = this.document instanceof foundry.documents.Actor;
+    }
 
     static DEFAULT_OPTIONS = {
         tag: "form",
@@ -22,13 +28,15 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             closeOnSubmit: true
         },
         window: {
-            title: "DICESONICE.configTitle",
             contentClasses: ["standard-form"]
         },
         id: "dice-config",
         position: {
             width: 680,
             height: "auto"
+        },
+        actions: {
+            resetActor: DiceConfig.resetActor
         }
     };
 
@@ -77,6 +85,21 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             template: "templates/generic/form-footer.hbs"
         }
     };
+
+    get title() {
+        return game.i18n.localize("DICESONICE.configTitle") + " - " + this.document.name;
+    }
+
+    _configureRenderParts(options) {
+        let parts = super._configureRenderParts(options);
+        if (!this.isUser) {
+            Object.keys(parts).filter(p => !["general", "footer"].includes(p)).forEach(p => {
+                parts[p].classes ??= [];
+                parts[p].classes.push("hidden");
+            });
+        }
+        return parts;
+    }
 
     async _preparePartContext(partId, context, options) {
         context = await super._preparePartContext(partId, context, options);
@@ -142,7 +165,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 "strong": "DICESONICE.ThrowingForceStrong"
             })
         },
-            this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG()
+            this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(this.document)
         );
         delete data.sfxLine;
 
@@ -161,7 +184,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
         this.canvas = $('<div id="dice-configuration-canvas"></div>')[0];
         let config = foundry.utils.mergeObject(
-            this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(),
+            this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(this.document),
             { dimensions: { width: 634, height: 245 }, autoscale: false, scale: 60, boxType: "showcase" }
         );
 
@@ -342,8 +365,11 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         data.buttons = [
             { type: "submit", icon: "fa-solid fa-save", label: "DICESONICE.Save" },
             { type: "button", action: "test", icon: "fa-solid fa-dice", label: "DICESONICE.TestRoll" },
-            { type: "button", action: "close", icon: "fa-solid fa-ban", label: "DICESONICE.Cancel" }
+            { type: "button", action: "close", icon: "fa-solid fa-ban", label: "DICESONICE.Cancel", hidden: !this.isUser },
+            { type: "button", action: "resetActor", icon: "fa-solid fa-undo", label: "DICESONICE.Reset", hidden: this.isUser }
         ];
+
+        data.isUser = this.isUser;
 
         return data;
     }
@@ -774,7 +800,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 let dice = this.box.findShowcaseDie(pos);
                 if (dice) {
                     let diceType = this.box.findRootObject(dice.object).userData;
-                    if (!game.user.getFlag("dice-so-nice", "appearance") && (this.box.dicefactory.preferredSystem != "standard" || this.box.dicefactory.preferredColorset != "custom"))
+                    if (!this.document.getFlag("dice-so-nice", "appearance") && (this.box.dicefactory.preferredSystem != "standard" || this.box.dicefactory.preferredColorset != "custom"))
                         this.getShowcaseAppearance();
                     if ($(this.element).find(`.dsn-appearance-tabs [data-tab="${diceType}"]`).length) {
                         this.activateAppearanceTab(diceType);
@@ -1262,6 +1288,21 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         }, 100);
     }
 
+    static async resetActor() {
+        const confirm = await foundry.applications.api.DialogV2.confirm({
+            window: { title: "DICESONICE.Reset" },
+            content: game.i18n.localize("COMMON.AreYouSure"),
+            rejectClose: false,
+            modal: true
+        });
+        if (confirm) {
+            await this.document.unsetFlag("dice-so-nice", "appearance");
+            let documentsForPreload = game.settings.get("dice-so-nice", "documentsForPreload").filter(uuid => uuid !== this.document.uuid);
+            await game.settings.set("dice-so-nice", "documentsForPreload", documentsForPreload);
+            this.onReset();
+        }
+    }
+
     onReset() {
         this.reset = true;
         this.render();
@@ -1342,9 +1383,9 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         let currentSettings = Dice3D.CONFIG();
 
         //required
-        await game.user.unsetFlag("dice-so-nice", "sfxList");
-        await game.user.unsetFlag("dice-so-nice", "appearance");
-        await game.user.unsetFlag("dice-so-nice", "settings");
+        await this.document.unsetFlag("dice-so-nice", "sfxList");
+        await this.document.unsetFlag("dice-so-nice", "appearance");
+        await this.document.unsetFlag("dice-so-nice", "settings");
 
         //system settings won't be merged here because insertValues is false
         let appearance = foundry.utils.mergeObject(Dice3D.APPEARANCE(), formData.appearance, { insertKeys: true, insertValues: false, performDeletions: true });
@@ -1362,11 +1403,17 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         // preserve rollingArea config
         settings.rollingArea = currentSettings.rollingArea;
 
-        await game.user.setFlag('dice-so-nice', 'settings', settings);
-        await game.user.setFlag("dice-so-nice", "appearance", appearance);
-        await game.user.setFlag("dice-so-nice", "sfxList", sfxLine);
+        await this.document.setFlag("dice-so-nice", "appearance", appearance);
+        if (this.isUser) {
+            await this.document.setFlag('dice-so-nice', "settings", settings);
+            await this.document.setFlag("dice-so-nice", "sfxList", sfxLine);
+        } else {
+            let documentsForPreload = game.settings.get("dice-so-nice", "documentsForPreload");
+            documentsForPreload = new Set([...documentsForPreload, this.document.uuid]);
+            await game.settings.set("dice-so-nice", "documentsForPreload", [...documentsForPreload]);
+        }
 
-        game.socket.emit("module.dice-so-nice", { type: "update", user: game.user.id });
+        game.socket.emit("module.dice-so-nice", { type: "update", user: game.user.id, document: this.document.uuid });
         DiceSFXManager.init();
         for (let system of systemsInUse) {
             this.box.dicefactory.systems.get(system).loadSettings();
