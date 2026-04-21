@@ -257,7 +257,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 let dialogContent = sfxClass.getDialogContent(sfx, index);
                 let hdbsTemplate = Handlebars.compile(dialogContent.content);
 
-                specialEffectsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-sfx.html", {
+                specialEffectsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-sfx.hbs", {
                     id: index,
                     diceType: sfx.diceType,
                     onResult: sfx.onResult,
@@ -314,7 +314,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             if(isPerDie) {
                 libraryDiceGroups = DiceLibrary.buildLibraryDiceGroups(diceType, data.appearance[diceType]);
             }
-            tabsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
+            tabsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.hbs", {
                 dicetype: diceType,
                 appearance: data.appearance[diceType],
                 systemList: data.systemList,
@@ -526,7 +526,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 let sfxClass = DiceSFXManager.SFX_MODE_CLASS[firstSFX];
                 let dialogContent = sfxClass.getDialogContent({}, ID);
                 let hdbsTemplate = Handlebars.compile(dialogContent.content);
-                foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-sfx.html", {
+                foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-sfx.hbs", {
                     id: ID,
                     diceType: "",
                     onResult: [],
@@ -679,7 +679,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     position: {
                         width: 550
                     },
-                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-saveas.html",
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-saveas.hbs",
                         {
                             saveList: saveList.keys()
                         }),
@@ -747,7 +747,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     position: {
                         width: 550
                     },
-                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-load.html",
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-load.hbs",
                         {
                             saveList: saveList.keys()
                         }),
@@ -787,7 +787,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     position: {
                         width: 400
                     },
-                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-import.html"),
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-import.hbs"),
                     buttons: [{
                         action: "import",
                         icon: "fa-solid fa-file-import",
@@ -843,7 +843,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     position: {
                         width: 500
                     },
-                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-gm-push.html"),
+                    content: await foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/dialog-gm-push.hbs"),
                     buttons: [{
                         action: "push",
                         icon: "fa-solid fa-share-square",
@@ -905,7 +905,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         }
                         $(this.element).find(".dsn-appearance-hint").hide();
                         const libraryDiceGroups = DiceLibrary.buildLibraryDiceGroups(diceType, null);
-                        foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.html", {
+                        foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-appearance.hbs", {
                             dicetype: diceType,
                             appearance: this.currentGlobalAppearance,
                             systemList: this.initializationData.systemList,
