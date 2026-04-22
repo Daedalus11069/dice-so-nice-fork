@@ -13,6 +13,7 @@ export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2
             title: "DICESONICE.RollableAreaConfigTitle",
             contentClasses: ["standard-form"]
         },
+        classes: ["rollable-area-config"],
         position: {
             width: 280,
             top: 70,

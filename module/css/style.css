@@ -264,6 +264,10 @@
     font-weight: normal;
 }
 
+.rollable-area-config {
+    z-index: 10001 !important;
+}
+
 .dice-so-nice.rollable-area {
     position: absolute;
     background: rgba(255, 255, 255, 0.5);
