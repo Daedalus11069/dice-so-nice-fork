@@ -419,7 +419,7 @@ export class PersistentDiceManager {
 		const rollFormula = primaries.map(d => `1${d.notation.type}`).join("+");
 		let roll;
 		try {
-			roll = new Roll(rollFormula);
+			roll = Roll.create(rollFormula);
 			await roll.evaluate();
 		} catch (err) {
 			console.error("[Dice So Nice] Persistent dice RNG evaluation failed:", err);

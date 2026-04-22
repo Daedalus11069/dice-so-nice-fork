@@ -1,4 +1,6 @@
 import { DiceConfig } from './DiceConfig.js';
+import { Dice3D } from '../Dice3D.js';
+import { Utils } from '../Utils.js';
 import { COMPOUND_DICE } from '../DiceNotation.js';
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -23,7 +25,8 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
             toggleHelp: DsnSidebarTab._onToggleHelp,
             clearMine: DsnSidebarTab._onClearMine,
             clearAll: DsnSidebarTab._onClearAll,
-            openConfig: DsnSidebarTab._onOpenConfig
+            openConfig: DsnSidebarTab._onOpenConfig,
+            loadSave: DsnSidebarTab._onLoadSave
         }
     };
 
@@ -104,22 +107,37 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
             };
         }
 
+        const savesObject = game.user.getFlag("dice-so-nice", "saves");
+        const saveNames = savesObject ? Object.keys(savesObject) : [];
+
         return Object.assign(context, {
             persistentDiceEnabled,
             ready: !!box,
             dice: diceContext,
             isGM: !!game.user?.isGM,
-            showHelp: this._showHelp
+            showHelp: this._showHelp,
+            diceEnabled: box ? Dice3D.CONFIG().enabled : true,
+            saves: {
+                hasSaves: saveNames.length > 0,
+                list: saveNames
+            }
         });
     }
 
-    //select change needs manual wiring - ApplicationV2 actions only fire on click
     _onRender(context, options) {
         super._onRender?.(context, options);
         const select = this.element.querySelector("[data-action=setVisibility]");
         if (select) {
             select.addEventListener("change", (ev) => {
                 game.dice3d?.setPersistentDiceVisibility(ev.currentTarget.value);
+            });
+        }
+
+        const enabledCheckbox = this.element.querySelector("[data-toggle-enabled]");
+        if (enabledCheckbox) {
+            enabledCheckbox.addEventListener("change", async (ev) => {
+                const settings = game.user.getFlag("dice-so-nice", "settings") || {};
+                await game.user.setFlag("dice-so-nice", "settings", { ...settings, enabled: ev.currentTarget.checked });
             });
         }
 
@@ -191,6 +209,13 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
 
     static _onOpenConfig() {
         new DiceConfig().render(true);
+    }
+
+    static async _onLoadSave() {
+        const select = this.element.querySelector("[data-action=selectSave]");
+        if (!select?.value) return;
+        await Utils.actionLoadSave(select.value);
+        this.render(true);
     }
 
     async _spawn(type) {

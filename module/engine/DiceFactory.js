@@ -1085,8 +1085,18 @@ export class DiceFactory {
 					emissiveMap.colorSpace = SRGBColorSpace;
 				emissiveMap.flipY = false;
 				mat.emissiveMap = emissiveMap;
-				mat.emissiveIntensity = diceobj.emissiveIntensity ? diceobj.emissiveIntensity:1;
-				mat.emissive = new Color(diceobj.emissive);
+
+				let hasPresetEmissive = diceobj.emissive && diceobj.emissive !== 0x000000;
+				if(hasPresetEmissive) {
+					mat.emissiveIntensity = diceobj.emissiveIntensity ? diceobj.emissiveIntensity:1;
+					mat.emissive = new Color(diceobj.emissive);
+				} else if(materialData.emissiveLabels) {
+					mat.emissiveIntensity = 0.7;
+					mat.emissive = new Color(0xffffff);
+				} else {
+					mat.emissiveIntensity = diceobj.emissiveIntensity ? diceobj.emissiveIntensity:1;
+					mat.emissive = new Color(diceobj.emissive);
+				}
 				if(this.realisticLighting)
 					mat.emissive.convertLinearToSRGB();
 
@@ -2044,6 +2054,7 @@ export class DiceFactory {
 		}
 
 		materialData.isGhost = appearance.isGhost?appearance.isGhost:false;
+		materialData.emissiveLabels = !!colorsetData.emissiveLabels;
 
 		//per-face overrides from dice library
 		if(appearance.libraryDieId) {
@@ -2115,7 +2126,7 @@ export class DiceFactory {
 		}
 
 		let cacheExtra = materialData.libraryDieId ? (appearance.libraryDieOwner || "") + materialData.libraryDieId + materialData.libraryDieUpdatedAt : "";
-		materialData.cacheString = appearance.system+materialData.background+materialData.foreground+materialData.outline+materialData.texture.name+materialData.edge+materialData.material+materialData.font+materialData.isGhost+cacheExtra;
+		materialData.cacheString = appearance.system+materialData.background+materialData.foreground+materialData.outline+materialData.texture.name+materialData.edge+materialData.material+materialData.font+materialData.isGhost+materialData.emissiveLabels+cacheExtra;
 		return materialData;
 	}
 

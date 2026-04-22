@@ -387,6 +387,7 @@ export class Utils {
             await game.user.setFlag("dice-so-nice", "diceLibrary", save.diceLibrary);
             await game.dice3d.diceLibrary.load();
         }
+        ui.notifications.info(game.i18n.format("DICESONICE.loadMessage", { name }));
     }
 
     //reset references to resources that no longer exist

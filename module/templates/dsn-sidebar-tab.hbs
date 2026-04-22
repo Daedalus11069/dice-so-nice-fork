@@ -7,6 +7,10 @@
         <i class="fa-solid fa-dice-d20"></i>
         <span>{{localize "DICESONICE.sidebarTabOpenConfig"}}</span>
     </button>
+    <label class="dsn-toolbox-toggle">
+        <input type="checkbox" data-toggle-enabled {{#if diceEnabled}}checked{{/if}}>
+        <span>{{localize "DICESONICE.sidebarTabToggleEnabled"}}</span>
+    </label>
 </section>
 
 {{#if persistentDiceEnabled}}
@@ -118,16 +122,40 @@
 <p class="dsn-toolbox-notice">{{localize "DICESONICE.sidebarTabPersistentDisabled"}}</p>
 {{/if}}
 
+{{#if saves.hasSaves}}
+<section class="dsn-toolbox-section dsn-toolbox-saves">
+    <h3 class="dsn-sidebar-title">{{localize "DICESONICE.sidebarTabSavesTitle"}}</h3>
+    <div class="dsn-toolbox-saves-row">
+        <select data-action="selectSave" class="dsn-toolbox-select">
+            <option value="" selected disabled>-----</option>
+            {{#each saves.list}}
+            <option value="{{this}}">{{this}}</option>
+            {{/each}}
+        </select>
+        <button type="button" data-action="loadSave" class="dsn-toolbox-clear-btn">
+            <i class="fa-solid fa-folder-open"></i>
+            <span>{{localize "DICESONICE.sidebarTabLoadSave"}}</span>
+        </button>
+    </div>
+</section>
+{{/if}}
+
 <footer class="dsn-toolbox-footer">
     <div class="dsn-toolbox-stats">
         <span class="dsn-toolbox-stat">{{localize "DICESONICE.sidebarFooterDrawCalls"}}: <span data-stat-value="calls">---</span></span>
         <span class="dsn-toolbox-stat">{{localize "DICESONICE.sidebarFooterTriangles"}}: <span data-stat-value="triangles">---</span></span>
         <span class="dsn-toolbox-stat">{{localize "DICESONICE.sidebarFooterTextures"}}: <span data-stat-value="textures">---</span></span>
     </div>
-    <a href="https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues" target="_blank" class="dsn-toolbox-issue-link">
-        <i class="fa-brands fa-gitlab"></i>
-        {{localize "DICESONICE.sidebarFooterReportIssue"}}
-    </a>
+    <div class="dsn-toolbox-footer-links">
+        <a href="https://riccisi.gitlab.io/foundryvtt-dice-so-nice/guide/" target="_blank" class="dsn-toolbox-issue-link">
+            <i class="fa-solid fa-book"></i>
+            {{localize "DICESONICE.sidebarFooterUserGuide"}}
+        </a>
+        <a href="https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues" target="_blank" class="dsn-toolbox-issue-link">
+            <i class="fa-brands fa-gitlab"></i>
+            {{localize "DICESONICE.sidebarFooterReportIssue"}}
+        </a>
+    </div>
 </footer>
 
 {{/unless}}

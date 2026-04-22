@@ -1,3 +1,4 @@
+import { emissive } from "three/tsl";
 import { AssetsLoader } from "../AssetsLoader.js";
 
 export const TEXTURELIST = {
@@ -249,6 +250,57 @@ export const TEXTURELIST = {
 		source: 'bronze04.webp',
 		material: 'metal',
 		bump: ''
+	},
+	'brick': {
+		name: 'DICESONICE.TextureBrick',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'brick.webp',
+		bump: 'brick.webp',
+		material: 'stone'
+	},
+	'fiber': {
+		name: 'DICESONICE.TextureFiber',
+		composite: 'difference',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'fiber.webp',
+		bump: 'fiber.webp'
+	},
+	'fuel': {
+		name: 'DICESONICE.TextureFuel',
+		composite: 'difference',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'fuel.webp',
+		bump: 'fuel.webp'
+	},
+	'geometric': {
+		name: 'DICESONICE.TextureGeometric',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'geometric.webp',
+		bump: 'geometric.webp'
+	},
+	'mosaic': {
+		name: 'DICESONICE.TextureMosaic',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'mosaic.webp',
+		bump: 'mosaic.webp'
+	},
+	'tile': {
+		name: 'DICESONICE.TextureTile',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'tile.webp',
+		bump: 'tile.webp',
+		material: 'stone'
+	},
+	'watercolor': {
+		name: 'DICESONICE.TextureWatercolor',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'watercolor.webp',
+		bump: ''
 	}
 };
 
@@ -280,19 +332,20 @@ export const COLORSETS = {
 		name: 'radiant',
 		description: 'DICESONICE.ColorRadiant',
 		category: 'DICESONICE.DamageTypes',
-		foreground: '#F9B333',
-		background: '#FFFFFF',
-		outline: 'gray',
-		texture: 'paper'
+		foreground: '#e7a427',
+		background: '#d0f4ff',
+		outline: '#292929',
+		texture: 'bronze04',
 	},
 	'fire': {
 		name: 'fire',
 		description: 'DICESONICE.ColorFire',
 		category: 'DICESONICE.DamageTypes',
-		foreground: '#f8d84f',
+		foreground: '#ede2b2',
 		background: ['#f8d84f','#f9b02d','#f43c04','#910200','#4c1009'],
 		outline: 'black',
-		texture: 'fire'
+		texture: 'fire',
+		material: 'metal'
 	},
 	'ice': {
 		name: 'ice',
@@ -325,26 +378,27 @@ export const COLORSETS = {
 		name: 'acid',
 		description: 'DICESONICE.ColorAcid',
 		category: 'DICESONICE.DamageTypes',
-		foreground: '#A9FF70',
+		foreground: '#ffd8ae',
 		background: ['#a6ff00', '#83b625','#5ace04','#69f006','#b0f006','#93bc25'],
-		outline: 'black',
+		outline: '#ed7b00',
 		texture: 'marble',
-		material: 'plastic'
+		material: 'iridescent'
 	},
 	'thunder': {
 		name: 'thunder',
 		description: 'DICESONICE.ColorThunder',
 		category: 'DICESONICE.DamageTypes',
 		foreground: '#FFC500',
-		background: '#7D7D7D',
+		background: '#131417',
 		outline: 'black',
-		texture: 'cloudy'
+		texture: 'cloudy',
+		emissiveLabels: true
 	},
 	'lightning': {
 		name: 'lightning',
 		description: 'DICESONICE.ColorLightning',
 		category: 'DICESONICE.DamageTypes',
-		foreground: '#FFC500',
+		foreground: '#62430d',
 		background: ['#f17105', '#f3ca40','#eddea4','#df9a57','#dea54b'],
 		outline: '#7D7D7D',
 		texture: 'ice'
@@ -354,17 +408,19 @@ export const COLORSETS = {
 		description: 'DICESONICE.ColorAir',
 		category: 'DICESONICE.DamageTypes',
 		foreground: '#ffffff',
-		background: ['#d0e5ea', '#c3dee5','#a4ccd6','#8dafb7','#80a4ad'],
-		outline: 'black',
-		texture: 'cloudy'
+		background: ['#bae4ee', '#add6e0','#8bc1ce','#7dafba','#6a9eac'],
+		outline: '#19147c',
+		edge: '#e3e2ee',
+		texture: 'cloudy',
+		material: 'chrome'
 	},
 	'water': {
 		name: 'water',
 		description: 'DICESONICE.ColorWater',
 		category: 'DICESONICE.DamageTypes',
-		foreground: '#60E9FF',
-		background: ['#87b8c4', '#77a6b2','#6b98a3','#5b8691','#4b757f'],
-		outline: 'black',
+		foreground: '#2a646d',
+		background: ['#75c2c4', '#66b5b9','#5f96ab','#5b8691','#5f9faf'],
+		outline: '#b8effd',
 		texture: 'water'
 	},
 	'earth': {
@@ -372,8 +428,8 @@ export const COLORSETS = {
 		description: 'DICESONICE.ColorEarth',
 		category: 'DICESONICE.DamageTypes',
 		foreground: '#6C9943',
-		background: ['#346804', '#184200','#527f22', '#3a1d04', '#56341a','#331c17','#5a352a','#302210'],
-		outline: 'black',
+		background: ['#346804', '#184200','#55741b', '#3a1d04', '#56341a','#331c17','#5a352a','#302210'],
+		outline: '#b1c1a2',
 		texture: 'speckles'
 	},
 	'force': {
@@ -407,7 +463,7 @@ export const COLORSETS = {
 		name: 'breebaby',
 		description: 'DICESONICE.ColorPastelSunset',
 		category: 'DICESONICE.ThemesSoNice',
-		foreground: ['#5E175E', '#564A5E','#45455E','#3D5A5E','#1E595E','#5E3F3D','#5E1E29','#283C5E','#25295E'],
+		foreground: ['#620162', '#40135f','#45455E','#23585f','#095b63','#582420','#5f0a19','#132e5e','#0e1362'],
 		background: ['#FE89CF', '#DFD4F2','#C2C2E8','#CCE7FA','#A1D9FC','#F3C3C2','#EB8993','#8EA1D2','#7477AD'],
 		outline: 'white',
 		texture: 'marble',
@@ -419,7 +475,7 @@ export const COLORSETS = {
 		category: 'DICESONICE.ThemesSoNice',
 		foreground: 'white',
 		background: ['#ff007c', '#df73ff','#f400a1','#df00ff','#ff33cc'],
-		outline: '#570000',
+		outline: '#170000',
 		texture: 'skulls'
 	},
 	'inspired': {
@@ -463,9 +519,9 @@ export const COLORSETS = {
 		name: 'astralsea',
 		description: 'DICESONICE.ColorAstralSea',
 		category: 'DICESONICE.ThemesSoNice',
-		foreground: '#565656',
-		background: 'white',
-		outline: 'none',
+		foreground: '#1a0263',
+		background: '#a6a1b3',
+		outline: '#d2d2d2',
 		texture: 'astral'
 	},
 	'foundry': {
@@ -473,8 +529,8 @@ export const COLORSETS = {
 		description: 'DICESONICE.ColorFoundry',
 		category: 'DICESONICE.ThemesSoNice',
 		foreground: '#000000',
-		background: '#ffffff',
-		outline: 'none',
+		background: '#8c8c8c',
+		outline: '#000000',
 		edge: '#000000',
 		texture: 'radial'
 	},
@@ -510,10 +566,11 @@ export const COLORSETS = {
 		name: 'toxic',
 		description: 'DICESONICE.ColorToxic',
 		category: 'DICESONICE.AcquiredTaste',
-		foreground: '#A9FF70',
+		foreground: '#ccffab',
 		background: ['#a6ff00', '#83b625','#5ace04','#69f006','#b0f006','#93bc25'],
 		outline: 'black',
-		texture: 'fire'
+		texture: 'fire',
+		material: 'glass'
 	},
 	'rainbow': {
 		name: 'rainbow',
@@ -619,7 +676,7 @@ export const COLORSETS = {
 		description: 'DICESONICE.ColorPrism',
 		category: 'DICESONICE.AcquiredTaste',
 		foreground: '#FFFFFF',
-		background: '#FFFFFF',
+		background: '#8396be',
 		outline: 'black',
 		texture: 'stainedglass'
 	},

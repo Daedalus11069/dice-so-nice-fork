@@ -865,6 +865,41 @@
     font-variant-numeric: tabular-nums;
 }
 
+.dsn-sidebar-tab .dsn-toolbox-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9em;
+    padding: 0.15rem 0;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-toggle input[type="checkbox"] {
+    margin: 0;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-saves-row {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-saves-row .dsn-toolbox-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-saves-row .dsn-toolbox-clear-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.dsn-sidebar-tab .dsn-toolbox-footer-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
 .dsn-sidebar-tab .dsn-toolbox-issue-link {
     display: flex;
     align-items: center;
