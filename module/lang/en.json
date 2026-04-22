@@ -432,7 +432,7 @@
     "DICESONICE.glyphPicker.searchPlaceholder": "Search…",
     "DICESONICE.glyphPicker.openButton": "Pick an icon or emoji",
     "DICESONICE.glyphPicker.empty": "No glyphs match your search.",
-    "DICESONICE.glyphPicker.nativeHint": "Tip: you can also paste any emoji from your OS picker — <kbd>Win</kbd>+<kbd>.</kbd> on Windows, <kbd>Ctrl</kbd>+<kbd>Cmd</kbd>+<kbd>Space</kbd> on macOS, <kbd>Super</kbd>+<kbd>.</kbd> on Linux.",
+    "DICESONICE.glyphPicker.nativeHint": "Tip: you can also paste any emoji from your OS picker - <kbd>Win</kbd>+<kbd>.</kbd> on Windows, <kbd>Ctrl</kbd>+<kbd>Cmd</kbd>+<kbd>Space</kbd> on macOS, <kbd>Super</kbd>+<kbd>.</kbd> on Linux.",
     "DICESONICE.glyphPicker.cat.gaming": "Gaming",
     "DICESONICE.glyphPicker.cat.halloween": "Halloween",
     "DICESONICE.glyphPicker.cat.science_fiction": "Sci-Fi",

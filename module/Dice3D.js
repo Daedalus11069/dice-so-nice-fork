@@ -217,7 +217,7 @@ export class Dice3D {
     /**
      * Force preload of every dice preset registered under a given system id.
      * Useful for systems/modules that register internal dice presets that
-     * users may never select in their appearance settings — without this,
+     * users may never select in their appearance settings - without this,
      * those presets load lazily on the first roll and cause visible lag.
      *
      * Call this once after registering your presets (typically from the
@@ -602,7 +602,7 @@ export class Dice3D {
                     }
                     break;
                 case "gmPush":
-                    //GM overwrote my flags — reload my own state so new config takes effect without a reload
+                    //GM overwrote my flags - reload my own state so new config takes effect without a reload
                     if (request.targets && request.targets.includes(game.user.id)) {
                         DiceSFXManager.init();
                         this.update(Dice3D.CONFIG());
@@ -974,7 +974,7 @@ export class Dice3D {
                 //add a "plus" between each term
                 if (Array.isArray(dice) && dice.length) {
                     //strip dependency rolls from each die so the per-bucket Roll's flat .dice
-                    //list contains only this bucket's dice — otherwise a (1d4)d6 d6 in bucket 1
+                    //list contains only this bucket's dice - otherwise a (1d4)d6 d6 in bucket 1
                     //would re-render the d4 alongside it via Roll.dice's recursive walk
                     const cleanDice = dice.map(this._stripDependencyRolls);
                     let termList = [...cleanDice].map((e, i) => i < cleanDice.length - 1 ? [e, plus] : [e]).reduce((a, b) => a.concat(b));
@@ -1459,8 +1459,8 @@ export class Dice3D {
     /**
      * Dismiss all ephemeral (non-persistent) dice currently on the board.
      * If a roll is still animating, the replay is fast-forwarded to its end
-     * so the natural finalization path runs — which fires result events,
-     * runs SFX init, and reveals the chat message — before the dice are cleared.
+     * so the natural finalization path runs - which fires result events,
+     * runs SFX init, and reveals the chat message - before the dice are cleared.
      * Persistent dice are left untouched.
      * @returns {Promise<boolean>} true if something was dismissed, false otherwise.
      */
@@ -1471,7 +1471,7 @@ export class Dice3D {
         //a roll in flight needs to finalize naturally so the chat message reveal fires
         if (box.rolling) {
             const engine = box.throwEngine;
-            //push iteration past throwFinished's threshold — next animateThrow tick
+            //push iteration past throwFinished's threshold - next animateThrow tick
             //will run fireResultEvents => handleSpecialEffectsInit => callback => rolling=false
             engine.iteration = Math.max(engine.iterationsNeeded || 0, engine.minIterations || 0) + 1;
             await new Promise(resolve => {

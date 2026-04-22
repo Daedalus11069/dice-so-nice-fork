@@ -4,11 +4,11 @@ const pendingCombatants = new Set();
 const messageToCombatant = new Map();
 // frozen turn order held while any animation is pending.
 // captured in preUpdateCombatant because Combat.rollInitiative updates combatants
-// before creating chat messages — by the time createChatMessage fires, the tracker
+// before creating chat messages - by the time createChatMessage fires, the tracker
 // has already re-sorted. we must snapshot the pre-update order.
 let frozenOrder = null;
 // staging slot: preUpdateCombatant snapshots here, flag() promotes to frozenOrder.
-// orphan snapshots from manual init edits are harmless — the next preUpdateCombatant
+// orphan snapshots from manual init edits are harmless - the next preUpdateCombatant
 // overwrites, and flag() only promotes when no animation is already pending.
 let pendingSnapshot = null;
 

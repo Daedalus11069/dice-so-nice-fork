@@ -98,14 +98,14 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
             this._initRowsFromSetting();
         }
 
-        //preset dropdown — standard comes first via prepareSystemList's sort, no blank option
+        //preset dropdown - standard comes first via prepareSystemList's sort, no blank option
         const systemList = Utils.prepareSystemList();
         const presetOptions = [];
         for (const [id, cfg] of Object.entries(systemList)) {
             presetOptions.push({ id, name: cfg.label });
         }
 
-        //colorset dropdown — grouped by category, sorted inside each group
+        //colorset dropdown - grouped by category, sorted inside each group
         const colorsetList = Utils.prepareColorsetList();
         const colorsetGroups = {};
         for (const [id, cs] of Object.entries(colorsetList)) {
@@ -217,7 +217,7 @@ export class DamageTypeConfig extends HandlebarsApplicationMixin(ApplicationV2) 
                 const labelInput = row.querySelector(`[name='label-${r.key}']`);
                 if (labelInput) {
                     r.label = labelInput.value || "";
-                    //id is derived from the label — single source of truth for custom rows
+                    //id is derived from the label - single source of truth for custom rows
                     r.id = labelInput.value.trim().toLowerCase();
                 }
             }

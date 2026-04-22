@@ -1187,11 +1187,11 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     async actionGMPushConfig(parts) {
         if (!game.user.isGM) return;
 
-        //collect the GM's current flag values once — offline users get written the same payload
+        //collect the GM's current flag values once - offline users get written the same payload
         const payload = {};
         if (parts.appearance) {
             const appearance = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "appearance") || {});
-            //strip cross-user library die refs — they point at the GM's library and won't resolve for other users
+            //strip cross-user library die refs - they point at the GM's library and won't resolve for other users
             for (const scope in appearance) {
                 if (!appearance.hasOwnProperty(scope)) continue;
                 if (appearance[scope]?.libraryDieOwner) {
@@ -1208,7 +1208,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             payload.settings = foundry.utils.deepClone(game.user.getFlag("dice-so-nice", "settings") || {});
         }
 
-        //write directly to each non-GM user's flags — works for offline users too, since GMs have permission
+        //write directly to each non-GM user's flags - works for offline users too, since GMs have permission
         const targets = game.users.filter(u => !u.isGM && u.id !== game.user.id);
         const pushedIds = [];
         for (const user of targets) {

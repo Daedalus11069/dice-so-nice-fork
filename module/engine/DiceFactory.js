@@ -1807,7 +1807,7 @@ export class DiceFactory {
 				if (detected) {
 					const mapped = this.resolveDamageTypeMapping(detected);
 					if (mapped?.preset) {
-						//custom preset wins — overrides system for this die only
+						//custom preset wins - overrides system for this die only
 						mappedPreset = mapped.preset;
 					} else if (mapped?.colorset) {
 						colorset = mapped.colorset;
@@ -1890,7 +1890,7 @@ export class DiceFactory {
 
 	//walk the term-level options looking for a damage type signal
 	//roll-level options are merged down into dice terms by Dice3D before we get here
-	//gate is handled in DiceNotation.js — if flavor/type made it here, the user setting allows it
+	//gate is handled in DiceNotation.js - if flavor/type made it here, the user setting allows it
 	detectDamageType(dicenotation){
 		if(!dicenotation?.options) return null;
 		const type = dicenotation.options.type;

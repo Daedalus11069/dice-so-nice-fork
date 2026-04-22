@@ -41,11 +41,11 @@ export class DiceNotation {
 					 * This line has been added, then moved then changed already 3 times. Therefore here is some information:
 					 * .discarded dice should be shown in the 3D view. They are only natively used by keep/drop modifers
 					 * .hidden is a Dice So Nice specific flag, to hide the dice from the 3D view.
-					 * At some point, we skipped the newThrow trigger based on Discarded, because some modules and systems do the following:
+					 * At some point, the newThrow trigger was skipped based on Discarded, because some modules and systems do the following:
 					 * They create a first ChatMessage containing a roll, then they let users alter the roll but to do so, they delete the first ChatMessage
 					 * Then they create a second ChatMessage containing the same roll, containing all the dice, old and new, using .discarded to flag rerolled dice.
-					 * 
-					 * As of now, we decided to use the hidden flag combined with the discarded/rerolled flag.
+					 *
+					 * The current approach uses the hidden flag combined with the discarded/rerolled flag.
 					 */
 					if (die.results[i].hidden && (die.results[i].discarded || die.results[i].rerolled)) continue; //Continue if die result is not shown and is discarded or rerolled
 					
