@@ -26,7 +26,7 @@ export function removeTicker(fn) {
  */
 export class Utils {
 
-    static DATA_FORMAT_VERSION = "4.3";
+    static DATA_FORMAT_VERSION = "6.0";
     static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "enabled", "rollingArea", "advancedGlass", "ambiance"];
 
     /**
@@ -55,7 +55,7 @@ export class Utils {
 
 
     /**
-     * Migrate old 1.0 or 2.0 setting to new 4.x format.
+     * Migrate old setting to latest format.
      */
     static async migrateOldSettings() {
         let formatversion = game.settings.get("dice-so-nice", "formatVersion");
@@ -207,7 +207,7 @@ export class Utils {
             migrated = true;
         }
 
-        if(Utils.isVersionLessThan(formatversion, "4.3")) {
+        if(Utils.isVersionLessThan(formatversion, "6.0")) {
             // migrate boolean forceCharacterOwnerAppearanceForInitiative to select forceCharacterOwnerAppearance
             try {
                 const oldValue = game.settings.get("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative");
@@ -221,7 +221,7 @@ export class Utils {
 
         game.settings.set("dice-so-nice", "formatVersion", Utils.DATA_FORMAT_VERSION);
         if (migrated)
-            ui.notifications.info(game.i18n.localize("DICESONICE.migrateMessage"));
+            ui.notifications.info(game.i18n.format("DICESONICE.migrateMessage", { version: Utils.DATA_FORMAT_VERSION }));
         return true;
     }
 
