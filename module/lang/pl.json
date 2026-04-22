@@ -277,7 +277,10 @@
     "DICESONICE.forceCharacterOwnerAppearanceForInitiative": "Użyj kości właściciela do inicjatywy",
     "DICESONICE.forceCharacterOwnerAppearanceForInitiativeHint": "Gdy opcja ta jest włączona, podczas rzutu inicjatywą z trackera walki używany jest wygląd kości właściciela postaci, niezależnie od autora rzutu (tj. MG).",
     "DICESONICE.hide3dDiceOnSecretRolls": "Ukryj kości 3D podczas rzutów ukrytych/MG",
-    "DICESONICE.hide3dDiceOnSecretRollsHint": "Nie pokazuj kości 3D innym graczom podczas ślepych/MG rzutów.",
+    "DICESONICE.hide3dDiceOnSecretRollsHint": "Nie pokazuj innym graczom kości 3D podczas rzutów prowadzonych przez mistrza gry lub rzutów w ciemno, chyba że jest to kość widmo",
     "DICESONICE.ChatCommandDescription": "Rzuć kostką 3D bez tworzenia wiadomości na czacie",
-    "DICESONICE.ChatCommandCompletionDescription": "Wprowadź formułę rzutu."
+    "DICESONICE.ChatCommandCompletionDescription": "Wprowadź formułę rzutu.",
+    "DICESONICE.TextureDragon": "Smok",
+    "DICESONICE.TextureLizard": "Jaszczurka",
+    "DICESONICE.TextureBird": "Ptak"
 }
