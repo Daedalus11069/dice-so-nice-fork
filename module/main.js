@@ -47,6 +47,15 @@ Hooks.once('init', () => {
         config: false
     });
 
+    game.settings.register("dice-so-nice", "formatVersion", {
+        scope: "world",
+        type: String,
+        default: "",
+        config: false
+    });
+
+    // -- General --
+
     game.settings.register("dice-so-nice", "maxDiceNumber", {
         name: "DICESONICE.maxDiceNumber",
         hint: "DICESONICE.maxDiceNumberHint",
@@ -59,16 +68,6 @@ Hooks.once('init', () => {
             step: 5
         },
         config: true
-    });
-
-    game.settings.register("dice-so-nice", "hideSidebarTab", {
-        name: "DICESONICE.hideSidebarTab",
-        hint: "DICESONICE.hideSidebarTabHint",
-        scope: "world",
-        type: Boolean,
-        default: false,
-        config: true,
-        requiresReload: true
     });
 
     game.settings.register("dice-so-nice", "globalAnimationSpeed", {
@@ -87,23 +86,7 @@ Hooks.once('init', () => {
         requiresReload: true
     });
 
-    //add a button to reset the display of the welcome message for all users
-    game.settings.register("dice-so-nice", "resetWelcomeMessage", {
-        name: "DICESONICE.resetWelcomeMessage",
-        hint: "DICESONICE.resetWelcomeMessageHint",
-        scope: "world",
-        type: Boolean,
-        default: false,
-        config: true,
-        onChange: value => {
-            if (value) {
-                game.users.forEach(user => {
-                    user.setFlag("dice-so-nice", "welcomeMessageShown", false);
-                });
-                game.settings.set("dice-so-nice", "resetWelcomeMessage", false);
-            }
-        }
-    });
+    // -- Animation Behavior --
 
     game.settings.register("dice-so-nice", "enabledSimultaneousRolls", {
         name: "DICESONICE.enabledSimultaneousRolls",
@@ -133,12 +116,16 @@ Hooks.once('init', () => {
         config: true
     });
 
-    game.settings.register("dice-so-nice", "formatVersion", {
+    game.settings.register("dice-so-nice", "immediatelyDisplayChatMessages", {
+        name: "DICESONICE.immediatelyDisplayChatMessages",
+        hint: "DICESONICE.immediatelyDisplayChatMessagesHint",
         scope: "world",
-        type: String,
-        default: "",
-        config: false
+        type: Boolean,
+        default: false,
+        config: true
     });
+
+    // -- Which Rolls Show 3D Dice --
 
     game.settings.register("dice-so-nice", "disabledDuringCombat", {
         name: "DICESONICE.disabledDuringCombat",
@@ -166,24 +153,10 @@ Hooks.once('init', () => {
         default: true,
         config: true
     });
-    
-    game.settings.register("dice-so-nice", "forceCharacterOwnerAppearance", {
-        name: "DICESONICE.forceCharacterOwnerAppearance",
-        hint: "DICESONICE.forceCharacterOwnerAppearanceHint",
-        scope: "world",
-        type: String,
-        choices: Utils.localize({
-            "0": "DICESONICE.forceCharacterOwnerAppearanceDisabled",
-            "1": "DICESONICE.forceCharacterOwnerAppearanceInitiative",
-            "2": "DICESONICE.forceCharacterOwnerAppearanceAll"
-        }),
-        default: "1",
-        config: true
-    });
 
-    game.settings.register("dice-so-nice", "immediatelyDisplayChatMessages", {
-        name: "DICESONICE.immediatelyDisplayChatMessages",
-        hint: "DICESONICE.immediatelyDisplayChatMessagesHint",
+    game.settings.register("dice-so-nice", "hideNpcRolls", {
+        name: "DICESONICE.hideNpcRolls",
+        hint: "DICESONICE.hideNpcRollsHint",
         scope: "world",
         type: Boolean,
         default: false,
@@ -208,14 +181,33 @@ Hooks.once('init', () => {
         config: true
     });
 
-    game.settings.register("dice-so-nice", "hideNpcRolls", {
-        name: "DICESONICE.hideNpcRolls",
-        hint: "DICESONICE.hideNpcRollsHint",
+    // -- Privacy --
+
+    game.settings.register("dice-so-nice", "hide3dDiceOnSecretRolls", {
+        name: "DICESONICE.hide3dDiceOnSecretRolls",
+        hint: "DICESONICE.hide3dDiceOnSecretRollsHint",
         scope: "world",
         type: Boolean,
+        default: true,
+        config: true
+    });
+
+    game.settings.register("dice-so-nice", "showGhostDice", {
+        name: "DICESONICE.showGhostDice",
+        hint: "DICESONICE.showGhostDiceHint",
+        scope: "world",
+        type: String,
+        choices: Utils.localize({
+            "0": "DICESONICE.ghostDiceDisabled",
+            "1": "DICESONICE.ghostDiceForAll",
+            "2": "DICESONICE.ghostDiceForRollAuthor",
+            "3": "DICESONICE.ghostDiceForPlayerRollsOnly"
+        }),
         default: false,
         config: true
     });
+
+    // -- Interaction --
 
     game.settings.register("dice-so-nice", "allowInteractivity", {
         name: "DICESONICE.allowInteractivity",
@@ -237,14 +229,52 @@ Hooks.once('init', () => {
         requiresReload: true
     });
 
-    game.settings.register("dice-so-nice", "hide3dDiceOnSecretRolls", {
-        name: "DICESONICE.hide3dDiceOnSecretRolls",
-        hint: "DICESONICE.hide3dDiceOnSecretRollsHint",
+    // -- Appearance --
+
+    game.settings.register("dice-so-nice", "forceCharacterOwnerAppearance", {
+        name: "DICESONICE.forceCharacterOwnerAppearance",
+        hint: "DICESONICE.forceCharacterOwnerAppearanceHint",
         scope: "world",
-        type: Boolean,
-        default: true,
+        type: String,
+        choices: Utils.localize({
+            "0": "DICESONICE.forceCharacterOwnerAppearanceDisabled",
+            "1": "DICESONICE.forceCharacterOwnerAppearanceInitiative",
+            "2": "DICESONICE.forceCharacterOwnerAppearanceAll"
+        }),
+        default: "1",
         config: true
     });
+
+    // -- UI --
+
+    game.settings.register("dice-so-nice", "hideSidebarTab", {
+        name: "DICESONICE.hideSidebarTab",
+        hint: "DICESONICE.hideSidebarTabHint",
+        scope: "world",
+        type: Boolean,
+        default: false,
+        config: true,
+        requiresReload: true
+    });
+
+    game.settings.register("dice-so-nice", "resetWelcomeMessage", {
+        name: "DICESONICE.resetWelcomeMessage",
+        hint: "DICESONICE.resetWelcomeMessageHint",
+        scope: "world",
+        type: Boolean,
+        default: false,
+        config: true,
+        onChange: value => {
+            if (value) {
+                game.users.forEach(user => {
+                    user.setFlag("dice-so-nice", "welcomeMessageShown", false);
+                });
+                game.settings.set("dice-so-nice", "resetWelcomeMessage", false);
+            }
+        }
+    });
+
+    // -- Internal (config: false) --
 
     //GM-editable mapping: damage type id → { colorset?, preset?, label? }
     //ships empty; hardcoded name==colorset fallback handles unmapped entries
@@ -260,21 +290,6 @@ Hooks.once('init', () => {
         config: false,
         type: Array,
         default: []
-    });
-
-    game.settings.register("dice-so-nice", "showGhostDice", {
-        name: "DICESONICE.showGhostDice",
-        hint: "DICESONICE.showGhostDiceHint",
-        scope: "world",
-        type: String,
-        choices: Utils.localize({
-            "0": "DICESONICE.ghostDiceDisabled",
-            "1": "DICESONICE.ghostDiceForAll",
-            "2": "DICESONICE.ghostDiceForRollAuthor",
-            "3": "DICESONICE.ghostDiceForPlayerRollsOnly"
-        }),
-        default: false,
-        config: true
     });
 
     //register sidebar tab unless GM disabled it
