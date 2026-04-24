@@ -72,7 +72,7 @@ roll.toMessage();
 ## Step 5: Further options
 If you wish to add more features to your integration, the rest of the API has you covered:
 
-- [Roll API](/foundryvtt-dice-so-nice/api/roll/) - trigger animations programmatically, hide specific dice, disable detection
+- [Roll API](/foundryvtt-dice-so-nice/api/roll/) - trigger animations programmatically, hide specific dice, disable detection, customize which elements are hidden during message updates
 - [Companion Messages](/foundryvtt-dice-so-nice/api/companion-messages/) - link non-roll messages to a roll animation
 - [Colors & Themes](/foundryvtt-dice-so-nice/api/customization/) - register custom color themes and presets
 - [Hooks](/foundryvtt-dice-so-nice/api/hooks/) - react to animation lifecycle events

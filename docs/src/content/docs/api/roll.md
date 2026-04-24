@@ -136,6 +136,24 @@ Hooks.on('diceSoNiceRollStart', (messageId, context) => {
 
 Check the [Hooks documentation](/foundryvtt-dice-so-nice/api/hooks/) for more information.
 
+## Customizing which elements are hidden during a message update
+
+When a roll is added to an existing chat message via `updateChatMessage`, Dice So Nice! hides the new roll elements in the message HTML while the 3D animation plays, then reveals them when it finishes. By default, it targets elements matching the `.dice-roll` CSS selector.
+
+Some systems render their chat messages with a different HTML structure where the roll container uses a different class (e.g. `.dice-result`). You can tell Dice So Nice! which selector to use:
+
+```javascript
+Hooks.on("diceSoNiceInit", (dice3d) => {
+    dice3d.setMessageUpdateHideSelector(".dice-result");
+});
+```
+
+The selector must match the elements that wrap individual roll results inside the chat message HTML. It accepts any valid CSS selector string.
+
+:::note
+This only affects how rolls added via message updates are hidden and revealed. The initial message hiding (when the message is first created with rolls) always hides the entire message element regardless of this selector.
+:::
+
 ## Hiding a dice from a roll animation
 ### From the Roll object
 If you wish to hide one or more dice from a Roll object so they are not displayed by Dice So Nice, you can set a special `hidden` property on these dice results.

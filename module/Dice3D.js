@@ -334,6 +334,12 @@ export class Dice3D {
         return this.DiceFactory.systems;
     }
 
+    /**
+     * @param {string} selector - CSS selector for the elements to hide during a message update animation (default: ".dice-roll")
+     */
+    setMessageUpdateHideSelector(selector) {
+        this._messageUpdateHideSelector = selector;
+    }
 
     /**
      * Constructor. Create and initialize a new Dice3d.
@@ -365,6 +371,7 @@ export class Dice3D {
         };
 
         this.hiddenAnimationQueue = [];
+        this._messageUpdateHideSelector = ".dice-roll";
         this.defaultShowExtraDice = Dice3D.DEFAULT_OPTIONS.showExtraDice;
 
         //local user's persistent dice data, keyed by persistentId
@@ -861,22 +868,17 @@ export class Dice3D {
         //sequence dependent dice like (1d4)d6 so the inner roll resolves before the outer one spawns
         this._assignDependentRollOrder(rolls);
 
+        const animId = chatMessage._dice3dCurrentAnimId;
         const showMessage = () => {
-            delete chatMessage._dice3danimating;
-
             let messageElement = $(window.ui.chat.element).find(`.message[data-message-id="${chatMessage.id}"]`);
-            messageElement.removeClass("dsn-hide");
-
             let messageElementPopout;
             if (window.ui.sidebar.popouts.chat) {
                 messageElementPopout = $(window.ui.sidebar.popouts.chat.element).find(`.message[data-message-id="${chatMessage.id}"]`);
-                messageElementPopout.removeClass("dsn-hide");
             }
 
             // Manage v13 popup system - TODO clean up consistency jquery
             const notificationElement = document.querySelector(`#chat-notifications .message[data-message-id="${chatMessage.id}"]`);
             if (notificationElement) {
-                // Remove previously hidden notification
                 notificationElement.remove();
             }
 
@@ -884,15 +886,35 @@ export class Dice3D {
                 ui.chat.notify(chatMessage, { newMessage: true, existing: ui.chat.element.querySelector(`[data-message-id="${chatMessage.id}"]`) });
             }
 
-            if (chatMessage._dice3dMessageHidden) {
-                //first/initial rolls are done
+            if (chatMessage._dice3dMessageHidden && !animId) {
+                // initial rolls done, reveal the entire message
                 chatMessage._dice3dMessageHidden = false;
-            } else if (chatMessage._dice3dRollsHidden && chatMessage._dice3dRollsHidden.length) {
-                //subsequent rolls. for every 'done' roll we reveal x hidden rolls by shifting the _dice3dRollsHidden array
-                messageElement.find(`.dice-roll.dsn-hide`).slice(0, chatMessage._dice3dRollsHidden.shift()).removeClass("dsn-hide");
+                messageElement.removeClass("dsn-hide");
+                if (messageElementPopout) messageElementPopout.removeClass("dsn-hide");
+            }
 
-                if (window.ui.sidebar.popouts.chat) {
-                    messageElementPopout.find(`.dice-roll.dsn-hide`).slice(0, chatMessage._dice3dRollsHidden.shift()).removeClass("dsn-hide");
+            if (animId) {
+                // update rolls done, reveal elements tagged with this animation id
+                if (!chatMessage._dice3dMessageHidden) {
+                    messageElement.removeClass("dsn-hide");
+                    if (messageElementPopout) messageElementPopout.removeClass("dsn-hide");
+                }
+
+                const revealSelector = `${this._messageUpdateHideSelector}.dsn-hide[data-dsn-anim-id="${animId}"]`;
+                const toReveal = messageElement.find(revealSelector);
+                if (!chatMessage._dice3dExistingRollFingerprints)
+                    chatMessage._dice3dExistingRollFingerprints = [];
+                toReveal.each(function() {
+                    chatMessage._dice3dExistingRollFingerprints.push(this.textContent.trim());
+                });
+                toReveal.removeClass("dsn-hide").removeAttr("data-dsn-anim-id");
+
+                if (messageElementPopout) {
+                    messageElementPopout.find(revealSelector).removeClass("dsn-hide").removeAttr("data-dsn-anim-id");
+                }
+
+                if (chatMessage._dice3dAnimFingerprints) {
+                    delete chatMessage._dice3dAnimFingerprints[animId];
                 }
             }
 
@@ -902,6 +924,12 @@ export class Dice3D {
             let companionIds = [];
             if (chatMessage._dice3dPendingRenders <= 0) {
                 chatMessage._dice3dPendingRenders = 0;
+                delete chatMessage._dice3danimating;
+                delete chatMessage._dice3dCountNewRolls;
+                delete chatMessage._dice3dExistingRollFingerprints;
+                delete chatMessage._dice3dAnimFingerprints;
+                delete chatMessage._dice3dCurrentAnimId;
+                delete chatMessage._dice3dAnimIdCounter;
                 companionIds = CompanionLink.release(chatMessage.id);
             }
 

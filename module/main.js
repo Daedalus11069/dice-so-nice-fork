@@ -538,40 +538,46 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
         return;
     }
     if (message._dice3danimating && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
-        /* How does this work:
-         * First, it should be noted that updates to the DOM of the message will be erased by the next update as FVTT will rerender the entire message
-         * DsN will hide the message for the first render
-         * It will then hide the following .dice-roll 
-         * We need to keep track of what to hide in order to correctly hide unfinished rolls every time the message is rendered
-         * For this, we store two variables in the message: _dice3dRollsHidden and _dice3dMessageHidden
-         * _dice3dRollsHidden is an array of the number of rolls added to the message at every update
-         * _dice3dMessageHidden is a boolean, true if the original rolls are yet to be finished
-         * The reveal/unhiding part can be found in Dice3D.renderRolls
-         */
+        // for the first render: hide the entire message (_dice3dMessageHidden)
+        // for updates: use textContent fingerprints captured in preUpdateChatMessage to diff which roll elements are new vs existing, and only hide new ones
+        // reveal logic is in Dice3D.renderRolls (showMessage closure)
         if (message._dice3dCountNewRolls){
-            if(!message._dice3dRollsHidden)
-                message._dice3dRollsHidden = [];
+            const selector = game.dice3d._messageUpdateHideSelector;
+            const existingFps = [...(message._dice3dExistingRollFingerprints || [])];
+            if (!message._dice3dAnimFingerprints) message._dice3dAnimFingerprints = {};
+            const animFps = message._dice3dAnimFingerprints;
+            // deep copy for matching (originals must persist across re-renders)
+            const animFpsCopy = {};
+            for (const k in animFps) animFpsCopy[k] = [...animFps[k]];
 
-            //push the number of new rolls to the array
-            message._dice3dRollsHidden.push(message._dice3dCountNewRolls);
-            
-            //if there's the popout chat, we need to keep track of which render we are in
-            if(window.ui.sidebar.popouts.chat) {
-                //if _dice3dRenderedInPopout is undefined, we are in the first render (not in the popout), so we set it to false
-                //if it exists and is false, we are in a popout render, so we set it to true
-                //if it exists and is true, we are in sidebar render, so we set it to false
-                message._dice3dRenderedInPopout = typeof message._dice3dRenderedInPopout === "undefined" ? false : !message._dice3dRenderedInPopout;
-            }
+            const currentAnimId = message._dice3dCurrentAnimId;
 
-            //calculate the sum of all hidden rolls
-            //if _dice3dRenderedInPopout is true, we need to divide by 2 the sum
-            let sumOfAllHiddenRolls = message._dice3dRollsHidden.reduce((a, b) => a + b, 0) / (message._dice3dRenderedInPopout ? 2 : 1);
+            [...html.querySelectorAll(selector)].forEach(el => {
+                const fp = el.textContent.trim();
 
-            //use this sum to hide the last rolls
-            //which should be the most recent rolls
-            [...html.querySelectorAll(`.dice-roll`)].slice(-sumOfAllHiddenRolls).forEach(el => el.classList.add("dsn-hide"));
+                // old or already-revealed element
+                const ei = existingFps.indexOf(fp);
+                if (ei !== -1) { existingFps.splice(ei, 1); return; }
 
-            //In case _dice3dMessageHidden is still true, we hide the message as it means the original rolls are not yet finished
+                el.classList.add("dsn-hide");
+
+                // in-flight element from a previous animation
+                for (const aid in animFpsCopy) {
+                    const ai = animFpsCopy[aid].indexOf(fp);
+                    if (ai !== -1) {
+                        animFpsCopy[aid].splice(ai, 1);
+                        el.dataset.dsnAnimId = aid;
+                        return;
+                    }
+                }
+
+                // new element for the current animation
+                el.dataset.dsnAnimId = currentAnimId;
+                if (!animFps[currentAnimId]) animFps[currentAnimId] = [];
+                if (!animFps[currentAnimId].includes(fp))
+                    animFps[currentAnimId].push(fp);
+            });
+
             if(message._dice3dMessageHidden)
                 html.classList.add("dsn-hide");
         }
@@ -592,6 +598,17 @@ Hooks.on("preUpdateChatMessage", (message, updateData, options) => {
     const originalRollsArrayLength = message.toObject().rolls.length;
     options.dsnCountAddedRoll = updateData.rolls.length - originalRollsArrayLength;
     options.dsnIndexAddedRoll = originalRollsArrayLength;
+
+    // snapshot existing roll elements so we can diff after re-render
+    if (game.dice3d && options.dsnCountAddedRoll > 0) {
+        const selector = game.dice3d._messageUpdateHideSelector;
+        const el = document.querySelector(`.message[data-message-id="${message.id}"]`);
+        if (el) {
+            message._dice3dExistingRollFingerprints = [...el.querySelectorAll(selector)]
+                .filter(e => !e.classList.contains("dsn-hide"))
+                .map(e => e.textContent.trim());
+        }
+    }
 });
 
 /**
@@ -605,6 +622,8 @@ Hooks.on("updateChatMessage", (message, updateData, options) => {
         message._dice3danimating = true;
         message._dice3dPendingRenders = (message._dice3dPendingRenders || 0) + 1;
         message._dice3dCountNewRolls = options.dsnCountAddedRoll;
+        message._dice3dAnimIdCounter = (message._dice3dAnimIdCounter || 0) + 1;
+        message._dice3dCurrentAnimId = message._dice3dAnimIdCounter;
         game.dice3d.renderRolls(message, message.rolls.slice(options.dsnIndexAddedRoll));
     }
 });
