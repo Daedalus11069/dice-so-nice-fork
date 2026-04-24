@@ -92,31 +92,29 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
             const compoundDice = allCompound.filter(c => c.faces <= 100).map(c => c.entry);
             const extraCompoundDice = allCompound.filter(c => c.faces > 100).map(c => c.entry);
 
-            const visibility = box.persistentDiceVisibility || "all";
             diceContext = {
                 mainDice: main,
                 extraDice: extras,
                 extraCompoundDice,
                 hasExtras: extras.length > 0 || extraCompoundDice.length > 0,
                 showExtras: this._showExtras,
-                compoundDice,
-                visibility,
-                visibilityAll: visibility === "all",
-                visibilityMine: visibility === "mine",
-                visibilityNone: visibility === "none"
+                compoundDice
             };
         }
 
         const savesObject = game.user.getFlag("dice-so-nice", "saves");
         const saveNames = savesObject ? Object.keys(savesObject) : [];
 
+        const visibility = box ? (Dice3D.CONFIG().visibility || "all") : "all";
         return Object.assign(context, {
             persistentDiceEnabled,
             ready: !!box,
             dice: diceContext,
             isGM: !!game.user?.isGM,
             showHelp: this._showHelp,
-            diceEnabled: box ? Dice3D.CONFIG().enabled : true,
+            visibilityAll: visibility === "all",
+            visibilityMine: visibility === "mine",
+            visibilityNone: visibility === "none",
             saves: {
                 hasSaves: saveNames.length > 0,
                 list: saveNames
@@ -129,15 +127,7 @@ export class DsnSidebarTab extends HandlebarsApplicationMixin(AbstractSidebarTab
         const select = this.element.querySelector("[data-action=setVisibility]");
         if (select) {
             select.addEventListener("change", (ev) => {
-                game.dice3d?.setPersistentDiceVisibility(ev.currentTarget.value);
-            });
-        }
-
-        const enabledCheckbox = this.element.querySelector("[data-toggle-enabled]");
-        if (enabledCheckbox) {
-            enabledCheckbox.addEventListener("change", async (ev) => {
-                const settings = game.user.getFlag("dice-so-nice", "settings") || {};
-                await game.user.setFlag("dice-so-nice", "settings", { ...settings, enabled: ev.currentTarget.checked });
+                game.dice3d?.setVisibility(ev.currentTarget.value);
             });
         }
 

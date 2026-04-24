@@ -54,9 +54,8 @@ export class Dice3D {
                 break;
         }
         return {
-            enabled: true,
+            visibility: "all",
             showExtraDice: game.dice3d && game.dice3d.hasOwnProperty("defaultShowExtraDice") ? game.dice3d.defaultShowExtraDice : false,
-            onlyShowOwnDice: false,
             hideAfterRoll: true,
             timeBeforeHide: 2000,
             hideFX: 'fadeOut',
@@ -445,11 +444,6 @@ export class Dice3D {
             area.top = config.rollingArea.top;
         }
 
-        if (!config.enabled) {
-            area.width = 1;
-            area.height = 1;
-        }
-
         this.canvas = $(`<div id="dice-box-canvas" style="position: absolute; left: ${area.left}px; top: ${area.top}px; pointer-events: none;"></div>`);
         if (config.canvasZIndex === "over") {
             this.canvas.css("z-index", 1000);
@@ -770,7 +764,7 @@ export class Dice3D {
      */
     isEnabled() {
         let combatEnabled = (!game.combat || !game.combat.started) || (game.combat && game.combat.started && !game.settings.get("dice-so-nice", "disabledDuringCombat"));
-        return Dice3D.CONFIG().enabled && combatEnabled;
+        return Dice3D.CONFIG().visibility !== "none" && combatEnabled;
     }
 
     /**
@@ -1088,7 +1082,7 @@ export class Dice3D {
             }
         }
 
-        if (Dice3D.CONFIG().onlyShowOwnDice && user !== game.user) {
+        if (Dice3D.CONFIG().visibility === "mine" && user !== game.user) {
             return Promise.resolve(false);
         }
 
@@ -1190,7 +1184,7 @@ export class Dice3D {
             });
         }
         return new Promise((resolve, reject) => {
-            if (game.dice3d && Dice3D.CONFIG().enabled && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
+            if (game.dice3d && Dice3D.CONFIG().visibility !== "none" && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
                 buildHook(resolve);
             } else {
                 resolve(true);
@@ -1429,11 +1423,11 @@ export class Dice3D {
         return mesh;
     }
 
-    /**
-     * Set persistent dice visibility mode (not persisted across reloads)
-     */
-    setPersistentDiceVisibility(mode) {
-        this.box?.setPersistentDiceVisibility(mode);
+    async setVisibility(mode) {
+        if (mode !== "all" && mode !== "mine" && mode !== "none") return;
+        const settings = game.user.getFlag("dice-so-nice", "settings") || {};
+        await game.user.setFlag("dice-so-nice", "settings", { ...settings, visibility: mode });
+        this.box?.applyVisibility(mode);
     }
 
     /**
@@ -1595,6 +1589,7 @@ export class Dice3D {
                 delete mesh.userData.preRollRates;
                 delete mesh.userData.remoteMoveTarget;
                 delete mesh.userData.remoteMoveSmoothed;
+                delete mesh.userData.pendingReplay;
                 lockedMeshes.push(mesh);
             }
         }
@@ -1697,16 +1692,24 @@ export class Dice3D {
     }
 
     async _onRemotePersistentPickup(request) {
-        const { persistentIds } = request.data;
+        const { persistentIds, grabTime: remoteGrabTime } = request.data;
         if (!Array.isArray(persistentIds)) return;
 
-        //yield locally-held dice that the remote player is picking up
+        //yield locally-held dice that the remote player is picking up,
+        //but only if the remote grab wins the tiebreak (earlier timestamp,
+        //or lower user ID on exact tie). this prevents cross-deadlocks when
+        //two players grab the same die simultaneously.
         const inputHandler = this.box.inputHandler;
         if (inputHandler) {
             const locallyHeldIds = [];
             for (const pid of persistentIds) {
                 const mesh = this._findPersistentMeshById(pid);
-                if (mesh?.userData?.constrained) {
+                if (!mesh?.userData?.constrained) continue;
+                const localTime = mesh.userData.localGrabTime || 0;
+                const remoteTime = remoteGrabTime || 0;
+                const remoteWins = remoteTime < localTime
+                    || (remoteTime === localTime && request.user < game.user.id);
+                if (remoteWins) {
                     locallyHeldIds.push(mesh.id);
                 }
             }
@@ -1718,10 +1721,11 @@ export class Dice3D {
         const meshes = [];
         for (const pid of persistentIds) {
             const mesh = this._findPersistentMeshById(pid);
-            if (mesh) {
-                mesh.userData.lockedBy = request.user;
-                meshes.push(mesh);
-            }
+            if (!mesh) continue;
+            //skip dice the local player won the tiebreak for
+            if (mesh.userData?.constrained) continue;
+            mesh.userData.lockedBy = request.user;
+            meshes.push(mesh);
         }
         this.box.updateSelectionOutlines();
         if (meshes.length > 0) {
@@ -1797,6 +1801,8 @@ export class Dice3D {
             delete mesh.userData.remotePreRoll;
             delete mesh.userData.preRollRates;
             delete mesh.userData.remoteMoveTarget;
+            //block interaction until the queued replay actually starts
+            mesh.userData.pendingReplay = true;
         }
         if (heldDice.length === 0) return;
 

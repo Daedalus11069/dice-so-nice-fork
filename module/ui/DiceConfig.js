@@ -187,6 +187,11 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 "weak": "DICESONICE.ThrowingForceWeak",
                 "medium": "DICESONICE.ThrowingForceMedium",
                 "strong": "DICESONICE.ThrowingForceStrong"
+            }),
+            visibilityList: Utils.localize({
+                "all": "DICESONICE.visibilityAll",
+                "mine": "DICESONICE.visibilityMine",
+                "none": "DICESONICE.visibilityNone"
             })
         },
             this.reset ? Dice3D.ALL_DEFAULT_OPTIONS() : Dice3D.ALL_CONFIG(game.user, this.isActor ? this.document : null)

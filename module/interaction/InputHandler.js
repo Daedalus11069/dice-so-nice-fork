@@ -275,7 +275,8 @@ export class InputHandler {
 
 			//Ctrl+click: arm tentative grab, toggle on release unless promoted to drag
 			if (isPersistent && multiSelectKey) {
-				if (root.userData?.lockedBy && root.userData.lockedBy !== game.user?.id) return false;
+				if (root.userData?.pendingReplay ||
+					(root.userData?.lockedBy && root.userData.lockedBy !== game.user?.id)) return false;
 				event.stopPropagation();
 				event.preventDefault();
 				this.mouse.pendingGrab = {
@@ -298,7 +299,8 @@ export class InputHandler {
 
 			try {
 				if (isPersistent) {
-					if (root.userData?.lockedBy && root.userData.lockedBy !== game.user?.id) {
+					if (root.userData?.pendingReplay ||
+						(root.userData?.lockedBy && root.userData.lockedBy !== game.user?.id)) {
 						this.mouse.constraintDown = false;
 						if (canvas.mouseInteractionManager)
 							canvas.mouseInteractionManager.activate();
@@ -367,6 +369,7 @@ export class InputHandler {
 					if (d.userData) {
 						delete d.userData.pickupOffset;
 						d.userData.constrained = false;
+						delete d.userData.localGrabTime;
 					}
 				}
 				this.mouse.heldPersistentDice = [];
@@ -396,6 +399,7 @@ export class InputHandler {
 					delete d.userData.pickupOffset;
 					d.userData.preRollRates = null;
 					d.userData.constrained = false;
+					delete d.userData.localGrabTime;
 				}
 			}
 
@@ -477,6 +481,7 @@ export class InputHandler {
 				delete d.userData.pickupOffset;
 				d.userData.preRollRates = null;
 				d.userData.constrained = false;
+				delete d.userData.localGrabTime;
 				d.userData.yielded = true;
 			}
 		}
@@ -502,6 +507,7 @@ export class InputHandler {
 
 		const anchorPos = { x: cursorDesk.x, y: cursorDesk.y, z: cursorDesk.z };
 
+		const grabTime = Date.now();
 		for (const die of heldDice) {
 			//offset from cursor so the group keeps its spatial arrangement
 			const worldPos = die.parent ? die.parent.position : die.position;
@@ -510,6 +516,7 @@ export class InputHandler {
 				z: worldPos.z - cursorDesk.z
 			};
 			die.userData.constrained = true;
+			die.userData.localGrabTime = grabTime;
 			await this.physicsWorker.exec("addConstraint", { id: die.id, pos: anchorPos });
 		}
 		this.mouse.constraint = true;
@@ -518,11 +525,12 @@ export class InputHandler {
 		this.mouse.dragPositions = [];
 		this._resetPreRollState();
 
-		//multiplayer sync: notify pickup
+		//multiplayer sync: notify pickup (timestamp for conflict resolution)
 		if (this.onPersistentEvent) {
 			this.onPersistentEvent("pickup", {
 				data: {
-					persistentIds: heldDice.map(d => d.userData.persistentId)
+					persistentIds: heldDice.map(d => d.userData.persistentId),
+					grabTime
 				}
 			});
 		}

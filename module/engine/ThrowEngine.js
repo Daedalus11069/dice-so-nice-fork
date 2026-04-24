@@ -541,6 +541,7 @@ export class ThrowEngine {
 					diceType: isChatCarrier ? typeLabels : null,
 					ghostifiedIds: isChatCarrier ? ghostifiedIds : null
 				};
+				delete dicemesh.userData.pendingReplay;
 				if (isChatCarrier) chatCarrierAssigned = true;
 			}
 

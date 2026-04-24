@@ -7,10 +7,14 @@
         <i class="fa-solid fa-dice-d20"></i>
         <span>{{localize "DICESONICE.sidebarTabOpenConfig"}}</span>
     </button>
-    <label class="dsn-toolbox-toggle">
-        <input type="checkbox" data-toggle-enabled {{#if diceEnabled}}checked{{/if}}>
-        <span>{{localize "DICESONICE.sidebarTabToggleEnabled"}}</span>
-    </label>
+    <div class="dsn-toolbox-visibility-row">
+        <label class="dsn-toolbox-label">{{localize "DICESONICE.visibility"}}</label>
+        <select data-action="setVisibility" class="dsn-toolbox-select">
+            <option value="all"  {{#if visibilityAll}}selected{{/if}}>{{localize "DICESONICE.visibilityAll"}}</option>
+            <option value="mine" {{#if visibilityMine}}selected{{/if}}>{{localize "DICESONICE.visibilityMine"}}</option>
+            <option value="none" {{#if visibilityNone}}selected{{/if}}>{{localize "DICESONICE.visibilityNone"}}</option>
+        </select>
+    </div>
 </section>
 
 {{#if persistentDiceEnabled}}
@@ -93,15 +97,6 @@
         <span>{{localize "DICESONICE.persistentDiceToolboxClearAll"}}</span>
     </button>
     {{/if}}
-</section>
-
-<section class="dsn-toolbox-section dsn-toolbox-visibility">
-    <label class="dsn-toolbox-label">{{localize "DICESONICE.persistentDiceToolboxVisibility"}}</label>
-    <select data-action="setVisibility" class="dsn-toolbox-select">
-        <option value="all"  {{#if dice.visibilityAll}}selected{{/if}}>{{localize "DICESONICE.persistentDiceToolboxVisibilityAll"}}</option>
-        <option value="mine" {{#if dice.visibilityMine}}selected{{/if}}>{{localize "DICESONICE.persistentDiceToolboxVisibilityMine"}}</option>
-        <option value="none" {{#if dice.visibilityNone}}selected{{/if}}>{{localize "DICESONICE.persistentDiceToolboxVisibilityNone"}}</option>
-    </select>
 </section>
 
 <section class="dsn-toolbox-section dsn-toolbox-help">

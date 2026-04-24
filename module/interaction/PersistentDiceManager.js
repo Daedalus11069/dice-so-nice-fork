@@ -175,8 +175,8 @@ export class PersistentDiceManager {
 		return null;
 	}
 
-	//set visibility mode (render-only, physics stays active)
-	setPersistentDiceVisibility(mode) {
+	//apply visibility mode to all persistent dice (render-only, physics stays active)
+	applyVisibility(mode) {
 		if (mode !== "none" && mode !== "mine" && mode !== "all") return;
 		this.persistentDiceVisibility = mode;
 		for (const mesh of this.persistentDiceList) {

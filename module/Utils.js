@@ -26,8 +26,8 @@ export function removeTicker(fn) {
  */
 export class Utils {
 
-    static DATA_FORMAT_VERSION = "6.0";
-    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "enabled", "rollingArea", "advancedGlass", "ambiance"];
+    static DATA_FORMAT_VERSION = "6.1";
+    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "rollingArea", "advancedGlass", "ambiance"];
 
     /**
      * Check if the user's version is less than a specific target version.
@@ -214,6 +214,25 @@ export class Utils {
                 await game.settings.set("dice-so-nice", "forceCharacterOwnerAppearance", oldValue ? "1" : "0");
             } catch(e) {
                 // old setting doesn't exist (fresh install), keep the default
+            }
+
+            migrated = true;
+        }
+
+        if(Utils.isVersionLessThan(formatversion, "6.1")) {
+            // unify enabled + onlyShowOwnDice into a single visibility setting
+            const settings = game.user.getFlag("dice-so-nice", "settings");
+            if (settings) {
+                let visibility = "all";
+                if (settings.enabled === false) {
+                    visibility = "none";
+                } else if (settings.onlyShowOwnDice === true) {
+                    visibility = "mine";
+                }
+                const updated = { ...settings, visibility };
+                delete updated.enabled;
+                delete updated.onlyShowOwnDice;
+                await game.user.setFlag("dice-so-nice", "settings", updated);
             }
 
             migrated = true;

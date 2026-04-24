@@ -443,7 +443,7 @@ const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, ds
 Hooks.on('createChatMessage', (chatMessage) => {
     //suppress core dice sound for persistent rolls too
     if (chatMessage.getFlag("dice-so-nice", "persistent")
-        && Dice3D.CONFIG().enabled
+        && Dice3D.CONFIG().visibility !== "none"
         && chatMessage.sound === "sounds/dice.wav") {
         delete chatMessage.sound;
     }
@@ -506,7 +506,7 @@ Hooks.on('createChatMessage', (chatMessage) => {
         return;
 
     //Remove the chatmessage sound if it is the core dice sound.
-    if (Dice3D.CONFIG().enabled && chatMessage.sound == "sounds/dice.wav") {
+    if (Dice3D.CONFIG().visibility !== "none" && chatMessage.sound == "sounds/dice.wav") {
         delete chatMessage.sound;
     }
     chatMessage._dice3danimating = true;

@@ -192,6 +192,7 @@ export class DiceBox {
 				});
 
 				this.persistentDiceManager = new PersistentDiceManager(this.diceScene, this.physicsWorker, this.dicefactory, this.soundManager);
+				this.persistentDiceManager.persistentDiceVisibility = this.config.visibility || "all";
 				this.persistentDiceManager.sfxContext = this;
 				this.persistentDiceManager.onSelectionChanged = () => this.updateSelectionOutlines();
 				this.persistentDiceManager.onRemoteThrowReplayed = (userId) => this._updateRemoteOutlines();
@@ -265,6 +266,7 @@ export class DiceBox {
 
 	async update(config) {
 		this.showExtraDice = config.showExtraDice;
+		if (config.visibility) this.applyVisibility(config.visibility);
 
 		this.soundManager.update({
 			muteSoundSecretRolls: config.muteSoundSecretRolls,
@@ -363,9 +365,9 @@ export class DiceBox {
 		return this.persistentDiceManager.findMostRecentPersistentDie(type, userId, opts);
 	}
 
-	setPersistentDiceVisibility(mode) {
+	applyVisibility(mode) {
 		if (!this.persistentDiceManager) return;
-		this.persistentDiceManager.setPersistentDiceVisibility(mode);
+		this.persistentDiceManager.applyVisibility(mode);
 		this.renderScene();
 	}
 
