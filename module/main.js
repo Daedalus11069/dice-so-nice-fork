@@ -224,7 +224,7 @@ Hooks.once('init', () => {
         hint: "DICESONICE.persistentDiceHint",
         scope: "world",
         type: Boolean,
-        default: false,
+        default: true,
         config: true,
         requiresReload: true
     });
