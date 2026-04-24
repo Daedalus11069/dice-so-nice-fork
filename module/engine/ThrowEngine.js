@@ -218,8 +218,8 @@ export class ThrowEngine {
 		return { dicemesh, diceobj, mass };
 	}
 
-	//spawns one dicemesh object from a single vectordata object
-	async spawnDice(dicedata, appearance, diceLibrary = null) {
+	//creates one dicemesh and collects the worker spec for batched physics creation
+	async spawnDiceMesh(dicedata, appearance, diceLibrary = null, workerSpecs) {
 		let vectordata = dicedata.vectors;
 		const result = await this.createDiceMesh(vectordata.type, appearance, diceLibrary);
 		if (!result) return;
@@ -235,8 +235,7 @@ export class ThrowEngine {
 		dicemesh.options = dicedata.options;
 		//todo
 
-		// Add the dice to the physics world
-		await this.physicsWorker.exec('createDice', {
+		workerSpecs.push({
 			id: dicemesh.id,
 			shape: diceobj.shape,
 			material: appearance.material,
@@ -248,8 +247,6 @@ export class ThrowEngine {
 
 		if (dicemesh.userData.glowingInDarkness) {
 			if (canvas.darknessLevel > 0.5) {
-				//If the darkness level is less than 0.5, we activate the "glowing in the dark" mode
-				//This mode is activated by setting the userData.glowingInDarkness to true on the mesh of the dice
 				dicemesh.material.emissiveIntensity = 0.3;
 				dicemesh.material.emissive = new Color(0xffffff);
 			} else {
@@ -262,8 +259,14 @@ export class ThrowEngine {
 		objectContainer.add(dicemesh);
 
 		this.diceList.push(dicemesh);
-		if (dicemesh.startAtIteration == 0) {
-			await this.physicsWorker.exec('addDice', dicemesh.id);
+	}
+
+	//spawns one dicemesh object from a single vectordata object
+	async spawnDice(dicedata, appearance, diceLibrary = null) {
+		const workerSpecs = [];
+		await this.spawnDiceMesh(dicedata, appearance, diceLibrary, workerSpecs);
+		if (workerSpecs.length > 0) {
+			await this.physicsWorker.exec('createDiceBatch', workerSpecs);
 		}
 	}
 
@@ -382,13 +385,17 @@ export class ThrowEngine {
 
 			this.minIterations = (throws.length - 1) * this.nbIterationsBetweenRolls;
 
+			const workerSpecs = [];
 			for (let j = 0; j < throws.length; j++) {
 				let notationVectors = throws[j];
 				for (let i = 0, len = notationVectors.dice.length; i < len; ++i) {
 					notationVectors.dice[i].startAtIteration = j * this.nbIterationsBetweenRolls;
 					let appearance = this.dicefactory.getAppearanceForDice(notationVectors.dsnConfig.appearance, notationVectors.dice[i].type, notationVectors.dice[i]);
-					await this.spawnDice(notationVectors.dice[i], appearance, notationVectors.dsnConfig.diceLibrary);
+					await this.spawnDiceMesh(notationVectors.dice[i], appearance, notationVectors.dsnConfig.diceLibrary, workerSpecs);
 				}
+			}
+			if (workerSpecs.length > 0) {
+				await this.physicsWorker.exec('createDiceBatch', workerSpecs);
 			}
 		} else {
 			this.minIterations = 0;

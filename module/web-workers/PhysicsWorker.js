@@ -21,6 +21,7 @@ class PhysicsWorker {
             .operation('createShape', this.createShape.bind(this))
             .operation('getDiceValue', this.getDiceValue.bind(this))
             .operation('createDice', this.createDice.bind(this))
+            .operation('createDiceBatch', this.createDiceBatch.bind(this))
             .operation('removeDice', this.removeDice.bind(this))
             .operation('addDice', this.addDice.bind(this))
             .operation('applyImpulse', this.applyImpulse.bind(this))
@@ -178,6 +179,17 @@ class PhysicsWorker {
         body.startAtIteration = startAtIteration;
 
         this.diceList.set(id, body);
+    }
+
+    createDiceBatch(specs) {
+        const addToWorld = [];
+        for (const spec of specs) {
+            this.createDice(spec);
+            if (spec.startAtIteration === 0) addToWorld.push(spec.id);
+        }
+        for (const id of addToWorld) {
+            this.world.addBody(this.diceList.get(id));
+        }
     }
 
     addDice(id) {
