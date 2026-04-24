@@ -146,10 +146,10 @@ export class ThrowEngine {
 	}
 
 	// swaps dice faces to match desired result
-	async swapDiceFace(dicemesh) {
+	swapDiceFace(dicemesh, faceValue) {
 		const diceobj = this.dicefactory.get(dicemesh.notation.type);
 
-		let value = parseInt(await dicemesh.getValue());
+		let value = parseInt(faceValue);
 		let result = parseInt(dicemesh.forcedResult);
 
 		if (diceobj.shape == 'd10' && result == 0) result = 10;
@@ -451,7 +451,7 @@ export class ThrowEngine {
 			return;
 		}
 
-		const { ids, quaternionsBuffers, positionsBuffers, detectedCollides, deads, iterationsNeeded } = simResult;
+		const { ids, quaternionsBuffers, positionsBuffers, detectedCollides, deads, iterationsNeeded, faceValues, finalQuaternions } = simResult;
 		const quaternions = quaternionsBuffers.map(buffer => new Float32Array(buffer));
 		const positions = positionsBuffers.map(buffer => new Float32Array(buffer));
 
@@ -479,7 +479,7 @@ export class ThrowEngine {
 
 		for (const dicemesh of this.diceList) {
 			if (!dicemesh) continue;
-			await this.swapDiceFace(dicemesh);
+			this.swapDiceFace(dicemesh, faceValues[dicemesh.id]);
 		}
 
 		this.diceScene.animatedDiceDetected = await this.checkForAnimatedDice();
@@ -517,11 +517,11 @@ export class ThrowEngine {
 				const stepPositions = positions[simIdx];
 				const stepQuaternions = quaternions[simIdx];
 
-				const rawFinalQuat = await this.physicsWorker.exec("getBodyQuaternion", dicemesh.id);
+				const rawFinalQuat = finalQuaternions[dicemesh.id];
 
 				dicemesh.quaternion.set(0, 0, 0, 1);
 				dicemesh.forcedResult = forcedByMesh.get(dicemesh);
-				await this.swapDiceFace(dicemesh);
+				this.swapDiceFace(dicemesh, faceValues[dicemesh.id]);
 
 				const swapQuat = dicemesh.quaternion.clone();
 				this.bakeSwapIntoQuaternionBuffer(stepQuaternions, swapQuat, iterationsNeeded);

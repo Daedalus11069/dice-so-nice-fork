@@ -615,20 +615,22 @@ class PhysicsWorker {
 
         this.iterationsNeeded = this.iteration;
 
-        //post-sim: cache face values and optionally make ephemeral dice static
+        //post-sim: cache face values for all tracked dice, make ephemerals static
+        const faceValues = {};
+        const finalQuaternions = {};
         for (const [id, dice] of this.diceList) {
-            if (dice.persistent) continue;
-            dice.result = this.getDiceValue(id);
-            if (!canBeFlipped) {
+            if (tracked.has(id)) {
+                dice.result = null;
+                const val = this.getDiceValue(id);
+                faceValues[id] = val;
+                finalQuaternions[id] = { x: dice.quaternion.x, y: dice.quaternion.y, z: dice.quaternion.z, w: dice.quaternion.w };
+            }
+            if (!dice.persistent && !canBeFlipped) {
+                if (!dice.result) dice.result = this.getDiceValue(id);
                 dice.mass = 0;
                 dice.dead = this.iterationsNeeded;
                 dice.updateMassProperties();
             }
-        }
-        //invalidate cached results for impulse dice so main thread reads the fresh face
-        for (const impId of impulseIds) {
-            const dice = this.diceList.get(impId);
-            if (dice) dice.result = null;
         }
 
         this.animstate = 'throw';
@@ -661,7 +663,9 @@ class PhysicsWorker {
             positionsBuffers: positionsBuffers,
             detectedCollides: this.detectedCollides,
             deads: deads,
-            iterationsNeeded: this.iterationsNeeded
+            iterationsNeeded: this.iterationsNeeded,
+            faceValues: faceValues,
+            finalQuaternions: finalQuaternions
         }, [...quaternionsBuffers, ...positionsBuffers]);
     }
 
