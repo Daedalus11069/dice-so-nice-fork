@@ -1513,23 +1513,7 @@ export class Dice3D {
      * Remove selected persistent dice (respects ownership).
      */
     async removeSelectedPersistentDice() {
-        //collect ids before removal for socket messages
-        const removedPids = [];
-        for (const mesh of this.box.persistentDiceList) {
-            if (this.box.selectedPersistentDiceIds.has(mesh.id)) {
-                removedPids.push(mesh.userData.persistentId);
-                //include link-group siblings
-                if (mesh.userData.linkGroupId) {
-                    for (const other of this.box.persistentDiceList) {
-                        if (other.userData.linkGroupId === mesh.userData.linkGroupId
-                            && !removedPids.includes(other.userData.persistentId)) {
-                            removedPids.push(other.userData.persistentId);
-                        }
-                    }
-                }
-            }
-        }
-        const n = await this.box.removeSelectedPersistentDice();
+        const removedPids = await this.box.removeSelectedPersistentDice();
         if (!this.box.rolling && this.box.persistentDiceList.length === 0) {
             this._afterShow();
         }
@@ -1539,7 +1523,7 @@ export class Dice3D {
             if (this._persistentDiceData.delete(pid)) localChanged = true;
         }
         if (localChanged) this._savePersistentDiceToFlags();
-        return n;
+        return removedPids.size;
     }
 
     //"move" uses volatile delivery, everything else reliable

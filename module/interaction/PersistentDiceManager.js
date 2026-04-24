@@ -263,13 +263,12 @@ export class PersistentDiceManager {
 			}
 		}
 
-		if (allowedIds.size === 0) return 0;
+		if (allowedIds.size === 0) return allowedIds;
 
-		const sizeBefore = this.persistentDiceList.length;
 		await Promise.all(
 			Array.from(allowedIds, id => this.removePersistentDie(id))
 		);
-		return sizeBefore - this.persistentDiceList.length;
+		return allowedIds;
 	}
 
 	getSelectedPersistentDice() {
