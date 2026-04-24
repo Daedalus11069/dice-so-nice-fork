@@ -1802,6 +1802,7 @@ export class DiceFactory {
 			appearance.colorset = diceobj.colorset;
 		}
 		
+		let suppressLibraryDie = false;
 		if(dicenotation){
 			let colorset = null;
 			let mappedPreset = null;
@@ -1809,6 +1810,7 @@ export class DiceFactory {
 			//priority 1: explicit dsn colorset on the term still wins
 			if (dicenotation.options.colorset) {
 				colorset = dicenotation.options.colorset;
+				suppressLibraryDie = true;
 			} else {
 				//priority 2: damage type detection (type first, then flavor) routed through the map
 				const detected = this.detectDamageType(dicenotation);
@@ -1817,8 +1819,10 @@ export class DiceFactory {
 					if (mapped?.preset) {
 						//custom preset wins - overrides system for this die only
 						mappedPreset = mapped.preset;
+						suppressLibraryDie = true;
 					} else if (mapped?.colorset) {
 						colorset = mapped.colorset;
+						suppressLibraryDie = true;
 					}
 				}
 				//priority 3: explicit colorset on the appearance payload
@@ -1887,10 +1891,10 @@ export class DiceFactory {
 				appearance.isGhost = true;
 			}
 		}
-		if(settings.libraryDieId){
+		if(!suppressLibraryDie && settings.libraryDieId){
 			appearance.libraryDieId = settings.libraryDieId;
 		}
-		if(settings.libraryDieOwner){
+		if(!suppressLibraryDie && settings.libraryDieOwner){
 			appearance.libraryDieOwner = settings.libraryDieOwner;
 		}
 		return appearance;
