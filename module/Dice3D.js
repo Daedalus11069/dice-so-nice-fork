@@ -1212,12 +1212,13 @@ export class Dice3D {
     }
 
     _showPersistentThrow(throwData) {
+        const idle = this.queue.length === 0 && !this.box.running;
         return new Promise((resolve) => {
             this.nextAnimation.addItem({
                 type: "persistent",
                 params: throwData,
                 resolve: resolve
-            });
+            }, { immediate: idle });
         });
     }
 
