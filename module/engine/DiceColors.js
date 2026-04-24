@@ -273,34 +273,47 @@ export const TEXTURELIST = {
 		source: 'fuel.webp',
 		bump: 'fuel.webp'
 	},
-	'geometric': {
-		name: 'DICESONICE.TextureGeometric',
-		composite: 'multiply',
-		atlas: "modules/dice-so-nice/textures/standard.json",
-		source: 'geometric.webp',
-		bump: 'geometric.webp'
-	},
-	'mosaic': {
-		name: 'DICESONICE.TextureMosaic',
-		composite: 'multiply',
-		atlas: "modules/dice-so-nice/textures/standard.json",
-		source: 'mosaic.webp',
-		bump: 'mosaic.webp'
-	},
-	'tile': {
-		name: 'DICESONICE.TextureTile',
-		composite: 'multiply',
-		atlas: "modules/dice-so-nice/textures/standard.json",
-		source: 'tile.webp',
-		bump: 'tile.webp',
-		material: 'stone'
-	},
 	'watercolor': {
 		name: 'DICESONICE.TextureWatercolor',
 		composite: 'multiply',
 		atlas: "modules/dice-so-nice/textures/standard.json",
 		source: 'watercolor.webp',
 		bump: ''
+	},
+	'alienrock': {
+		name: 'DICESONICE.TextureAlienRock',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'alienrock.webp',
+		bump: 'alienrock_bump.webp'
+	},
+	'hell': {
+		name: 'DICESONICE.TextureHell',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'hell.webp',
+		bump: 'hell_bump.webp'
+	},
+	'lava': {
+		name: 'DICESONICE.TextureLava',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'lava.webp',
+		bump: 'lava_bump.webp'
+	},
+	'portal': {
+		name: 'DICESONICE.TexturePortal',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'portal.webp',
+		bump: ''
+	},
+	'tile': {
+		name: 'DICESONICE.TextureTile',
+		composite: 'multiply',
+		atlas: "modules/dice-so-nice/textures/standard.json",
+		source: 'tile.webp',
+		bump: 'tile_bump.webp'
 	}
 };
 
@@ -342,10 +355,10 @@ export const COLORSETS = {
 		description: 'DICESONICE.ColorFire',
 		category: 'DICESONICE.DamageTypes',
 		foreground: '#ede2b2',
-		background: ['#f8d84f','#f9b02d','#f43c04','#910200','#4c1009'],
+		background: ['#ffeea4','#ffdc9c','#fac8b8','#910200','#814841'],
 		outline: 'black',
-		texture: 'fire',
-		material: 'metal'
+		texture: 'lava',
+		material: 'plastic'
 	},
 	'ice': {
 		name: 'ice',
@@ -553,6 +566,16 @@ export const COLORSETS = {
 		outline: 'black',
 		texture: 'bird',
 	},
+	'hell': {
+		name: 'hell',
+		description: 'DICESONICE.ColorHell',
+		category: 'DICESONICE.AcquiredTaste',
+		foreground: '#ffffff',
+		background: '#a6a6a6',
+		outline: 'black',
+		texture: 'hell',
+		material: 'plastic'
+	},
 	'tigerking': {
 		name: 'tigerking',
 		description: 'DICESONICE.ColorTigerKing',
@@ -679,6 +702,33 @@ export const COLORSETS = {
 		background: '#8396be',
 		outline: 'black',
 		texture: 'stainedglass'
+	},
+	'alienrock': {
+		name: 'alienrock',
+		description: 'DICESONICE.ColorAlienRock',
+		category: 'DICESONICE.ThemesSoNice',
+		foreground: '#ffffff',
+		background: '#8baa83',
+		outline: 'black',
+		texture: 'alienrock'
+	},
+	'portal': {
+		name: 'portal',
+		description: 'DICESONICE.ColorPortal',
+		category: 'DICESONICE.ThemesSoNice',
+		foreground: '#ffffff',
+		background: '#c7c7c7',
+		outline: 'black',
+		texture: 'portal'
+	},
+	'tile': {
+		name: 'tile',
+		description: 'DICESONICE.ColorTile',
+		category: 'DICESONICE.ThemesSoNice',
+		foreground: '#ffffff',
+		background: '#e3e3e3',
+		outline: 'black',
+		texture: 'tile'
 	},
 	'bronze': {
 		name: 'bronze',
@@ -823,6 +873,26 @@ export class DiceColors {
 		return {name:'',texture:''};
 	}
 	
+	static hexToHSL(hex) {
+		let r = parseInt(hex.slice(1, 3), 16) / 255;
+		let g = parseInt(hex.slice(3, 5), 16) / 255;
+		let b = parseInt(hex.slice(5, 7), 16) / 255;
+		let max = Math.max(r, g, b), min = Math.min(r, g, b);
+		let h, s, l = (max + min) / 2;
+		if (max === min) {
+			h = s = 0;
+		} else {
+			let d = max - min;
+			s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+			switch (max) {
+				case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+				case g: h = ((b - r) / d + 2) / 6; break;
+				case b: h = ((r - g) / d + 4) / 6; break;
+			}
+		}
+		return { h: Math.round(h * 360), s, l };
+	}
+
 	static randomColor() {
 		// random colors
 		let rgb=[];

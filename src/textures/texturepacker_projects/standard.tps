@@ -173,30 +173,8 @@
         </struct>
         <key>individualSpriteSettings</key>
         <map type="IndividualSpriteSettingsMap">
-            <key type="filename">../astral.webp</key>
-            <key type="filename">../dragon.webp</key>
-            <key type="filename">../dragon_bump.webp</key>
-            <key type="filename">../geometric.webp</key>
-            <key type="filename">../glitter-alpha.webp</key>
-            <key type="filename">../glitter.webp</key>
-            <key type="filename">../glitter_bump.webp</key>
-            <key type="filename">../skulls.webp</key>
-            <key type="filename">../speckles.webp</key>
-            <key type="filename">../stars.webp</key>
-            <struct type="IndividualSpriteSettings">
-                <key>pivotPoint</key>
-                <point_f>0,0</point_f>
-                <key>spriteScale</key>
-                <double>1</double>
-                <key>scale9Enabled</key>
-                <false/>
-                <key>scale9Borders</key>
-                <rect>32,32,64,64</rect>
-                <key>scale9Paddings</key>
-                <rect>32,32,64,64</rect>
-                <key>scale9FromFile</key>
-                <false/>
-            </struct>
+            <key type="filename">../alienrock.webp</key>
+            <key type="filename">../alienrock_bump.webp</key>
             <key type="filename">../brick.webp</key>
             <key type="filename">../bronze01.webp</key>
             <key type="filename">../bronze02.webp</key>
@@ -216,23 +194,28 @@
             <key type="filename">../fiber.webp</key>
             <key type="filename">../fire.webp</key>
             <key type="filename">../fuel.webp</key>
+            <key type="filename">../hell.webp</key>
+            <key type="filename">../hell_bump.webp</key>
             <key type="filename">../ice.webp</key>
+            <key type="filename">../lava.webp</key>
+            <key type="filename">../lava_bump.webp</key>
             <key type="filename">../leopard.webp</key>
             <key type="filename">../lizard.webp</key>
             <key type="filename">../lizard_bump.webp</key>
             <key type="filename">../marble.webp</key>
             <key type="filename">../metal.webp</key>
             <key type="filename">../metal_bump.webp</key>
-            <key type="filename">../mosaic.webp</key>
             <key type="filename">../noise.webp</key>
             <key type="filename">../paper.webp</key>
             <key type="filename">../paper_bump.webp</key>
+            <key type="filename">../portal.webp</key>
             <key type="filename">../radial.webp</key>
             <key type="filename">../stainedglass.webp</key>
             <key type="filename">../stainedglass_bump.webp</key>
             <key type="filename">../stone.webp</key>
             <key type="filename">../tiger.webp</key>
             <key type="filename">../tile.webp</key>
+            <key type="filename">../tile_bump.webp</key>
             <key type="filename">../water.webp</key>
             <key type="filename">../watercolor.webp</key>
             <key type="filename">../wood.webp</key>
@@ -247,6 +230,29 @@
                 <rect>64,64,128,128</rect>
                 <key>scale9Paddings</key>
                 <rect>64,64,128,128</rect>
+                <key>scale9FromFile</key>
+                <false/>
+            </struct>
+            <key type="filename">../astral.webp</key>
+            <key type="filename">../dragon.webp</key>
+            <key type="filename">../dragon_bump.webp</key>
+            <key type="filename">../glitter-alpha.webp</key>
+            <key type="filename">../glitter.webp</key>
+            <key type="filename">../glitter_bump.webp</key>
+            <key type="filename">../skulls.webp</key>
+            <key type="filename">../speckles.webp</key>
+            <key type="filename">../stars.webp</key>
+            <struct type="IndividualSpriteSettings">
+                <key>pivotPoint</key>
+                <point_f>0,0</point_f>
+                <key>spriteScale</key>
+                <double>1</double>
+                <key>scale9Enabled</key>
+                <false/>
+                <key>scale9Borders</key>
+                <rect>32,32,64,64</rect>
+                <key>scale9Paddings</key>
+                <rect>32,32,64,64</rect>
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
@@ -302,10 +308,16 @@
                     <filename>../brick.webp</filename>
                     <filename>../fiber.webp</filename>
                     <filename>../fuel.webp</filename>
-                    <filename>../geometric.webp</filename>
-                    <filename>../mosaic.webp</filename>
-                    <filename>../tile.webp</filename>
                     <filename>../watercolor.webp</filename>
+                    <filename>../alienrock.webp</filename>
+                    <filename>../alienrock_bump.webp</filename>
+                    <filename>../hell.webp</filename>
+                    <filename>../hell_bump.webp</filename>
+                    <filename>../lava.webp</filename>
+                    <filename>../lava_bump.webp</filename>
+                    <filename>../portal.webp</filename>
+                    <filename>../tile.webp</filename>
+                    <filename>../tile_bump.webp</filename>
                 </array>
             </struct>
         </map>

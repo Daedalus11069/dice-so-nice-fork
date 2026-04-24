@@ -1,6 +1,6 @@
 import { DiceEditorPreview } from '../rendering/DiceEditorPreview.js';
 import { DiceLibrary } from '../engine/DiceLibrary.js';
-import { DiceColors } from '../engine/DiceColors.js';
+import { DiceColors, TEXTURELIST } from '../engine/DiceColors.js';
 import { DICE_SHAPE } from '../engine/DiceModels.js';
 import { Utils } from '../Utils.js';
 import { GlyphPicker } from '../glyph-picker/GlyphPicker.js';
@@ -143,7 +143,8 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         "multiply": "DICESONICE.CompositeMultiply",
         "destination-in": "DICESONICE.CompositeDestinationIn",
         "difference": "DICESONICE.CompositeDifference",
-        "soft-light": "DICESONICE.CompositeSoftLight"
+        "soft-light": "DICESONICE.CompositeSoftLight",
+        "hueshift": "DICESONICE.CompositeHueShift"
     };
 
     async _prepareContext(options) {
@@ -156,7 +157,9 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         data.isCustomTexture = tex.startsWith("custom:");
         data.customTexturePath = data.isCustomTexture ? tex.slice(7) : "";
         data.builtinTexture = data.isCustomTexture ? "none" : tex;
-        data.baseTextureComposite = this.libraryDie.baseAppearance.textureComposite || "multiply";
+        data.hasBaseTexture = tex !== "none";
+        const defaultComposite = (!data.isCustomTexture && TEXTURELIST[tex]) ? TEXTURELIST[tex].composite : "multiply";
+        data.baseTextureComposite = this.libraryDie.baseAppearance.textureComposite || defaultComposite;
         data.compositeOptions = Utils.localize(DiceEditor.COMPOSITE_OPTIONS);
 
         data.textureList = Utils.prepareTextureList();
@@ -190,6 +193,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
                 faceTextureEffective: "",
                 faceCustomTexturePath: "",
                 isFaceCustomTexture: false,
+                hasFaceTexture: false,
                 faceTextureComposite: "",
                 compositeOptions: data.compositeOptions,
                 faceEmissive: false,
@@ -357,12 +361,14 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find(".label-image-controls").toggle(!!faceData.labelImage);
             const bgTex = faceData.backgroundTexture || "";
             const isFaceCustom = bgTex.startsWith("custom:");
+            const hasFaceTexture = bgTex && bgTex !== "none";
             html.find("[name=faceTexture]").val(isFaceCustom ? "" : bgTex).prop("disabled", isFaceCustom);
             html.find("[name=faceTextureEffective]").val(bgTex);
             html.find("[name=faceCustomTexturePath]").val(isFaceCustom ? bgTex.slice(7) : "");
             html.find("[data-face-texture-clear]").toggle(isFaceCustom);
-            html.find(".face-custom-texture-composite").toggle(isFaceCustom);
-            html.find("[name=faceTextureComposite]").val(faceData.backgroundTextureComposite || "");
+            html.find(".face-texture-composite").toggle(hasFaceTexture);
+            const faceDefaultComposite = (!isFaceCustom && TEXTURELIST[bgTex]) ? TEXTURELIST[bgTex].composite : "";
+            html.find("[name=faceTextureComposite]").val(faceData.backgroundTextureComposite || faceDefaultComposite);
             html.find("[name=faceEmissive]").prop("checked", !!faceData.emissive);
             html.find("[name=faceEmissiveColor]").val(faceData.emissiveColor || "");
             const base = this.libraryDie.baseAppearance;
@@ -387,7 +393,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             html.find("[name=faceTextureEffective]").val("");
             html.find("[name=faceCustomTexturePath]").val("");
             html.find("[data-face-texture-clear]").hide();
-            html.find(".face-custom-texture-composite").hide();
+            html.find(".face-texture-composite").hide();
             html.find("[name=faceTextureComposite]").val("");
             html.find("[name=faceEmissive]").prop("checked", false);
             const base = this.libraryDie.baseAppearance;
@@ -519,7 +525,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
                 html.find("[name=baseCustomTexturePath]").val(path);
                 html.find("[name=baseTexture]").prop("disabled", true);
                 html.find("[data-base-texture-clear]").show();
-                html.find(".custom-texture-composite").show();
+                html.find(".texture-composite").show();
                 this._onGlobalChange();
             }
         });
@@ -533,7 +539,11 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         html.find("[name=baseCustomTexturePath]").val("");
         html.find("[name=baseTexture]").prop("disabled", false);
         html.find("[data-base-texture-clear]").hide();
-        html.find(".custom-texture-composite").hide();
+        const hasTexture = dropdownVal !== "none";
+        html.find(".texture-composite").toggle(hasTexture);
+        if (hasTexture && TEXTURELIST[dropdownVal]) {
+            html.find("[name=baseTextureComposite]").val(TEXTURELIST[dropdownVal].composite || "source-over");
+        }
         this.libraryDie.baseAppearance.textureComposite = null;
         this._onGlobalChange();
     }
@@ -544,7 +554,11 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         html.find("[name=baseTextureEffective]").val(val);
         html.find("[name=baseCustomTexturePath]").val("");
         html.find("[data-base-texture-clear]").hide();
-        html.find(".custom-texture-composite").hide();
+        const hasTexture = val && val !== "none";
+        html.find(".texture-composite").toggle(hasTexture);
+        if (hasTexture && TEXTURELIST[val]) {
+            html.find("[name=baseTextureComposite]").val(TEXTURELIST[val].composite || "source-over");
+        }
         this._onGlobalChange();
     }
 
@@ -565,7 +579,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
                 html.find("[name=faceCustomTexturePath]").val(path);
                 html.find("[name=faceTexture]").prop("disabled", true);
                 html.find("[data-face-texture-clear]").show();
-                html.find(".face-custom-texture-composite").show();
+                html.find(".face-texture-composite").show();
                 this._onFacePropertyChange();
             }
         });
@@ -579,8 +593,13 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         html.find("[name=faceCustomTexturePath]").val("");
         html.find("[name=faceTexture]").prop("disabled", false);
         html.find("[data-face-texture-clear]").hide();
-        html.find(".face-custom-texture-composite").hide();
-        html.find("[name=faceTextureComposite]").val("");
+        const hasTexture = dropdownVal && dropdownVal !== "none";
+        html.find(".face-texture-composite").toggle(hasTexture);
+        if (hasTexture && TEXTURELIST[dropdownVal]) {
+            html.find("[name=faceTextureComposite]").val(TEXTURELIST[dropdownVal].composite || "source-over");
+        } else {
+            html.find("[name=faceTextureComposite]").val("");
+        }
         this._onFacePropertyChange();
     }
 
@@ -590,26 +609,35 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         html.find("[name=faceTextureEffective]").val(val);
         html.find("[name=faceCustomTexturePath]").val("");
         html.find("[data-face-texture-clear]").hide();
-        html.find(".face-custom-texture-composite").hide();
+        const hasTexture = val && val !== "none";
+        html.find(".face-texture-composite").toggle(hasTexture);
+        if (hasTexture && TEXTURELIST[val]) {
+            html.find("[name=faceTextureComposite]").val(TEXTURELIST[val].composite || "source-over");
+        } else if (!hasTexture) {
+            html.find("[name=faceTextureComposite]").val("");
+        }
     }
 
     async _onFaceCompositeChange() {
         const html = $(this.element);
         const effective = html.find("[name=faceTextureEffective]").val();
-        if (!effective.startsWith("custom:")) return;
-        const path = effective.slice(7);
-        const composite = html.find("[name=faceTextureComposite]").val()
-            || html.find("[name=baseTextureComposite]").val() || "multiply";
-        await DiceColors.registerCustomTexture(path, composite);
+        if (effective.startsWith("custom:")) {
+            const path = effective.slice(7);
+            const composite = html.find("[name=faceTextureComposite]").val()
+                || html.find("[name=baseTextureComposite]").val() || "multiply";
+            await DiceColors.registerCustomTexture(path, composite);
+        }
+        this._onFacePropertyChange();
     }
 
     async _onBaseCompositeChange() {
         const html = $(this.element);
         const effective = html.find("[name=baseTextureEffective]").val();
-        if (!effective.startsWith("custom:")) return;
-        const path = effective.slice(7);
-        const composite = html.find("[name=baseTextureComposite]").val();
-        await DiceColors.registerCustomTexture(path, composite);
+        if (effective.startsWith("custom:")) {
+            const path = effective.slice(7);
+            const composite = html.find("[name=baseTextureComposite]").val();
+            await DiceColors.registerCustomTexture(path, composite);
+        }
         this._onGlobalChange();
     }
 

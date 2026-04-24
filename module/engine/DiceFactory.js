@@ -1261,7 +1261,15 @@ export class DiceFactory {
 			context.beginPath();
 			context.rect(x,y,ts,ts);
 			context.clip();
-			context.globalCompositeOperation = texture.composite || 'source-over';
+			if (texture.composite === 'hueshift') {
+				const hsl = DiceColors.hexToHSL(backcolor);
+				const saturate = 0.5 + hsl.s * 1.5;
+				const brightness = 0.5 + hsl.l;
+				context.filter = `hue-rotate(${hsl.h}deg) saturate(${saturate}) brightness(${brightness})`;
+				context.globalCompositeOperation = 'source-over';
+			} else {
+				context.globalCompositeOperation = texture.composite || 'source-over';
+			}
 			context.drawImage(texture.texture.source, texture.texture.frame.x, texture.texture.frame.y, texture.texture.frame.w, texture.texture.frame.h, x, y, ts, ts);
 			context.restore();
 			
@@ -2078,6 +2086,9 @@ export class DiceFactory {
 				materialData.edge = base.edgeColor || "";
 				materialData.font = (base.font && base.font !== "auto") ? base.font : colorsetData.font;
 				materialData.texture = DiceColors.getTexture(base.texture || "none");
+				if (base.textureComposite && materialData.texture.name) {
+					materialData.texture = Object.assign({}, materialData.texture, { composite: base.textureComposite });
+				}
 				if (base.material && base.material !== "auto") {
 					materialData.material = base.material;
 				} else {
@@ -2108,6 +2119,9 @@ export class DiceFactory {
 						}
 						if(faceData.backgroundTexture !== null && faceData.backgroundTexture !== undefined) {
 							override.texture = DiceColors.getTexture(faceData.backgroundTexture);
+							if (faceData.backgroundTextureComposite && override.texture.name) {
+								override.texture = Object.assign({}, override.texture, { composite: faceData.backgroundTextureComposite });
+							}
 						}
 						if(faceData.emissive === true) override.emissive = true;
 						else if(faceData.emissive === false) override.emissive = false;
