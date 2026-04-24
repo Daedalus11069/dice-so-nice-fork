@@ -200,6 +200,8 @@ dice3d.addDicePreset({
 A background texture is displayed on every face of a die on top of the dice color.
 You can use any blending mode supported by HTMLCanvas2D.
 [Full list available here](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Compositing/Example)
+
+You can also set `composite` to `'hueshift'`. Instead of a canvas blend, this applies CSS `hue-rotate`, `saturate`, and `brightness` filters derived from the colorset's background color (converted to HSL). This lets you create multiple color variations of the same colored texture across different colorsets without needing separate image files.
 ```javascript
 /**
  * Add a texture to the list of textures and preload it

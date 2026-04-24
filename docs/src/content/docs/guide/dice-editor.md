@@ -16,7 +16,7 @@ The Dice Editor lets you create fully custom dice with per-face labels, images, 
 
 1. Enter a **Die Name** to identify it in your library.
 3. Choose a **Die Type** (d4, d6, d8, d10, d12, d20, etc.).
-4. Set the **Global Properties** that apply to all faces: theme (colorset), colors, texture, material, and font.
+4. Set the **Global Properties** that apply to all faces: theme (colorset), colors, texture, material, and font. When a texture is selected, a **Blend Mode** dropdown lets you change how the texture combines with the dice color. Each texture has a default blend mode. The **Hue Shift** mode recolors the texture based on the dice color picker (hue controls the color shift, saturation and lightness adjust intensity).
 5. Customize individual faces as needed (see below).
 6. Click **Save** to add the die to your library.
 
