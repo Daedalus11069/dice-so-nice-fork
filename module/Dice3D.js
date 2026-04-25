@@ -477,6 +477,7 @@ export class Dice3D {
         } else {
             this.canvas[0].style.zIndex = ++foundry.applications.api.ApplicationV2._maxZ;
         }
+        if (ui.activeWindow) ui.activeWindow = null;
     }
 
     /**
@@ -686,13 +687,6 @@ export class Dice3D {
                     } catch (e) { /* capture is best-effort */ }
                     this._beforeShow();
                 } else {
-                    if (this._isAutoMode()) {
-                        const el = document.elementFromPoint(event.clientX, event.clientY);
-                        const win = el?.closest('.window-app, .application');
-                        if (win && foundry.applications?.api?.ApplicationV2?._maxZ != null) {
-                            win.style.zIndex = ++foundry.applications.api.ApplicationV2._maxZ;
-                        }
-                    }
                     hideCanvasAndClear();
                 }
             };
