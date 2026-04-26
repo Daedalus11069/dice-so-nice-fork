@@ -481,6 +481,10 @@ export class ThrowEngine {
 					stepPositions: positions[index]
 				};
 				consumedSimIndices.add(index);
+			} else if (dice.sim) {
+				// not tracked in this sim: zero stale buffers so old collisions don't replay
+				dice.sim.stepPositions = new Float32Array(1001 * 3);
+				dice.sim.stepQuaternions = new Float32Array(1001 * 4);
 			}
 		}
 

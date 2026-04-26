@@ -102,8 +102,7 @@ export class DiceFactory {
 					'type':"standard",
 					'options':{
 						metalness: 0,
-						roughness: 0.6,
-						envMapIntensity:1
+						roughness: 0.5
 					},
 					'scopedOptions':{
 						roughnessMap : "roughnessMap_fingerprint",
@@ -124,7 +123,7 @@ export class DiceFactory {
 				'wood': {
 					'type':'standard',
 					'options': {
-						roughness:1,
+						roughness: 0.8,
 						metalness:0
 					},
 					'scopedOptions':{
@@ -142,7 +141,6 @@ export class DiceFactory {
 						thickness: TARGET_D6_EDGE_METERS * 0.4,
 						attenuationDistance: TARGET_D6_EDGE_METERS * 0.2,
 						attenuationColor: new Color(0.95, 0.95, 1.0),
-						envMapIntensity: 1,
 						side: DoubleSide
 					},
 					'scopedOptions':{
@@ -175,9 +173,8 @@ export class DiceFactory {
 					'options': {
 						metalness: 0,
 						roughness: 0.8,
-						envMapIntensity:1,
 						clearcoat: 1,
-						clearcoatRoughness: 0.9
+						clearcoatRoughness: 0.1
 					},
 					'scopedOptions':{
 						envMap : true
@@ -190,7 +187,7 @@ export class DiceFactory {
 						roughness: 0.2,
 						iridescence: 1,
 						iridescenceIOR: 1.8,
-						iridescenceThicknessRange: [485,515]
+						iridescenceThicknessRange: [300,700]
 					},
 					'scopedOptions':{
 						envMap : true

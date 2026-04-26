@@ -476,12 +476,12 @@ export class DiceBox {
 			if (this.dicefactory.realisticLighting && this.immersiveDarkness) {
 				let darknessLevel = canvas.darknessLevel || 0;
 				let factor = 1.0 - darknessLevel * 0.95;
-				this.diceScene.light.intensity = factor;
-				this.diceScene.light_amb.intensity = 4.0 * factor;
+				this.diceScene.light.intensity = 0.1 * factor;
+				this.diceScene.light_amb.intensity = 1.5 * factor;
 				this.diceScene.scene.environmentIntensity = factor;
 			} else if (this.dicefactory.realisticLighting) {
-				this.diceScene.light.intensity = 1;
-				this.diceScene.light_amb.intensity = 4.0;
+				this.diceScene.light.intensity = 0.1;
+				this.diceScene.light_amb.intensity = 1.5;
 				this.diceScene.scene.environmentIntensity = 1.0;
 			}
 

@@ -238,13 +238,13 @@ export class DiceScene {
 
 		let intensity, intensity_amb;
 		if (this.dicefactory.realisticLighting) {
-			intensity = 1;
-			intensity_amb = 4.0;
+			intensity = 0.1;
+			intensity_amb = 1.5;
 		} else {
 			this.colors.spotlight = 0xffffff;
 			this.colors.ambient = 0xffffff;
 			intensity = 0.2;
-			intensity_amb = 8.0;
+			intensity_amb = 7.0;
 		}
 
 		this.light_amb = new HemisphereLight(this.colors.ambient, this.colors.ground, intensity_amb);
