@@ -5,6 +5,7 @@ import { ShowcaseView } from '../rendering/ShowcaseView.js';
 import { Utils } from '../Utils.js';
 import { DiceNotation, COMPOUND_DICE } from '../DiceNotation.js';
 import { DiceColors, DICE_SCALE } from '../engine/DiceColors.js';
+import { AMBIANCE_LIST } from '../engine/DiceFactory.js';
 import { DiceSystem } from '../DiceSystem.js';
 import { DiceLibrary, LIBRARY_DIE_TYPES } from '../engine/DiceLibrary.js';
 import { DiceLibraryDialog } from './DiceLibraryDialog.js';
@@ -173,11 +174,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 "wood_tray": "DICESONICE.SurfaceWoodTray",
                 "metal": "DICESONICE.SurfaceMetal"
             }),
-            ambianceList: Utils.localize({
-                "blouberg_sunrise_2_1k": "DICESONICE.AmbianceNeutral",
-                "warm_restaurant_night_1k": "DICESONICE.AmbianceTavern",
-                "shanghai_bund_1k": "DICESONICE.AmbianceNeon"
-            }),
+            ambianceList: Utils.localize(AMBIANCE_LIST),
             canvasZIndexList: Utils.localize({
                 "auto": "DICESONICE.CanvasZIndexAuto",
                 "over": "DICESONICE.CanvasZIndexOver",

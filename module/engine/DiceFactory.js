@@ -1,3 +1,9 @@
+export const AMBIANCE_LIST = {
+	"foyer_1k": "DICESONICE.AmbianceNeutral",
+	"warm_restaurant_night_1k": "DICESONICE.AmbianceTavern",
+	"shanghai_bund_1k": "DICESONICE.AmbianceNeon"
+};
+
 import {DicePreset, D4_TRIPLET_VALUES} from './DicePreset.js';
 import {BASE_PRESETS_LIST, EXTRA_PRESETS_LIST} from './DiceDefaultPresets.js';
 import {DiceColors, DICE_SCALE, COLORSETS} from './DiceColors.js';
@@ -314,7 +320,7 @@ export class DiceFactory {
 		this.shadows = config.shadowQuality != "none";
 		this.shadowQuality = config.shadowQuality;
 		this.advancedGlass = !!config.advancedGlass;
-		this.ambiance = config.ambiance || "blouberg_sunrise_2_1k";
+		this.ambiance = config.ambiance in AMBIANCE_LIST ? config.ambiance : "foyer_1k";
 	}
 
 	register(diceobj) {
