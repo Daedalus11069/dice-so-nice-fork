@@ -336,6 +336,10 @@ let r = new Roll('1d6[black]+1d6[white]').evaluate().then((roll) => {
     roll.toMessage();
 });
 ```
+
+:::note
+The `die:` prefix is reserved for [library die resolution](/foundryvtt-dice-so-nice/guide/dice-library/#rolling-a-library-die-by-name). A flavor like `[die:Fire Oracle]` resolves to a named library die instead of a colorset or damage type. Avoid naming custom colorsets starting with `die:`.
+:::
 ### Modifying the Roll object
 If you prefer keep the flavor feature available for other uses, you can add a new attribute to a DiceTerm or Roll object instead.
 ```javascript

@@ -1,7 +1,7 @@
 {
   "name": "foundryvtt-dice-so-nice",
   "type": "module",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "description": "Adds the ability to show a nice 3D dice simulation when a roll is made.",
   "main": "index.js",
   "scripts": {

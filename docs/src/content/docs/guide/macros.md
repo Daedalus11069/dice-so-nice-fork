@@ -42,6 +42,17 @@ await game.dice3d.waitFor3DAnimationByMessageID(msg.id);
 console.log('Animation ended, do something now');
 ```
 
+## Roll a specific library die
+
+You can roll a die from your [Dice Library](/foundryvtt-dice-so-nice/guide/dice-library/#rolling-a-library-die-by-name) by name using the `die:` flavor prefix:
+
+```javascript
+let r = await new Roll('1d6[die:Fire Oracle]').evaluate();
+await r.toMessage();
+```
+
+This also works with multiple dice and cross-user lookups (`[die:Alice:Fate Die]`). See the [Dice Library guide](/foundryvtt-dice-so-nice/guide/dice-library/#rolling-a-library-die-by-name) for full syntax details.
+
 ## Disable the 3D animation temporarily
 
 You can temporarily prevent Dice So Nice from animating rolls. This is useful in macros that make many rolls where you only want to animate some of them.

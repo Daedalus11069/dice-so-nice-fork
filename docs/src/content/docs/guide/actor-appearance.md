@@ -13,17 +13,27 @@ For example, if you set a character's theme to "Poison" but don't change the fon
 
 When a roll is made, the resolution order is:
 
-1. Actor appearance (if the actor has one configured)
-2. Player appearance
-3. Default appearance
+1. Token appearance (if the roll comes from an unlinked token with its own appearance)
+2. Actor appearance (if the actor has one configured)
+3. Player appearance
+4. Default appearance
 
-Actor appearance always takes priority when present.
+The most specific appearance always takes priority when present.
+
+## Linked vs Unlinked Tokens
+
+In Foundry VTT, tokens can be **linked** or **unlinked** to their base actor:
+
+- **Linked tokens** (typically player characters) share the same data as the base actor. Editing dice appearance through a linked token's sheet edits the actor directly.
+- **Unlinked tokens** (typically monsters and NPCs) each have their own independent copy of the actor data. You can give each copy its own dice appearance. For example, five goblins on the map could each roll with different dice themes.
+
+When you open an unlinked token's sheet and configure its dice appearance, the settings are stored on that specific token. When that token rolls, its appearance is used. The base actor's appearance is unaffected.
 
 ## Configuring Actor Appearance
 
 To set up a per-actor appearance:
 
-1. Open the actor's character sheet.
+1. Open the actor's character sheet (from the sidebar or by double-clicking a token).
 2. Click the **header menu** (top-right of the sheet) and select **3D Dice Settings**.
 3. The Dice So Nice! configuration dialog opens in actor mode, showing only appearance controls.
 4. Adjust the appearance settings for this character.
@@ -51,3 +61,4 @@ When a player rolls as a character that has a custom appearance, all other playe
 
 - **ApplicationV2 sheets only.** The header button uses Foundry's V2 application hook system. Game systems still using the legacy V1 ActorSheet will not show the dice config button in the header.
 - **No export/import.** Actor appearances are stored as `flags` on the actor document. The Profiles & Data export/import covers player-level data only.
+- **Token resolution on rolls.** When an actor has tokens on the current scene, Foundry associates rolls with a token even if you triggered the roll from the actor sidebar. This means the token's appearance (if any) will be used. This is standard Foundry behavior and only affects unlinked tokens that have their own custom appearance.
