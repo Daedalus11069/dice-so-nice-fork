@@ -870,13 +870,12 @@ export class Dice3D {
                 messageElementPopout = $(window.ui.sidebar.popouts.chat.element).find(`.message[data-message-id="${chatMessage.id}"]`);
             }
 
-            // Manage v13 popup system - TODO clean up consistency jquery
+            // Guard the fallback with _shouldShowNotifications() to avoid double-firing the notification pip (#538).
             const notificationElement = document.querySelector(`#chat-notifications .message[data-message-id="${chatMessage.id}"]`);
             if (notificationElement) {
-                notificationElement.remove();
-            }
-
-            if (!ui.sidebar.expanded) {
+                notificationElement.classList.remove("dsn-hide");
+                notificationElement._lifeSpan = 0;
+            } else if (ui.chat._shouldShowNotifications()) {
                 ui.chat.notify(chatMessage, { newMessage: true, existing: ui.chat.element.querySelector(`[data-message-id="${chatMessage.id}"]`) });
             }
 
