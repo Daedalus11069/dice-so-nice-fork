@@ -1006,7 +1006,7 @@ export class Dice3D {
                 const shouldResolveOwner = ownerAppearanceSetting === "2"
                     || (ownerAppearanceSetting === "1" && chatMessage.getFlag("core", "initiativeRoll"));
                 if (shouldResolveOwner && chatMessage.speaker) {
-                    const actor = game.actors.get(chatMessage.speaker.actor);
+                    const actor = ChatMessage.getSpeakerActor(chatMessage.speaker);
                     if (actor && actor.hasPlayerOwner) {
                         //get the user from game.users
                         let ownerUser = game.users.find(user => !user.isGM && user.character?.id == actor.id);
@@ -1097,7 +1097,7 @@ export class Dice3D {
         applyAppearance(context.roll);
 
         if (speaker) {
-            let actor = game.actors.get(speaker.actor);
+            let actor = ChatMessage.getSpeakerActor(speaker);
             const isNpc = actor ? !actor.hasPlayerOwner : false;
             if (isNpc && game.settings.get("dice-so-nice", "hideNpcRolls")) {
                 return Promise.resolve(false);
@@ -1122,7 +1122,7 @@ export class Dice3D {
         //We allow the hook to modify the roll to be shown without altering the original roll reference
         //This is useful for example to show a different roll than the one made by the user without relying on the manual showForRoll method
         let hookedRoll = context.dsnRoll || context.roll;
-        let actor = speaker?.actor ? game.actors.get(speaker.actor) : null;
+        let actor = ChatMessage.getSpeakerActor(speaker);
         let notation = new DiceNotation(hookedRoll, Dice3D.ALL_CONFIG(user, actor), user);
         return this.show(notation, context.user, synchronize, context.users, context.blind, speaker);
     }
@@ -1145,7 +1145,7 @@ export class Dice3D {
             if (!data.throws.length || !this.isEnabled()) {
                 resolve(false);
             } else {
-                let actor = speaker?.actor ? game.actors.get(speaker.actor) : null;
+                let actor = ChatMessage.getSpeakerActor(speaker);
 
                 if (synchronize) {
                     users = users && users.length > 0 ? (users[0]?.id ? users.map(user => user.id) : users) : users;
