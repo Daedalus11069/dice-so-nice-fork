@@ -1,6 +1,7 @@
-import { Clock, Mesh, MeshStandardMaterial, PlaneGeometry } from 'three';
-import { DiceSFX } from '../DiceSFX.js';
-import { DiceSFXManager } from './../DiceSFXManager';
+import { Mesh, MeshStandardMaterial, PlaneGeometry } from 'three';
+import { DiceSFX } from './DiceSFX.js';
+import { DiceSFXManager } from './DiceSFXManager.js';
+import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
 
 export class PlayAnimationImpact extends DiceSFX {
     static id = "PlayAnimationImpact";
@@ -31,7 +32,6 @@ export class PlayAnimationImpact extends DiceSFX {
 
     /**@override play */
     async play() {
-        this.clock = new Clock();
         this.plane = PlayAnimationImpact.planeImpact.clone();
         this.plane.receiveShadow = this.box.shadows;
 
@@ -39,14 +39,16 @@ export class PlayAnimationImpact extends DiceSFX {
         this.plane.scale.set(scale, scale, scale);
 
         this.plane.position.x = this.dicemesh.parent.position.x;
-        this.plane.position.y = this.dicemesh.parent.position.y;
+        this.plane.position.z = this.dicemesh.parent.position.z;
+        //lay flat on XZ, random spin
+        this.plane.rotation.x = -Math.PI / 2;
         this.plane.rotation.z = Math.random() * Math.PI * 2;
         this.box.scene.add(this.plane);
         foundry.audio.AudioHelper.play({
             src: PlayAnimationImpact.sound,
             volume: this.volume
         }, false);
-        this.dicemesh.position.z -= 1;
+        this.dicemesh.position.y -= LEGACY_TO_METERS;
 
     }
 

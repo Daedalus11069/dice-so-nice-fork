@@ -1,11 +1,33 @@
-import { TEXTURELIST, COLORSETS } from './DiceColors.js';
+import { TEXTURELIST, COLORSETS } from './engine/DiceColors.js';
+import { DiceLibrary } from './engine/DiceLibrary.js';
+
+//remove a handler from a PIXI ticker even when the context changed
+export function removeTicker(fn) {
+	let ticker = canvas.app.ticker;
+	let listener = ticker._head.next;
+
+	while (listener) {
+		if (listener.fn === fn) {
+			listener = listener.destroy();
+		}
+		else {
+			listener = listener.next;
+		}
+	}
+
+	if (!ticker._head.next) {
+		ticker._cancelIfNeeded();
+	}
+	return ticker;
+}
+
 /**
  * Generic utilities class...
  */
 export class Utils {
 
-    static DATA_FORMAT_VERSION = "4.2";
-    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "enabled", "rollingArea"];
+    static DATA_FORMAT_VERSION = "6.1";
+    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "rollingArea", "advancedGlass", "ambiance"];
 
     /**
      * Check if the user's version is less than a specific target version.
@@ -33,7 +55,7 @@ export class Utils {
 
 
     /**
-     * Migrate old 1.0 or 2.0 setting to new 4.x format.
+     * Migrate old setting to latest format.
      */
     static async migrateOldSettings() {
         let formatversion = game.settings.get("dice-so-nice", "formatVersion");
@@ -73,15 +95,15 @@ export class Utils {
                     let appearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : null;
                     if (appearance && appearance.hasOwnProperty("labelColor")) {
                         let data = {
-                            "-=colorset": null,
-                            "-=diceColor": null,
-                            "-=edgeColor": null,
-                            "-=font": null,
-                            "-=labelColor": null,
-                            "-=material": null,
-                            "-=outlineColor": null,
-                            "-=system": null,
-                            "-=texture": null
+                            colorset: foundry.data.operators.ForcedDeletion,
+                            diceColor: foundry.data.operators.ForcedDeletion,
+                            edgeColor: foundry.data.operators.ForcedDeletion,
+                            font: foundry.data.operators.ForcedDeletion,
+                            labelColor: foundry.data.operators.ForcedDeletion,
+                            material: foundry.data.operators.ForcedDeletion,
+                            outlineColor: foundry.data.operators.ForcedDeletion,
+                            system: foundry.data.operators.ForcedDeletion,
+                            texture: foundry.data.operators.ForcedDeletion
                         };
                         await user.setFlag("dice-so-nice", "appearance", data);
                     }
@@ -90,15 +112,15 @@ export class Utils {
                 let appearance = game.user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(game.user.getFlag("dice-so-nice", "appearance")) : null;
                 if (appearance && appearance.hasOwnProperty("labelColor")) {
                     let data = {
-                        "-=colorset": null,
-                        "-=diceColor": null,
-                        "-=edgeColor": null,
-                        "-=font": null,
-                        "-=labelColor": null,
-                        "-=material": null,
-                        "-=outlineColor": null,
-                        "-=system": null,
-                        "-=texture": null
+                        colorset: foundry.data.operators.ForcedDeletion,
+                        diceColor: foundry.data.operators.ForcedDeletion,
+                        edgeColor: foundry.data.operators.ForcedDeletion,
+                        font: foundry.data.operators.ForcedDeletion,
+                        labelColor: foundry.data.operators.ForcedDeletion,
+                        material: foundry.data.operators.ForcedDeletion,
+                        outlineColor: foundry.data.operators.ForcedDeletion,
+                        system: foundry.data.operators.ForcedDeletion,
+                        texture: foundry.data.operators.ForcedDeletion
                     };
                     await game.user.setFlag("dice-so-nice", "appearance", data);
                 }
@@ -112,9 +134,11 @@ export class Utils {
             //v1 to v2
             let settings = game.user.getFlag("dice-so-nice", "settings") ? foundry.utils.duplicate(game.user.getFlag("dice-so-nice", "settings")) : {};
             if (settings.diceColor || settings.labelColor) {
-                let newSettings = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_OPTIONS, settings, { insertKeys: false, insertValues: false, performDeletions: true });
-                let appearance = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_APPEARANCE(), settings, { insertKeys: false, insertValues: false, performDeletions: true });
-                await game.settings.set("dice-so-nice", "settings", foundry.utils.mergeObject(newSettings, { "-=dimensions": null, "-=fxList": null }, { performDeletions: true }));
+                let newSettings = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_OPTIONS, settings, { insertKeys: false, insertValues: false, applyOperators: true });
+                let appearance = foundry.utils.mergeObject(game.dice3d.constructor.DEFAULT_APPEARANCE(), settings, { insertKeys: false, insertValues: false, applyOperators: true });
+                delete newSettings.dimensions;
+                delete newSettings.fxList;
+                await game.settings.set("dice-so-nice", "settings", newSettings);
                 await game.user.setFlag("dice-so-nice", "appearance", appearance);
                 migrated = true;
             }
@@ -157,15 +181,15 @@ export class Utils {
                 let appearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : null;
                 if (appearance && appearance.hasOwnProperty("labelColor")) {
                     let data = {
-                        "-=colorset": null,
-                        "-=diceColor": null,
-                        "-=edgeColor": null,
-                        "-=font": null,
-                        "-=labelColor": null,
-                        "-=material": null,
-                        "-=outlineColor": null,
-                        "-=system": null,
-                        "-=texture": null
+                        colorset: foundry.data.operators.ForcedDeletion,
+                        diceColor: foundry.data.operators.ForcedDeletion,
+                        edgeColor: foundry.data.operators.ForcedDeletion,
+                        font: foundry.data.operators.ForcedDeletion,
+                        labelColor: foundry.data.operators.ForcedDeletion,
+                        material: foundry.data.operators.ForcedDeletion,
+                        outlineColor: foundry.data.operators.ForcedDeletion,
+                        system: foundry.data.operators.ForcedDeletion,
+                        texture: foundry.data.operators.ForcedDeletion
                     };
                     await user.setFlag("dice-so-nice", "appearance", data);
                 }
@@ -183,9 +207,40 @@ export class Utils {
             migrated = true;
         }
 
+        if(Utils.isVersionLessThan(formatversion, "6.0")) {
+            // migrate boolean forceCharacterOwnerAppearanceForInitiative to select forceCharacterOwnerAppearance
+            try {
+                const oldValue = game.settings.get("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative");
+                await game.settings.set("dice-so-nice", "forceCharacterOwnerAppearance", oldValue ? "1" : "0");
+            } catch(e) {
+                // old setting doesn't exist (fresh install), keep the default
+            }
+
+            migrated = true;
+        }
+
+        if(Utils.isVersionLessThan(formatversion, "6.1")) {
+            // unify enabled + onlyShowOwnDice into a single visibility setting
+            const settings = game.user.getFlag("dice-so-nice", "settings");
+            if (settings) {
+                let visibility = "all";
+                if (settings.enabled === false) {
+                    visibility = "none";
+                } else if (settings.onlyShowOwnDice === true) {
+                    visibility = "mine";
+                }
+                const updated = { ...settings, visibility };
+                delete updated.enabled;
+                delete updated.onlyShowOwnDice;
+                await game.user.setFlag("dice-so-nice", "settings", updated);
+            }
+
+            migrated = true;
+        }
+
         game.settings.set("dice-so-nice", "formatVersion", Utils.DATA_FORMAT_VERSION);
         if (migrated)
-            ui.notifications.info(game.i18n.localize("DICESONICE.migrateMessage"));
+            ui.notifications.info(game.i18n.format("DICESONICE.migrateMessage", { version: Utils.DATA_FORMAT_VERSION }));
         return true;
     }
 
@@ -229,7 +284,7 @@ export class Utils {
     };
 
     static prepareTextureList() {
-        return Object.keys(TEXTURELIST).reduce((i18nCfg, key) => {
+        return Object.keys(TEXTURELIST).filter(k => !k.startsWith("custom:")).reduce((i18nCfg, key) => {
             i18nCfg[key] = game.i18n.localize(TEXTURELIST[key].name);
             return i18nCfg;
         }, {}
@@ -298,7 +353,8 @@ export class Utils {
         let saveObject = {
             appearance: game.user.getFlag("dice-so-nice", "appearance"),
             sfxList: game.user.getFlag("dice-so-nice", "sfxList"),
-            settings: game.user.getFlag("dice-so-nice", "settings")
+            settings: game.user.getFlag("dice-so-nice", "settings"),
+            diceLibrary: game.user.getFlag("dice-so-nice", "diceLibrary")
         };
 
         saves.set(name, saveObject);
@@ -345,5 +401,82 @@ export class Utils {
                 window.location.reload();
             }
         }
+        if (save.diceLibrary) {
+            await game.user.unsetFlag("dice-so-nice", "diceLibrary");
+            await game.user.setFlag("dice-so-nice", "diceLibrary", save.diceLibrary);
+            await game.dice3d.diceLibrary.load();
+        }
+        ui.notifications.info(game.i18n.format("DICESONICE.loadMessage", { name }));
+    }
+
+    //reset references to resources that no longer exist
+    static sanitizeAppearance(appearance, user = null) {
+        const dicefactory = game.dice3d.DiceFactory;
+
+        for (const scope in appearance) {
+            if (!appearance.hasOwnProperty(scope)) continue;
+            const settings = appearance[scope];
+            if (!settings || typeof settings !== 'object') continue;
+
+            if (settings.system && !dicefactory.systems.has(settings.system)) {
+                settings.system = "standard";
+                settings.systemSettings = {};
+            }
+
+            if (settings.colorset && settings.colorset !== "custom" && !COLORSETS[settings.colorset]) {
+                settings.colorset = "custom";
+            }
+
+            if (settings.texture && typeof settings.texture === 'string'
+                && settings.texture !== "none" && !settings.texture.startsWith("custom:") && !TEXTURELIST[settings.texture]) {
+                settings.texture = "none";
+            }
+
+            if (settings.material && settings.material !== "auto" && !dicefactory.material_options[settings.material]) {
+                settings.material = "auto";
+            }
+
+            if (settings.libraryDieId) {
+                if (settings.libraryDieOwner) {
+                    const owner = game.users?.get(settings.libraryDieOwner);
+                    if (!owner || !DiceLibrary.getFromUser(owner, settings.libraryDieId)) {
+                        delete settings.libraryDieId;
+                        delete settings.libraryDieOwner;
+                    }
+                } else if (user) {
+                    if (!DiceLibrary.getFromUser(user, settings.libraryDieId)) {
+                        delete settings.libraryDieId;
+                    }
+                } else {
+                    const library = game.dice3d?.diceLibrary;
+                    if (library && !library.get(settings.libraryDieId)) {
+                        delete settings.libraryDieId;
+                    }
+                }
+            }
+        }
+        return appearance;
+    }
+
+    //shortcut to instantly dismiss ephemeral dice
+    static onDismissEphemeralKeydown(event) {
+        if (event.repeat) return;
+        const bindings = game.keybindings?.bindings?.get("dice-so-nice.dismissEphemeralDice");
+        if (!bindings?.length) return;
+        if (!bindings.some(b => Utils._matchesKeybinding(event, b))) return;
+        game.dice3d?.dismissEphemeralDice();
+    }
+
+    //match a keydown event against a Foundry stored binding {key, modifiers[]}
+    static _matchesKeybinding(event, binding) {
+        if (event.code !== binding.key) return false;
+        const mods = binding.modifiers || [];
+        const needsCtrl = mods.includes("Control");
+        const needsShift = mods.includes("Shift");
+        const needsAlt = mods.includes("Alt");
+        if ((event.ctrlKey || event.metaKey) !== needsCtrl) return false;
+        if (event.shiftKey !== needsShift) return false;
+        if (event.altKey !== needsAlt) return false;
+        return true;
     }
 }

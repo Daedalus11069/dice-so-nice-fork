@@ -1,0 +1,36 @@
+---
+title: Dice So Nice!
+description: 3D dice rolling animations for Foundry VTT.
+template: splash
+hero:
+  tagline: A 3D dice module for Foundry Virtual Tabletop. Adds customizable dice animations with physics, special effects, and full system integration.
+  image:
+    file: ../../assets/dsn-logo.webp
+  actions:
+    - text: User Guide
+      link: /foundryvtt-dice-so-nice/guide/getting-started/
+      icon: right-arrow
+    - text: Developer Guide
+      link: /foundryvtt-dice-so-nice/api/integration/
+      icon: open-book
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid>
+	<Card title="Realistic Physics" icon="rocket">
+		Full physics simulation with cannon-es - dice bounce, collide, and settle naturally.
+	</Card>
+	<Card title="Deep Customization" icon="setting">
+		Choose from dozens of presets, colorsets, textures, and materials - or create your own.
+	</Card>
+	<Card title="Special Effects" icon="star">
+		Trigger confetti, particles, sounds, and more when specific results are rolled.
+	</Card>
+	<Card title="Extensible API" icon="puzzle">
+		Systems and modules can register custom dice types, 3D models, shaders, and effects.
+	</Card>
+</CardGrid>

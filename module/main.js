@@ -1,6 +1,10 @@
 import { Dice3D } from './Dice3D.js';
-import { DiceConfig } from './DiceConfig.js';
-import { RollableAreaConfig } from './RollableAreaConfig.js';
+import { DiceConfig } from './ui/DiceConfig.js';
+import { RollableAreaConfig } from './ui/RollableAreaConfig.js';
+import { DamageTypeConfig } from './ui/DamageTypeConfig.js';
+import { DsnSidebarTab } from './ui/DsnSidebarTab.js';
+import { InitiativeMask } from './ui/InitiativeMask.js';
+import { CompanionLink } from './CompanionLink.js';
 import { Utils } from './Utils.js';
 
 /**
@@ -25,6 +29,15 @@ Hooks.once('init', () => {
         restricted: false
     });
 
+    game.settings.registerMenu("dice-so-nice", "damage-type-config", {
+        name: "DICESONICE.DamageTypeConfigMenu",
+        label: "DICESONICE.DamageTypeConfigMenuLabel",
+        hint: "DICESONICE.DamageTypeConfigMenuHint",
+        icon: "fas fa-droplet",
+        type: DamageTypeConfig,
+        restricted: true
+    });
+
     //Not used anymore but kept for compatibility with migration
     game.settings.register("dice-so-nice", "settings", {
         name: "3D Dice Settings",
@@ -33,6 +46,15 @@ Hooks.once('init', () => {
         type: Object,
         config: false
     });
+
+    game.settings.register("dice-so-nice", "formatVersion", {
+        scope: "world",
+        type: String,
+        default: "",
+        config: false
+    });
+
+    // -- General --
 
     game.settings.register("dice-so-nice", "maxDiceNumber", {
         name: "DICESONICE.maxDiceNumber",
@@ -64,23 +86,7 @@ Hooks.once('init', () => {
         requiresReload: true
     });
 
-    //add a button to reset the display of the welcome message for all users
-    game.settings.register("dice-so-nice", "resetWelcomeMessage", {
-        name: "DICESONICE.resetWelcomeMessage",
-        hint: "DICESONICE.resetWelcomeMessageHint",
-        scope: "world",
-        type: Boolean,
-        default: false,
-        config: true,
-        onChange: value => {
-            if (value) {
-                game.users.forEach(user => {
-                    user.setFlag("dice-so-nice", "welcomeMessageShown", false);
-                });
-                game.settings.set("dice-so-nice", "resetWelcomeMessage", false);
-            }
-        }
-    });
+    // -- Animation Behavior --
 
     game.settings.register("dice-so-nice", "enabledSimultaneousRolls", {
         name: "DICESONICE.enabledSimultaneousRolls",
@@ -110,12 +116,16 @@ Hooks.once('init', () => {
         config: true
     });
 
-    game.settings.register("dice-so-nice", "formatVersion", {
+    game.settings.register("dice-so-nice", "immediatelyDisplayChatMessages", {
+        name: "DICESONICE.immediatelyDisplayChatMessages",
+        hint: "DICESONICE.immediatelyDisplayChatMessagesHint",
         scope: "world",
-        type: String,
-        default: "",
-        config: false
+        type: Boolean,
+        default: false,
+        config: true
     });
+
+    // -- Which Rolls Show 3D Dice --
 
     game.settings.register("dice-so-nice", "disabledDuringCombat", {
         name: "DICESONICE.disabledDuringCombat",
@@ -134,20 +144,19 @@ Hooks.once('init', () => {
         default: false,
         config: true
     });
-    
-    //Settings for forcing the dice appearance of the character owner during an initative roll instead of the message author
-    game.settings.register("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative", {
-        name: "DICESONICE.forceCharacterOwnerAppearanceForInitiative",
-        hint: "DICESONICE.forceCharacterOwnerAppearanceForInitiativeHint",
+
+    game.settings.register("dice-so-nice", "disabledForManualRolls", {
+        name: "DICESONICE.disabledForManualRolls",
+        hint: "DICESONICE.disabledForManualRollsHint",
         scope: "world",
         type: Boolean,
         default: true,
         config: true
     });
 
-    game.settings.register("dice-so-nice", "immediatelyDisplayChatMessages", {
-        name: "DICESONICE.immediatelyDisplayChatMessages",
-        hint: "DICESONICE.immediatelyDisplayChatMessagesHint",
+    game.settings.register("dice-so-nice", "hideNpcRolls", {
+        name: "DICESONICE.hideNpcRolls",
+        hint: "DICESONICE.hideNpcRollsHint",
         scope: "world",
         type: Boolean,
         default: false,
@@ -172,24 +181,7 @@ Hooks.once('init', () => {
         config: true
     });
 
-    game.settings.register("dice-so-nice", "hideNpcRolls", {
-        name: "DICESONICE.hideNpcRolls",
-        hint: "DICESONICE.hideNpcRollsHint",
-        scope: "world",
-        type: Boolean,
-        default: false,
-        config: true
-    });
-
-    game.settings.register("dice-so-nice", "allowInteractivity", {
-        name: "DICESONICE.allowInteractivity",
-        hint: "DICESONICE.allowInteractivityHint",
-        scope: "world",
-        type: Boolean,
-        default: true,
-        config: true,
-        requiresReload: true
-    });
+    // -- Privacy --
 
     game.settings.register("dice-so-nice", "hide3dDiceOnSecretRolls", {
         name: "DICESONICE.hide3dDiceOnSecretRolls",
@@ -208,17 +200,155 @@ Hooks.once('init', () => {
         choices: Utils.localize({
             "0": "DICESONICE.ghostDiceDisabled",
             "1": "DICESONICE.ghostDiceForAll",
-            "2": "DICESONICE.ghostDiceForRollAuthor"
+            "2": "DICESONICE.ghostDiceForRollAuthor",
+            "3": "DICESONICE.ghostDiceForPlayerRollsOnly"
         }),
         default: false,
         config: true
     });
 
+    // -- Interaction --
+
+    game.settings.register("dice-so-nice", "allowInteractivity", {
+        name: "DICESONICE.allowInteractivity",
+        hint: "DICESONICE.allowInteractivityHint",
+        scope: "world",
+        type: Boolean,
+        default: true,
+        config: true,
+        requiresReload: true
+    });
+
+    game.settings.register("dice-so-nice", "persistentDice", {
+        name: "DICESONICE.persistentDice",
+        hint: "DICESONICE.persistentDiceHint",
+        scope: "world",
+        type: Boolean,
+        default: true,
+        config: true,
+        requiresReload: true
+    });
+
+    // -- Appearance --
+
+    game.settings.register("dice-so-nice", "forceCharacterOwnerAppearance", {
+        name: "DICESONICE.forceCharacterOwnerAppearance",
+        hint: "DICESONICE.forceCharacterOwnerAppearanceHint",
+        scope: "world",
+        type: String,
+        choices: Utils.localize({
+            "0": "DICESONICE.forceCharacterOwnerAppearanceDisabled",
+            "1": "DICESONICE.forceCharacterOwnerAppearanceInitiative",
+            "2": "DICESONICE.forceCharacterOwnerAppearanceAll"
+        }),
+        default: "1",
+        config: true
+    });
+
+    // -- UI --
+
+    game.settings.register("dice-so-nice", "hideSidebarTab", {
+        name: "DICESONICE.hideSidebarTab",
+        hint: "DICESONICE.hideSidebarTabHint",
+        scope: "world",
+        type: Boolean,
+        default: false,
+        config: true,
+        requiresReload: true
+    });
+
+    game.settings.register("dice-so-nice", "resetWelcomeMessage", {
+        name: "DICESONICE.resetWelcomeMessage",
+        hint: "DICESONICE.resetWelcomeMessageHint",
+        scope: "world",
+        type: Boolean,
+        default: false,
+        config: true,
+        onChange: value => {
+            if (value) {
+                game.users.forEach(user => {
+                    user.setFlag("dice-so-nice", "welcomeMessageShown", false);
+                });
+                game.settings.set("dice-so-nice", "resetWelcomeMessage", false);
+            }
+        }
+    });
+
+    // -- Internal (config: false) --
+
+    //GM-editable mapping: damage type id → { colorset?, preset?, label? }
+    //ships empty; hardcoded name==colorset fallback handles unmapped entries
+    game.settings.register("dice-so-nice", "damageTypeMap", {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
     game.settings.register("dice-so-nice", "documentsForPreload", {
         scope: "world",
+        config: false,
         type: Array,
-        default: [],
-        config: false
+        default: []
+    });
+
+    //register sidebar tab unless GM disabled it
+    if (!game.settings.get("dice-so-nice", "hideSidebarTab")) {
+        CONFIG.ui["dice-so-nice"] = DsnSidebarTab;
+        const sidebarClass = foundry.applications.sidebar.Sidebar;
+        if (sidebarClass?.TABS) {
+            const dsnTab = { icon: "fa-solid fa-dice-d20", tooltip: "DICESONICE.sidebarTabTitle" };
+            const settingsTab = sidebarClass.TABS.settings;
+            if (settingsTab) {
+                delete sidebarClass.TABS.settings;
+                sidebarClass.TABS["dice-so-nice"] = dsnTab;
+                sidebarClass.TABS.settings = settingsTab;
+            } else {
+                sidebarClass.TABS["dice-so-nice"] = dsnTab;
+            }
+        }
+    }
+
+    //delete key removes selected persistent dice
+    if (game.settings.get("dice-so-nice", "persistentDice")) {
+        game.keybindings.register("dice-so-nice", "deleteSelectedPersistent", {
+            name: "DICESONICE.keybindingDeleteSelected",
+            hint: "DICESONICE.keybindingDeleteSelectedHint",
+            editable: [
+                { key: "Delete" },
+                { key: "Backspace" }
+            ],
+            onDown: () => {
+                if (!game.dice3d?.box || game.dice3d.box.selectedPersistentDiceIds.size === 0) return false;
+                game.dice3d.removeSelectedPersistentDice();
+                return true; // Consume so Foundry's canvas delete doesn't also fire.
+            },
+            precedence: foundry.CONST.KEYBINDING_PRECEDENCE?.NORMAL ?? 0
+        });
+    }
+
+    //unbound-by-default shortcut to instantly dismiss ephemeral dice
+    //We manually register to window because FVTT only triggers key on focused elements, and 
+    //that is the 3D canvas for us, which doesn't work well for dsn since users usually rolls from the chat or character sheets.
+    game.keybindings.register("dice-so-nice", "dismissEphemeralDice", {
+        name: "DICESONICE.keybindingDismissEphemeral",
+        hint: "DICESONICE.keybindingDismissEphemeralHint",
+        editable: [],
+        onDown: () => { game.dice3d?.dismissEphemeralDice(); return true; },
+        precedence: foundry.CONST.KEYBINDING_PRECEDENCE?.NORMAL ?? 0
+    });
+    window.addEventListener("keydown", Utils.onDismissEphemeralKeydown);
+
+    Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => {
+        if (!app.document.isOwner) return;
+        controls.push({
+            icon: "fas fa-dice-d20",
+            label: "DICESONICE.configTitle",
+            action: "dice-so-nice-config",
+            onClick: () => {
+                new DiceConfig({ document: app.document }).render({ force: true });
+            }
+        });
     });
 
 });
@@ -248,11 +378,16 @@ const setupDiceSoNice = () => {
 };
 
 const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, dsnIndexAddedRoll: 0}) => {
+    //persistent dice handle their own visuals
+    if (chatMessage.getFlag("dice-so-nice", "persistent")) return false;
+
     const hasInlineRoll = game.settings.get("dice-so-nice", "animateInlineRoll") && chatMessage.content.includes('inline-roll');
 
     const hide3dDiceOnSecretRolls = game.settings.get("dice-so-nice", "hide3dDiceOnSecretRolls");
     const showGhostDice = game.settings.get("dice-so-nice", "showGhostDice");
-    const shouldShowGhostDice = (showGhostDice === "1" || (showGhostDice === "2" && game.user.id === chatMessage.author.id) && hide3dDiceOnSecretRolls);
+    const shouldShowGhostDice = showGhostDice === "1" ||
+        (showGhostDice === "2" && game.user.id === chatMessage.author.id && hide3dDiceOnSecretRolls) ||
+        (showGhostDice === "3" && !chatMessage.author.isGM && hide3dDiceOnSecretRolls);
     
     const isContentVisible = chatMessage.isContentVisible;
     const shouldAnimateRollTable = game.settings.get("dice-so-nice", "animateRollTable");
@@ -273,9 +408,31 @@ const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, ds
     //If there's at least one roll with diceterms (could be a deterministic roll without any dice like Roll("5")) or has an inline roll
     (chatMessage.rolls.slice(options.dsnIndexAddedRoll).some(roll => roll.dice.length > 0) || hasInlineRoll);
 
+    //skip animation when every die in the roll was fulfilled through an interactive method (manual input, physical dice trackers, etc.)
+    if (willTrigger3DRoll && chatMessage.isRoll && game.settings.get("dice-so-nice", "disabledForManualRolls")) {
+        const fulfillmentMethods = CONFIG.Dice.fulfillment?.methods ?? {};
+        const rollsWithDice = chatMessage.rolls.slice(options.dsnIndexAddedRoll).filter(roll => roll.dice.length > 0);
+        const allInteractive = rollsWithDice.length > 0 && rollsWithDice.every(roll =>
+            roll.dice.every(term => fulfillmentMethods[term.method]?.interactive === true)
+        );
+        if (allInteractive) willTrigger3DRoll = false;
+    }
+
     const interception = {willTrigger3DRoll: willTrigger3DRoll};
 
+    Hooks.callAll("diceSoNiceMessagePreProcess", chatMessage.id, interception);
+
+    const afterPreProcess = interception.willTrigger3DRoll;
     Hooks.callAll("diceSoNiceMessageProcessed", chatMessage.id, interception);
+
+    if (interception.willTrigger3DRoll !== afterPreProcess) {
+        foundry.utils.logCompatibilityWarning(
+            "A module mutated willTrigger3DRoll from the 'diceSoNiceMessageProcessed' hook. " +
+            "This hook is now for observation only. To change DsN's animation decision, " +
+            "listen to 'diceSoNiceMessagePreProcess' instead.",
+            {since: "6.0.0", until: "7.0.0"}
+        );
+    }
 
     return interception.willTrigger3DRoll;
 };
@@ -284,8 +441,31 @@ const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, ds
  * Intercepts all roll-type messages hiding the content until the animation is finished
  */
 Hooks.on('createChatMessage', (chatMessage) => {
+    //suppress core dice sound for persistent rolls too
+    if (chatMessage.getFlag("dice-so-nice", "persistent")
+        && Dice3D.CONFIG().visibility !== "none"
+        && chatMessage.sound === "sounds/dice.wav") {
+        delete chatMessage.sound;
+    }
+
+    // companion message linking: hide non-roll messages tied to an animating primary
+    const linkedTo = chatMessage.getFlag("dice-so-nice", "linkedTo");
+    if (linkedTo) {
+        if (game.dice3d?.messageHookDisabled) return;
+        if (game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) return;
+        if (chatMessage.isRoll) {
+            // has rolls of its own, treat as a normal roll (linkedTo ignored)
+        } else {
+            const primary = game.messages.get(linkedTo);
+            if (primary?._dice3dPendingRenders > 0) {
+                CompanionLink.register(chatMessage.id, linkedTo);
+            }
+            return;
+        }
+    }
+
     if (!shouldInterceptMessage(chatMessage)) return;
-    
+
     let rolls = chatMessage.isRoll ? chatMessage.rolls : null;
     let maxRollOrder = rolls ? 0 : -1;
 
@@ -326,13 +506,24 @@ Hooks.on('createChatMessage', (chatMessage) => {
         return;
 
     //Remove the chatmessage sound if it is the core dice sound.
-    if (Dice3D.CONFIG().enabled && chatMessage.sound == "sounds/dice.wav") {
-        //foundry.utils.mergeObject(chatMessage, { "-=sound": null }, { performDeletions: true });
+    if (Dice3D.CONFIG().visibility !== "none" && chatMessage.sound == "sounds/dice.wav") {
         delete chatMessage.sound;
     }
     chatMessage._dice3danimating = true;
+    chatMessage._dice3dPendingRenders = (chatMessage._dice3dPendingRenders || 0) + 1;
+
+    if (isInitiativeRoll && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages"))
+        InitiativeMask.flag(chatMessage);
 
     game.dice3d.renderRolls(chatMessage, rolls);
+});
+
+Hooks.on("renderCombatTracker", (app, html) => InitiativeMask.apply(html));
+Hooks.on("preUpdateCombatant", (combatant, changes) => {
+    if (changes.initiative === undefined) return;
+    if (game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) return;
+    if (game.settings.get("dice-so-nice", "disabledForInitiative")) return;
+    InitiativeMask.snapshot(combatant);
 });
 
 /**
@@ -342,41 +533,51 @@ Hooks.on("renderChatMessageHTML", (message, html, data) => {
     if (game.dice3d && game.dice3d.messageHookDisabled) {
         return;
     }
+    if (CompanionLink.isHidden(message.id) && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
+        html.classList.add("dsn-hide");
+        return;
+    }
     if (message._dice3danimating && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
-        /* How does this work:
-         * First, it should be noted that updates to the DOM of the message will be erased by the next update as FVTT will rerender the entire message
-         * DsN will hide the message for the first render
-         * It will then hide the following .dice-roll 
-         * We need to keep track of what to hide in order to correctly hide unfinished rolls every time the message is rendered
-         * For this, we store two variables in the message: _dice3dRollsHidden and _dice3dMessageHidden
-         * _dice3dRollsHidden is an array of the number of rolls added to the message at every update
-         * _dice3dMessageHidden is a boolean, true if the original rolls are yet to be finished
-         * The reveal/unhiding part can be found in Dice3D.renderRolls
-         */
+        // for the first render: hide the entire message (_dice3dMessageHidden)
+        // for updates: use textContent fingerprints captured in preUpdateChatMessage to diff which roll elements are new vs existing, and only hide new ones
+        // reveal logic is in Dice3D.renderRolls (showMessage closure)
         if (message._dice3dCountNewRolls){
-            if(!message._dice3dRollsHidden)
-                message._dice3dRollsHidden = [];
+            const selector = game.dice3d._messageUpdateHideSelector;
+            const existingFps = [...(message._dice3dExistingRollFingerprints || [])];
+            if (!message._dice3dAnimFingerprints) message._dice3dAnimFingerprints = {};
+            const animFps = message._dice3dAnimFingerprints;
+            // deep copy for matching (originals must persist across re-renders)
+            const animFpsCopy = {};
+            for (const k in animFps) animFpsCopy[k] = [...animFps[k]];
 
-            //push the number of new rolls to the array
-            message._dice3dRollsHidden.push(message._dice3dCountNewRolls);
-            
-            //if there's the popout chat, we need to keep track of which render we are in
-            if(window.ui.sidebar.popouts.chat) {
-                //if _dice3dRenderedInPopout is undefined, we are in the first render (not in the popout), so we set it to false
-                //if it exists and is false, we are in a popout render, so we set it to true
-                //if it exists and is true, we are in sidebar render, so we set it to false
-                message._dice3dRenderedInPopout = typeof message._dice3dRenderedInPopout === "undefined" ? false : !message._dice3dRenderedInPopout;
-            }
+            const currentAnimId = message._dice3dCurrentAnimId;
 
-            //calculate the sum of all hidden rolls
-            //if _dice3dRenderedInPopout is true, we need to divide by 2 the sum
-            let sumOfAllHiddenRolls = message._dice3dRollsHidden.reduce((a, b) => a + b, 0) / (message._dice3dRenderedInPopout ? 2 : 1);
+            [...html.querySelectorAll(selector)].forEach(el => {
+                const fp = el.textContent.trim();
 
-            //use this sum to hide the last rolls
-            //which should be the most recent rolls
-            [...html.querySelectorAll(`.dice-roll`)].slice(-sumOfAllHiddenRolls).forEach(el => el.classList.add("dsn-hide"));
+                // old or already-revealed element
+                const ei = existingFps.indexOf(fp);
+                if (ei !== -1) { existingFps.splice(ei, 1); return; }
 
-            //In case _dice3dMessageHidden is still true, we hide the message as it means the original rolls are not yet finished
+                el.classList.add("dsn-hide");
+
+                // in-flight element from a previous animation
+                for (const aid in animFpsCopy) {
+                    const ai = animFpsCopy[aid].indexOf(fp);
+                    if (ai !== -1) {
+                        animFpsCopy[aid].splice(ai, 1);
+                        el.dataset.dsnAnimId = aid;
+                        return;
+                    }
+                }
+
+                // new element for the current animation
+                el.dataset.dsnAnimId = currentAnimId;
+                if (!animFps[currentAnimId]) animFps[currentAnimId] = [];
+                if (!animFps[currentAnimId].includes(fp))
+                    animFps[currentAnimId].push(fp);
+            });
+
             if(message._dice3dMessageHidden)
                 html.classList.add("dsn-hide");
         }
@@ -397,19 +598,38 @@ Hooks.on("preUpdateChatMessage", (message, updateData, options) => {
     const originalRollsArrayLength = message.toObject().rolls.length;
     options.dsnCountAddedRoll = updateData.rolls.length - originalRollsArrayLength;
     options.dsnIndexAddedRoll = originalRollsArrayLength;
+
+    // snapshot existing roll elements so we can diff after re-render
+    if (game.dice3d && options.dsnCountAddedRoll > 0) {
+        const selector = game.dice3d._messageUpdateHideSelector;
+        const el = document.querySelector(`.message[data-message-id="${message.id}"]`);
+        if (el) {
+            message._dice3dExistingRollFingerprints = [...el.querySelectorAll(selector)]
+                .filter(e => !e.classList.contains("dsn-hide"))
+                .map(e => e.textContent.trim());
+        }
+    }
 });
 
 /**
  * Hide and roll new rolls added in a chat message in a update
  */
 Hooks.on("updateChatMessage", (message, updateData, options) => {
+    if (!("rolls" in updateData)) return;
     if(!shouldInterceptMessage(message, options)) return;
 
     if (options.dsnCountAddedRoll > 0) {
         message._dice3danimating = true;
+        message._dice3dPendingRenders = (message._dice3dPendingRenders || 0) + 1;
         message._dice3dCountNewRolls = options.dsnCountAddedRoll;
+        message._dice3dAnimIdCounter = (message._dice3dAnimIdCounter || 0) + 1;
+        message._dice3dCurrentAnimId = message._dice3dAnimIdCounter;
         game.dice3d.renderRolls(message, message.rolls.slice(options.dsnIndexAddedRoll));
     }
+});
+
+Hooks.on("deleteChatMessage", (message) => {
+    CompanionLink.cleanup(message.id);
 });
 
 document.addEventListener("visibilitychange", function () {
@@ -451,6 +671,11 @@ Hooks.on("chatCommandsReady", commands => {
     });
 });
 
+//re-render sidebar tab once dice3d is ready
+Hooks.on("diceSoNiceReady", () => {
+    ui["dice-so-nice"]?.render({ force: false });
+});
+
 Hooks.on("collapseSidebar", (sidebar, collapsed) => {
     document.getElementById("sidebar-content").addEventListener("transitionend", () => {
         if (game.dice3d && game.dice3d.box) {
@@ -458,21 +683,3 @@ Hooks.on("collapseSidebar", (sidebar, collapsed) => {
         }
     }, { once: true });
 });
-
-Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => {
-    controls.push({
-        icon: "fa-solid fa-dice",
-        label: "DICESONICE.configTitle",
-        onClick: () => new DiceConfig({document: app.document}).render({force: true})
-    });
-});
-
-/** Targeted deprecation warning silencing for future breaking change updates that we'll introduce in the next major version 
- * The rationale for this is that we want to avoid console spam while still supporting Dice So Nice in the previous major version of Foundry VTT
-*/
-
-// Silence https://github.com/foundryvtt/foundryvtt/issues/13090 during v14
-if(!foundry.utils.isNewerVersion(game.version, "15")) {
-    const RegExMergeObject = new RegExp(String.raw`mergeObject.*?/dice-so-nice/`, "gs");
-    CONFIG.compatibility.excludePatterns.push(RegExMergeObject);
-}

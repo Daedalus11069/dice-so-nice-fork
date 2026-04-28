@@ -4,7 +4,7 @@
         <key>fileFormatVersion</key>
         <int>6</int>
         <key>texturePackerVersion</key>
-        <string>7.4.0</string>
+        <string>7.12.0</string>
         <key>autoSDSettings</key>
         <array>
             <struct type="AutoSDSettings">
@@ -173,6 +173,66 @@
         </struct>
         <key>individualSpriteSettings</key>
         <map type="IndividualSpriteSettingsMap">
+            <key type="filename">../alienrock.webp</key>
+            <key type="filename">../alienrock_bump.webp</key>
+            <key type="filename">../brick.webp</key>
+            <key type="filename">../bronze01.webp</key>
+            <key type="filename">../bronze02.webp</key>
+            <key type="filename">../bronze03.webp</key>
+            <key type="filename">../bronze03a.webp</key>
+            <key type="filename">../bronze03b.webp</key>
+            <key type="filename">../bronze04.webp</key>
+            <key type="filename">../cheetah.webp</key>
+            <key type="filename">../cloudy.alt.webp</key>
+            <key type="filename">../cloudy.webp</key>
+            <key type="filename">../coin/heads.webp</key>
+            <key type="filename">../coin/heads_bump.webp</key>
+            <key type="filename">../coin/tail.webp</key>
+            <key type="filename">../coin/tail_bump.webp</key>
+            <key type="filename">../feather.webp</key>
+            <key type="filename">../feather_bump.webp</key>
+            <key type="filename">../fiber.webp</key>
+            <key type="filename">../fire.webp</key>
+            <key type="filename">../fuel.webp</key>
+            <key type="filename">../hell.webp</key>
+            <key type="filename">../hell_bump.webp</key>
+            <key type="filename">../ice.webp</key>
+            <key type="filename">../lava.webp</key>
+            <key type="filename">../lava_bump.webp</key>
+            <key type="filename">../leopard.webp</key>
+            <key type="filename">../lizard.webp</key>
+            <key type="filename">../lizard_bump.webp</key>
+            <key type="filename">../marble.webp</key>
+            <key type="filename">../metal.webp</key>
+            <key type="filename">../metal_bump.webp</key>
+            <key type="filename">../noise.webp</key>
+            <key type="filename">../paper.webp</key>
+            <key type="filename">../paper_bump.webp</key>
+            <key type="filename">../portal.webp</key>
+            <key type="filename">../radial.webp</key>
+            <key type="filename">../stainedglass.webp</key>
+            <key type="filename">../stainedglass_bump.webp</key>
+            <key type="filename">../stone.webp</key>
+            <key type="filename">../tiger.webp</key>
+            <key type="filename">../tile.webp</key>
+            <key type="filename">../tile_bump.webp</key>
+            <key type="filename">../water.webp</key>
+            <key type="filename">../watercolor.webp</key>
+            <key type="filename">../wood.webp</key>
+            <struct type="IndividualSpriteSettings">
+                <key>pivotPoint</key>
+                <point_f>0,0</point_f>
+                <key>spriteScale</key>
+                <double>1</double>
+                <key>scale9Enabled</key>
+                <false/>
+                <key>scale9Borders</key>
+                <rect>64,64,128,128</rect>
+                <key>scale9Paddings</key>
+                <rect>64,64,128,128</rect>
+                <key>scale9FromFile</key>
+                <false/>
+            </struct>
             <key type="filename">../astral.webp</key>
             <key type="filename">../dragon.webp</key>
             <key type="filename">../dragon_bump.webp</key>
@@ -193,53 +253,6 @@
                 <rect>32,32,64,64</rect>
                 <key>scale9Paddings</key>
                 <rect>32,32,64,64</rect>
-                <key>scale9FromFile</key>
-                <false/>
-            </struct>
-            <key type="filename">../bronze01.webp</key>
-            <key type="filename">../bronze02.webp</key>
-            <key type="filename">../bronze03.webp</key>
-            <key type="filename">../bronze03a.webp</key>
-            <key type="filename">../bronze03b.webp</key>
-            <key type="filename">../bronze04.webp</key>
-            <key type="filename">../cheetah.webp</key>
-            <key type="filename">../cloudy.alt.webp</key>
-            <key type="filename">../cloudy.webp</key>
-            <key type="filename">../coin/heads.webp</key>
-            <key type="filename">../coin/heads_bump.webp</key>
-            <key type="filename">../coin/tail.webp</key>
-            <key type="filename">../coin/tail_bump.webp</key>
-            <key type="filename">../feather.webp</key>
-            <key type="filename">../feather_bump.webp</key>
-            <key type="filename">../fire.webp</key>
-            <key type="filename">../ice.webp</key>
-            <key type="filename">../leopard.webp</key>
-            <key type="filename">../lizard.webp</key>
-            <key type="filename">../lizard_bump.webp</key>
-            <key type="filename">../marble.webp</key>
-            <key type="filename">../metal.webp</key>
-            <key type="filename">../metal_bump.webp</key>
-            <key type="filename">../noise.webp</key>
-            <key type="filename">../paper.webp</key>
-            <key type="filename">../paper_bump.webp</key>
-            <key type="filename">../radial.webp</key>
-            <key type="filename">../stainedglass.webp</key>
-            <key type="filename">../stainedglass_bump.webp</key>
-            <key type="filename">../stone.webp</key>
-            <key type="filename">../tiger.webp</key>
-            <key type="filename">../water.webp</key>
-            <key type="filename">../wood.webp</key>
-            <struct type="IndividualSpriteSettings">
-                <key>pivotPoint</key>
-                <point_f>0,0</point_f>
-                <key>spriteScale</key>
-                <double>1</double>
-                <key>scale9Enabled</key>
-                <false/>
-                <key>scale9Borders</key>
-                <rect>64,64,128,128</rect>
-                <key>scale9Paddings</key>
-                <rect>64,64,128,128</rect>
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
@@ -292,6 +305,19 @@
                     <filename>../paper_bump.webp</filename>
                     <filename>../stainedglass_bump.webp</filename>
                     <filename>../wood.webp</filename>
+                    <filename>../brick.webp</filename>
+                    <filename>../fiber.webp</filename>
+                    <filename>../fuel.webp</filename>
+                    <filename>../watercolor.webp</filename>
+                    <filename>../alienrock.webp</filename>
+                    <filename>../alienrock_bump.webp</filename>
+                    <filename>../hell.webp</filename>
+                    <filename>../hell_bump.webp</filename>
+                    <filename>../lava.webp</filename>
+                    <filename>../lava_bump.webp</filename>
+                    <filename>../portal.webp</filename>
+                    <filename>../tile.webp</filename>
+                    <filename>../tile_bump.webp</filename>
                 </array>
             </struct>
         </map>

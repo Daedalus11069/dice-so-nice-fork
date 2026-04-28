@@ -8,9 +8,9 @@ export class Accumulator {
         this._processingPromise = Promise.resolve();
     }
 
-    async addItem(item) {
+    async addItem(item, { immediate = false } = {}) {
         this._items.push(item);
-        
+
         // If we're currently processing items, queue them for the next batch
         if (this._isProcessing) return;
 
@@ -20,7 +20,7 @@ export class Accumulator {
         }
 
         // Set new timeout or process immediately
-        if (this._delay) {
+        if (this._delay && !immediate) {
             this._timeoutId = setTimeout(() => this._process(), this._delay);
         } else {
             await this._process();

@@ -1,4 +1,4 @@
-import { DiceSFX } from '../DiceSFX.js';
+import { DiceSFX } from './DiceSFX.js';
 
 export class PlaySoundEpicWin extends DiceSFX {
     static id = "PlaySoundEpicWin";
