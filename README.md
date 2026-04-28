@@ -28,8 +28,8 @@ Dice So Nice! is also available on [The Forge](https://forge-vtt.com/bazaar#pack
 
 <!-- TODO: replace with actual GitLab Pages URLs once the static site is deployed -->
 
-- **[User Guide](https://riccisi.gitlab.io/foundryvtt-dice-so-nice/guide/)** — Settings, customization, special effects, and everything you need to get the most out of your 3D dice.
-- **[Developer & API Docs](https://riccisi.gitlab.io/foundryvtt-dice-so-nice/api/)** — API reference, custom presets, dice systems, hooks, and integration guide for module and system developers.
+- **[User Guide](https://riccisi.gitlab.io/foundryvtt-dice-so-nice/guide/getting-started/)** — Settings, customization, special effects, and everything you need to get the most out of your 3D dice.
+- **[Developer & API Docs](https://riccisi.gitlab.io/foundryvtt-dice-so-nice/api/integration/)** — API reference, custom presets, dice systems, hooks, and integration guide for module and system developers.
 
 # Compatibility
 
