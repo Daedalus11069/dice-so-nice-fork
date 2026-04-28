@@ -27,6 +27,9 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         position: {
             width: 580,
             height: "auto"
+        },
+        actions: {
+            copyDocumentId: DiceEditor._onCopyDocumentId
         }
     };
 
@@ -146,6 +149,23 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         "soft-light": "DICESONICE.CompositeSoftLight",
         "hueshift": "DICESONICE.CompositeHueShift"
     };
+
+    _getHeaderControls() {
+        const controls = super._getHeaderControls();
+        if (!this.isNew) {
+            controls.push({
+                icon: "fa-solid fa-id-badge",
+                label: game.i18n.localize("DICESONICE.editorCopyId"),
+                action: "copyDocumentId"
+            });
+        }
+        return controls;
+    }
+
+    static async _onCopyDocumentId() {
+        await navigator.clipboard.writeText(this.libraryDie.id);
+        ui.notifications.info(game.i18n.localize("DICESONICE.editorCopyIdNotification"));
+    }
 
     async _prepareContext(options) {
         const data = {};

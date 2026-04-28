@@ -417,6 +417,8 @@
     "DICESONICE.editorOutlineHint": "Type 'none' to remove outline",
     "DICESONICE.editorResetFace": "Reset Selected Faces",
     "DICESONICE.editorMixed": "Mixed",
+    "DICESONICE.editorCopyId": "Copy Die ID",
+    "DICESONICE.editorCopyIdNotification": "Copied die ID to clipboard.",
     "DICESONICE.editorSaved": "Custom die saved!",
     "DICESONICE.editorCreateNew": "Create New",
     "DICESONICE.editorEdit": "Edit",

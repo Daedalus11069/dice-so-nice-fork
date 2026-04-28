@@ -35,6 +35,11 @@ export class DiceLibrary {
         return this._dice.filter(d => d.dieType === dieType);
     }
 
+    getByNameAndType(name, dieType) {
+        const needle = name.toLowerCase();
+        return this._dice.find(d => d.name.toLowerCase() === needle && d.dieType === dieType) || null;
+    }
+
     async add(dieData) {
         const die = foundry.utils.deepClone(dieData);
         die.id = foundry.utils.randomID();
@@ -151,6 +156,12 @@ export class DiceLibrary {
     static getFromUser(user, id) {
         const library = DiceLibrary.getLibraryForUser(user);
         return library.find(d => d.id === id) || null;
+    }
+
+    static getByNameAndTypeForUser(user, name, dieType) {
+        const needle = name.toLowerCase();
+        const library = DiceLibrary.getLibraryForUser(user);
+        return library.find(d => d.name.toLowerCase() === needle && d.dieType === dieType) || null;
     }
 
     //preload label images and custom textures for library dice in active appearances

@@ -1,6 +1,7 @@
 "use strict"
 
 import { DiceSFXManager } from './sfx/DiceSFXManager.js';
+import { DiceLibrary } from './engine/DiceLibrary.js';
 
 export const COMPOUND_DICE = {
 	100:   [{ type: 'd100',   divisor: 10   }, { type: 'd10',  divisor: 1    }],
@@ -17,6 +18,7 @@ export class DiceNotation {
 	constructor(rolls, userConfig = null, user = game.user) {
 		this.throws = [{dice:[]}];
 		this.userConfig = userConfig;
+		this.user = user;
 		
 		//First we need to prepare the data
 		rolls.dice.forEach(die => {
@@ -131,7 +133,31 @@ export class DiceNotation {
 		dsnDie.vectors = [];
 		dsnDie.options = foundry.utils.duplicate(fvttDie.options);
 		foundry.utils.mergeObject(dsnDie.options, options);
-		if(this.userConfig && !this.userConfig.enableFlavorColorset) {
+
+		if (typeof dsnDie.options.flavor === "string" && dsnDie.options.flavor.startsWith("die:")) {
+			const remainder = dsnDie.options.flavor.slice(4);
+			const colonIdx = remainder.indexOf(":");
+			let targetUser, dieName;
+			if (colonIdx !== -1) {
+				const userName = remainder.slice(0, colonIdx);
+				dieName = remainder.slice(colonIdx + 1);
+				targetUser = game.users.find(u => u.name.toLowerCase() === userName.toLowerCase());
+			} else {
+				dieName = remainder;
+				targetUser = this.user;
+			}
+			if (targetUser && dieName) {
+				const libraryDie = DiceLibrary.getByNameAndTypeForUser(targetUser, dieName, dsnDie.type);
+				if (libraryDie) {
+					if (!dsnDie.options.appearance) dsnDie.options.appearance = {};
+					dsnDie.options.appearance.libraryDieId = libraryDie.id;
+					if (targetUser.id !== this.user.id) {
+						dsnDie.options.appearance.libraryDieOwner = targetUser.id;
+					}
+				}
+			}
+			delete dsnDie.options.flavor;
+		} else if(this.userConfig && !this.userConfig.enableFlavorColorset) {
 			if(dsnDie.options.flavor) delete dsnDie.options.flavor;
 			if(dsnDie.options.type) delete dsnDie.options.type;
 		}
