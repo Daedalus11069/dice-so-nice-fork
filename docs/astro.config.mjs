@@ -36,6 +36,7 @@ export default defineConfig({
 						{ label: 'Profiles & Data', slug: 'guide/save-files' },
 						{ label: 'Dice Library', slug: 'guide/dice-library' },
 						{ label: 'Dice Editor', slug: 'guide/dice-editor' },
+						{ label: 'Custom Dice Terms', slug: 'guide/custom-dice-terms' },
 						{ label: 'Persistent Dice', slug: 'guide/persistent-dice' },
 						{ label: 'Rollable Area', slug: 'guide/rollable-area' },
 						{ label: 'Macros', slug: 'guide/macros' },
