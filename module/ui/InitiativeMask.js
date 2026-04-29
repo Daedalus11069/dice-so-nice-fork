@@ -14,7 +14,7 @@ export class InitiativeMask {
     static _scheduleTrackerRender() {
         if (this._renderTimer) return;
         this._renderTimer = setTimeout(() => {
-            InitiativeMask._renderTimer = null;
+            this._renderTimer = null;
             ui.combat?.render();
         }, 50);
     }

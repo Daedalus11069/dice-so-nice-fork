@@ -46,8 +46,8 @@ export class CompanionLink {
 
     static _startSafetyTimeout(companionId, primaryId) {
         const timer = setTimeout(() => {
-            CompanionLink._companionTimeouts.delete(companionId);
-            CompanionLink.release(primaryId);
+            this._companionTimeouts.delete(companionId);
+            this.release(primaryId);
 
             const primary = game.messages.get(primaryId);
             if (primary?._dice3danimating) {

@@ -92,10 +92,16 @@ export class CustomDiceTerms {
     static unregisterTerm(denomination, diceFactory) {
         delete CONFIG.Dice.terms[denomination];
         this._registeredDenominations.delete(denomination);
+        const type = "d" + denomination;
         if (diceFactory) {
-            const type = "d" + denomination;
             diceFactory.systems.get("standard").dice.delete(type);
             diceFactory.disposeCachedMaterials(type);
+        }
+        const appearance = game.user.getFlag("dice-so-nice", "appearance");
+        if (appearance?.[type] !== undefined) {
+            const cleaned = foundry.utils.deepClone(appearance);
+            delete cleaned[type];
+            game.user.setFlag("dice-so-nice", "appearance", cleaned);
         }
     }
 
@@ -145,7 +151,7 @@ export class CustomDiceTerms {
                     if (options.minimize) roll.result = minValue;
                     else if (options.maximize) roll.result = maxValue;
                     else if (options.strict) throw new Error("Cannot synchronously evaluate a non-deterministic term.");
-                    else continue;
+                    else roll.result = this.randomFace();
                     this.results.push(roll);
                 }
                 return this;

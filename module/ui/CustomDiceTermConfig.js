@@ -323,7 +323,7 @@ export class CustomDiceTermConfig extends HandlebarsApplicationMixin(Application
         input.click();
     }
 
-    async _processImport(text) {
+    static async _processImport(text) {
         let parsed;
         try {
             parsed = JSON.parse(text);
@@ -355,6 +355,11 @@ export class CustomDiceTermConfig extends HandlebarsApplicationMixin(Application
             const expectedFaces = CustomDiceTerms.getShapeFaceCount(term.shape);
             if (term.faces.length !== expectedFaces) {
                 console.warn(`[Dice So Nice] Skipping import of "${term.denomination}": face count mismatch (got ${term.faces.length}, expected ${expectedFaces})`);
+                skipped++;
+                continue;
+            }
+            if (term.faces.some(f => typeof f.value !== "number" || !Number.isFinite(f.value))) {
+                console.warn(`[Dice So Nice] Skipping import of "${term.denomination}": faces contain non-numeric values`);
                 skipped++;
                 continue;
             }
