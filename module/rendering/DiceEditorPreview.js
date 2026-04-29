@@ -9,7 +9,7 @@ import { DiceScene } from '../engine/DiceScene.js';
 import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
 import { Dice3D } from '../Dice3D.js';
 import { DICE_SHAPE } from '../engine/DiceModels.js';
-import { removeTicker } from '../Utils.js';
+import { Utils } from '../Utils.js';
 
 //wraps a DiceScene with manual mesh rotation + face raycasting
 export class DiceEditorPreview {
@@ -254,7 +254,7 @@ export class DiceEditorPreview {
             window.removeEventListener("mouseup", this._onWindowMouseUp);
             this._onWindowMouseUp = null;
         }
-        removeTicker(this._animate);
+        Utils.removeTicker(this._animate);
         if (this.diceScene) {
             this.diceScene.clearScene();
             //renderer is shared via dice3dRenderers.editor, don't dispose it

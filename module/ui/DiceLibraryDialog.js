@@ -1,5 +1,5 @@
 import { DiceEditor } from './DiceEditor.js';
-import { DiceLibrary, LIBRARY_DIE_TYPES } from '../engine/DiceLibrary.js';
+import { DiceLibrary } from '../engine/DiceLibrary.js';
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -63,8 +63,8 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
         }
 
         const sortedTypes = [...allTypes].sort((a, b) => {
-            const ia = LIBRARY_DIE_TYPES.indexOf(a);
-            const ib = LIBRARY_DIE_TYPES.indexOf(b);
+            const ia = DiceLibrary.LIBRARY_DIE_TYPES.indexOf(a);
+            const ib = DiceLibrary.LIBRARY_DIE_TYPES.indexOf(b);
             return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
         });
 
@@ -87,7 +87,7 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
             };
         });
 
-        const dieTypeOptions = LIBRARY_DIE_TYPES.map(t => ({
+        const dieTypeOptions = DiceLibrary.getFullDieTypes().map(t => ({
             value: t,
             label: t.toUpperCase(),
             selected: t === this.dieType

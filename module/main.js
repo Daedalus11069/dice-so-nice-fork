@@ -2,10 +2,12 @@ import { Dice3D } from './Dice3D.js';
 import { DiceConfig } from './ui/DiceConfig.js';
 import { RollableAreaConfig } from './ui/RollableAreaConfig.js';
 import { DamageTypeConfig } from './ui/DamageTypeConfig.js';
+import { CustomDiceTermConfig } from './ui/CustomDiceTermConfig.js';
 import { DsnSidebarTab } from './ui/DsnSidebarTab.js';
 import { InitiativeMask } from './ui/InitiativeMask.js';
 import { CompanionLink } from './CompanionLink.js';
 import { Utils } from './Utils.js';
+import { CustomDiceTerms } from './engine/CustomDiceTerms.js';
 
 /**
  * Registers the exposed settings for the various 3D dice options.
@@ -35,6 +37,15 @@ Hooks.once('init', () => {
         hint: "DICESONICE.DamageTypeConfigMenuHint",
         icon: "fas fa-droplet",
         type: DamageTypeConfig,
+        restricted: true
+    });
+
+    game.settings.registerMenu("dice-so-nice", "custom-diceterm-config", {
+        name: "DICESONICE.CustomDiceTermConfigMenu",
+        label: "DICESONICE.CustomDiceTermConfigMenuLabel",
+        hint: "DICESONICE.CustomDiceTermConfigMenuHint",
+        icon: "fas fa-dice",
+        type: CustomDiceTermConfig,
         restricted: true
     });
 
@@ -284,6 +295,9 @@ Hooks.once('init', () => {
         type: Object,
         default: {}
     });
+
+    CustomDiceTerms.registerSetting();
+    CustomDiceTerms.loadAndRegisterAll();
 
     game.settings.register("dice-so-nice", "documentsForPreload", {
         scope: "world",

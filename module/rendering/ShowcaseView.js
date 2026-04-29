@@ -1,6 +1,6 @@
 import { Mesh, PlaneGeometry, ShadowMaterial } from 'three';
 import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
-import { removeTicker } from '../Utils.js';
+import { Utils } from '../Utils.js';
 
 //showcase grid layout, selector animation, and die raycasting
 export class ShowcaseView {
@@ -33,13 +33,13 @@ export class ShowcaseView {
 		}
 
 		if (this.pane) this.diceScene.scene.remove(this.pane);
-		removeTicker(this.animateSelector);
+		Utils.removeTicker(this.animateSelector);
 		this.diceScene.renderScene();
 	}
 
 	//stop the selector ticker without touching scene contents
 	stopAnimation() {
-		removeTicker(this.animateSelector);
+		Utils.removeTicker(this.animateSelector);
 	}
 
 	async showcase(config) {
@@ -111,7 +111,7 @@ export class ShowcaseView {
 		if (this.selector.animate) {
 			this.diceScene.container.style.opacity = 0;
 			this.last_time = window.performance.now();
-			removeTicker(this.animateSelector);
+			Utils.removeTicker(this.animateSelector);
 			canvas.app.ticker.add(this.animateSelector, this);
 		}
 		else this.diceScene.renderScene();

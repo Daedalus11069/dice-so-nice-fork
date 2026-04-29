@@ -90,6 +90,7 @@ export class DiceFactory {
 			//otherwise register a phantom "dd" entry.
 			if([foundry.dice.terms.Coin, foundry.dice.terms.FateDie, foundry.dice.terms.Die].includes(term)) continue;
 			if(term.prototype instanceof foundry.dice.terms.Die) continue;
+			if(term._dsnCustomTerm) continue;
 			let objTerm = new term({});
 			if([2, 3, 4, 6, 8, 10, 12, 14, 16, 20, 24, 30].includes(objTerm.faces)){
 				this.internalAddDicePreset(objTerm);

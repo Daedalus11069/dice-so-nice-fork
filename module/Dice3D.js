@@ -13,6 +13,7 @@ import { DiceSystem } from './DiceSystem.js';
 import { DiceLibrary } from './engine/DiceLibrary.js';
 import { InitiativeMask } from './ui/InitiativeMask.js';
 import { CompanionLink } from './CompanionLink.js';
+import { CustomDiceTerms } from './engine/CustomDiceTerms.js';
 /**
  * Main class to handle 3D Dice animations.
  */
@@ -389,6 +390,7 @@ export class Dice3D {
             Hooks.call("diceSoNiceReady", this);
             await this.DiceFactory._loadFonts();
             await this.diceLibrary.load();
+            await CustomDiceTerms.applyDefaultAppearances();
             await DiceLibrary.preloadAssets();
             await this.DiceFactory.preloadPresets();
             await this._preloadActorDocuments();
@@ -487,6 +489,7 @@ export class Dice3D {
      */
     _buildDiceBox() {
         this.DiceFactory = new DiceFactory();
+        CustomDiceTerms.registerPresetsInFactory(this.DiceFactory);
         let config = Dice3D.ALL_CONFIG();
         config.boxType = "board";
 
@@ -610,6 +613,10 @@ export class Dice3D {
                         this.update(Dice3D.CONFIG());
                         ui.notifications.info(game.i18n.localize("DICESONICE.GMPushReceived"));
                     }
+                    break;
+                case "customTermSync":
+                    CustomDiceTerms.sync(request.definitions || {}, this.DiceFactory);
+                    CustomDiceTerms.applyDefaultAppearances();
                     break;
                 case "persistent-create":
                 case "persistent-remove":
