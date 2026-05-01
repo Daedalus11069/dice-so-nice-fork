@@ -76,3 +76,13 @@ If you wish to add more features to your integration, the rest of the API has yo
 - [Companion Messages](/foundryvtt-dice-so-nice/api/companion-messages/) - link non-roll messages to a roll animation
 - [Colors & Themes](/foundryvtt-dice-so-nice/api/customization/) - register custom color themes and presets
 - [Hooks](/foundryvtt-dice-so-nice/api/hooks/) - react to animation lifecycle events
+
+### Message flags reference
+
+These flags can be set on a `ChatMessage` at creation time via the `flags` property to control Dice So Nice! behavior.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `dice-so-nice.skip` | `boolean` | Suppress the 3D animation entirely for this message. See [Roll API](/foundryvtt-dice-so-nice/api/roll/#skip-animation-for-a-specific-message-recommended). |
+| `dice-so-nice.linkedTo` | `string` | Link a non-roll message to a primary roll message so it stays hidden during animation. See [Companion Messages](/foundryvtt-dice-so-nice/api/companion-messages/). |
+| `dice-so-nice.persistent` | `boolean` | Mark the message's dice as persistent (interactive dice that stay on the canvas). |

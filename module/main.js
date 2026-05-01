@@ -395,6 +395,8 @@ const shouldInterceptMessage = (chatMessage, options = {dsnCountAddedRoll: 0, ds
     //persistent dice handle their own visuals
     if (chatMessage.getFlag("dice-so-nice", "persistent")) return false;
 
+    if (chatMessage.getFlag("dice-so-nice", "skip")) return false;
+
     const hasInlineRoll = game.settings.get("dice-so-nice", "animateInlineRoll") && chatMessage.content.includes('inline-roll');
 
     const hide3dDiceOnSecretRolls = game.settings.get("dice-so-nice", "hide3dDiceOnSecretRolls");
