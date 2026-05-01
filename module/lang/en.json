@@ -68,6 +68,7 @@
     "DICESONICE.soundsVolume": "Sound Volume",
     "DICESONICE.muteSoundSecretRolls": "Mute all sounds for GM/Blind/Self rolls",
     "DICESONICE.enableFlavorColorset": "Apply damage type themes to dice",
+    "DICESONICE.skipAnimationOnInactiveTab": "Skip animations when tab is inactive",
     "DICESONICE.enableFlavorColorsetHint": "Automatically restyle dice based on the roll's damage type.",
     "DICESONICE.DamageTypeConfigMenu": "Damage Type Mapping",
     "DICESONICE.DamageTypeConfigMenuLabel": "Configure Damage Types",

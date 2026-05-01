@@ -81,6 +81,7 @@ export class Dice3D {
             immersiveDarkness: true,
             muteSoundSecretRolls: false,
             enableFlavorColorset: true,
+            skipAnimationOnInactiveTab: false,
             rollingArea: false
         };
     }
@@ -1160,12 +1161,16 @@ export class Dice3D {
 
                 if (!blind) {
                     if (window.document.hidden) {
-                        this.hiddenAnimationQueue.push({
-                            data: data,
-                            config: Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory, actor),
-                            timestamp: (new Date()).getTime(),
-                            resolve: resolve
-                        });
+                        if (Dice3D.CONFIG().skipAnimationOnInactiveTab) {
+                            resolve(false);
+                        } else {
+                            this.hiddenAnimationQueue.push({
+                                data: data,
+                                config: Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory, actor),
+                                timestamp: (new Date()).getTime(),
+                                resolve: resolve
+                            });
+                        }
                     } else {
                         this._showAnimation(data, Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory, actor)).then(displayed => {
                             resolve(displayed);
