@@ -611,7 +611,8 @@ export const COLORSETS = {
 		foreground: [],
 		outline: [],
 		background: [],
-		texture: []
+		texture: [],
+		material: []
 	},
 	'black': {
 		name: 'black',
@@ -893,20 +894,74 @@ export class DiceColors {
 		return { h: Math.round(h * 360), s, l };
 	}
 
+	static hslToHex(h, s, l) {
+		h = ((h % 360) + 360) % 360;
+		const c = (1 - Math.abs(2 * l - 1)) * s;
+		const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+		const m = l - c / 2;
+		let r, g, b;
+		if (h < 60)       { r = c; g = x; b = 0; }
+		else if (h < 120) { r = x; g = c; b = 0; }
+		else if (h < 180) { r = 0; g = c; b = x; }
+		else if (h < 240) { r = 0; g = x; b = c; }
+		else if (h < 300) { r = x; g = 0; b = c; }
+		else              { r = c; g = 0; b = x; }
+		const toHex = (v) => {
+			const hex = Math.round((v + m) * 255).toString(16);
+			return hex.length === 1 ? '0' + hex : hex;
+		};
+		return '#' + toHex(r) + toHex(g) + toHex(b);
+	}
+
+	static wcagContrastRatio(hex1, hex2) {
+		const luminance = (hex) => {
+			const r = parseInt(hex.slice(1, 3), 16) / 255;
+			const g = parseInt(hex.slice(3, 5), 16) / 255;
+			const b = parseInt(hex.slice(5, 7), 16) / 255;
+			const linearize = (c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+			return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
+		};
+		const l1 = luminance(hex1);
+		const l2 = luminance(hex2);
+		const lighter = Math.max(l1, l2);
+		const darker = Math.min(l1, l2);
+		return (lighter + 0.05) / (darker + 0.05);
+	}
+
 	static randomColor() {
-		// random colors
-		let rgb=[];
-		rgb[0] = Math.floor(Math.random() * 254);
-		rgb[1] = Math.floor(Math.random() * 254);
-		rgb[2] = Math.floor(Math.random() * 254);
-	
-		// this is an attempt to make the foregroudn color stand out from the background color
-		// it sometimes produces ok results
-		let brightness = ((parseInt(rgb[0]) * 299) + (parseInt(rgb[1]) * 587) +  (parseInt(rgb[2]) * 114)) / 1000;
-		let foreground = (brightness > 126) ? 'rgb(30,30,30)' : 'rgb(230,230,230)'; // high brightness = dark text, else bright text
-		let background = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
-	
-		return {background: background, foreground: foreground };
+		const FOREGROUND_PALETTE = [
+			'#FFFFFF', '#FFFDD0', '#E0E0E0', '#FFD700', '#1A1A2E', '#000000'
+		];
+
+		const h = Math.random() * 360;
+		const s = 0.50 + Math.random() * 0.35;
+		const l = 0.30 + Math.random() * 0.35;
+		const background = this.hslToHex(h, s, l);
+
+		// Textures and blend modes darken the effective background significantly,
+		// so compute contrast against a darkened version to favor lighter foregrounds.
+		const effectiveBg = this.hslToHex(h, s, Math.max(0, l - 0.25));
+
+		let bestForeground = FOREGROUND_PALETTE[0];
+		let bestContrast = 0;
+		for (const candidate of FOREGROUND_PALETTE) {
+			const ratio = this.wcagContrastRatio(effectiveBg, candidate);
+			if (ratio > bestContrast) {
+				bestContrast = ratio;
+				bestForeground = candidate;
+			}
+		}
+
+		const isDarkForeground = bestForeground === '#000000' || bestForeground === '#1A1A2E';
+		let outline;
+		if (isDarkForeground) {
+			outline = '#FFFFFF';
+		} else {
+			const outlineL = l > 0.45 ? Math.max(0, l - 0.20) : Math.min(1, l + 0.20);
+			outline = this.hslToHex(h, s, outlineL);
+		}
+
+		return { background, foreground: bestForeground, outline };
 	}
 	
 	static initColorSets(entries = null) {
@@ -939,24 +994,19 @@ export class DiceColors {
 				COLORSETS[name].visibility = "visible";
 		}
 		
-		// generate the colors and textures for the random set
+		// generate the colors, textures, and materials for the random set
 		if(!entries)
 		{
+			const RANDOM_MATERIALS = ['plastic', 'metal', 'wood', 'glass', 'chrome', 'pristine', 'iridescent', 'stone'];
 			for (let i = 0; i < 10; i++) {
 				let randcolor = this.randomColor();
 				let randtex = this.getTexture('random');
-		
-				if (randtex.name != '') {
-					COLORSETS['random'].foreground.push(randcolor.foreground); 
-					COLORSETS['random'].background.push(randcolor.background);
-					COLORSETS['random'].outline.push(randcolor.background);
-					COLORSETS['random'].texture.push(randtex);
-				} else {
-					COLORSETS['random'].foreground.push(randcolor.foreground); 
-					COLORSETS['random'].background.push(randcolor.background);
-					COLORSETS['random'].outline.push('black');
-					COLORSETS['random'].texture.push('');
-				}
+
+				COLORSETS['random'].foreground.push(randcolor.foreground);
+				COLORSETS['random'].background.push(randcolor.background);
+				COLORSETS['random'].outline.push(randcolor.outline);
+				COLORSETS['random'].texture.push(randtex.name != '' ? randtex : '');
+				COLORSETS['random'].material.push(RANDOM_MATERIALS[Math.floor(Math.random() * RANDOM_MATERIALS.length)]);
 			}
 		}
 	}

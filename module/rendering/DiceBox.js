@@ -5,7 +5,7 @@ import { InputHandler } from '../interaction/InputHandler.js';
 import { PersistentDiceManager } from '../interaction/PersistentDiceManager.js';
 import { SoundManager } from '../engine/SoundManager.js';
 import { ThrowEngine } from '../engine/ThrowEngine.js';
-import { removeTicker } from '../Utils.js';
+import { Utils } from '../Utils.js';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import Stats from 'stats-gl';
 
@@ -332,7 +332,7 @@ export class DiceBox {
 
 		//ensure ticker is running
 		if (!this.throwEngine.running) {
-			removeTicker(this.animateThrow);
+			Utils.removeTicker(this.animateThrow);
 			canvas.app.ticker.add(this.animateThrow, this);
 		}
 
@@ -348,7 +348,7 @@ export class DiceBox {
 
 		//clean up if no more dice
 		if (this.persistentDiceList.length === 0 && !this.throwEngine.rolling && this.throwEngine.diceList.length === 0 && this.throwEngine.deadDiceList.length === 0 && this.fadingDice.length === 0) {
-			removeTicker(this.animateThrow);
+			Utils.removeTicker(this.animateThrow);
 			this.isVisible = false;
 		}
 
@@ -466,7 +466,7 @@ export class DiceBox {
 
 			// clean up physics for faded-out dice
 			if (this.fadingDice.length === 0 && this.persistentDiceList.length === 0 && !this.throwEngine.rolling) {
-				removeTicker(this.animateThrow);
+				Utils.removeTicker(this.animateThrow);
 				this.isVisible = false;
 			}
 		}
@@ -520,7 +520,7 @@ export class DiceBox {
 					this.throwEngine.rolling = false;
 					this.throwEngine.callback(this.throwEngine.throws);
 					if (!this.diceScene.animatedDiceDetected && !(this.allowInteractivity && (this.throwEngine.deadDiceList.length + this.throwEngine.diceList.length) > 0) && !DiceSFXManager.renderQueue.length && this.persistentDiceList.length === 0 && this.fadingDice.length === 0)
-						removeTicker(this.animateThrow);
+						Utils.removeTicker(this.animateThrow);
 				});
 			}
 			this.throwEngine.running = false;
@@ -535,7 +535,7 @@ export class DiceBox {
 		await this.throwEngine.startUnifiedBatch(throws, persistentThrowData, callback);
 		this._preparingThrow = false;
 		this.last_time = 0;
-		removeTicker(this.animateThrow);
+		Utils.removeTicker(this.animateThrow);
 		canvas.app.ticker.add(this.animateThrow, this);
 	}
 
@@ -550,7 +550,7 @@ export class DiceBox {
 		}
 		//keep ticker alive if persistent dice or fading dice exist
 		if (this.persistentDiceList.length === 0 && this.fadingDice.length === 0) {
-			removeTicker(this.animateThrow);
+			Utils.removeTicker(this.animateThrow);
 		}
 
 		this.renderScene();
@@ -596,7 +596,7 @@ export class DiceBox {
 		DiceSFXManager.clearQueue();
 
 		// ensure ticker is running
-		removeTicker(this.animateThrow);
+		Utils.removeTicker(this.animateThrow);
 		canvas.app.ticker.add(this.animateThrow, this);
 	}
 
@@ -639,7 +639,7 @@ export class DiceBox {
 
 		this.diceScene.clearScene();
 
-		removeTicker(this.animateThrow);
+		Utils.removeTicker(this.animateThrow);
 	}
 
 	//facade: delegate input handling to InputHandler

@@ -1170,4 +1170,132 @@
     margin-left: 0.25em;
 }
 
+/* Custom DiceTerm Config */
 
+.custom-diceterm-config .custom-diceterm-list {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.custom-diceterm-config .custom-diceterm-list th,
+.custom-diceterm-config .custom-diceterm-list td {
+    padding: 4px 6px;
+    text-align: left;
+}
+
+.custom-diceterm-config .custom-diceterm-list .col-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.custom-diceterm-config .custom-diceterm-list .col-actions button {
+    display: inline-flex;
+    width: auto;
+    padding: 2px 6px;
+    margin-left: 2px;
+}
+
+.custom-diceterm-config .custom-diceterm-config-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.custom-diceterm-config .custom-diceterm-config-actions button {
+    flex: 1;
+}
+
+.custom-diceterm-config .custom-diceterm-editor .form-group label {
+    flex: 3;
+}
+
+.custom-diceterm-config .custom-diceterm-editor .form-group > select,
+.custom-diceterm-config .custom-diceterm-editor .denomination-input-wrap {
+    flex: 1;
+}
+
+.custom-diceterm-config .denomination-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.custom-diceterm-config .denomination-prefix {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.custom-diceterm-config .denomination-input-wrap input {
+    flex: 1;
+}
+
+.custom-diceterm-config .custom-diceterm-face-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.custom-diceterm-config .custom-diceterm-face-table tbody tr:nth-child(even) {
+    background: transparent;
+}
+
+.custom-diceterm-config .custom-diceterm-face-table th,
+.custom-diceterm-config .custom-diceterm-face-table td {
+    padding: 2px 4px;
+}
+
+.custom-diceterm-config .custom-diceterm-face-table .col-face {
+    width: 30px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.custom-diceterm-config .custom-diceterm-face-table .col-value {
+    width: 80px;
+}
+
+.custom-diceterm-config .custom-diceterm-face-table .col-value input {
+    width: 100%;
+}
+
+.custom-diceterm-config .form-group.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.custom-diceterm-config .form-fields {
+    flex: 3;
+}
+
+.custom-diceterm-config .form-fields select {
+    flex: 1;
+}
+
+.custom-diceterm-config .library-control {
+    flex: 0;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--color-border-light-tertiary);
+    border-radius: 3px;
+    padding: 4px;
+}
+
+.custom-diceterm-config .custom-diceterm-editor-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.custom-diceterm-config .custom-diceterm-editor-actions button {
+    flex: 1;
+}
+
+.custom-diceterm-config .empty-message {
+    text-align: center;
+    font-style: italic;
+    opacity: 0.7;
+    padding: 12px 0;
+}
+
+.custom-diceterm-config .custom-diceterm-face-table-wrap {
+    max-height: 400px;
+    overflow-y: auto;
+}

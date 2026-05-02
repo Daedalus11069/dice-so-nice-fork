@@ -119,9 +119,24 @@ game.dice3d.show(data).then((displayed) => {
 
 ## Disabling/Enabling the 3D animation programmatically
 In some cases, you may want to prevent 'Dice So Nice!' from displaying a 3D animation when a Roll Chat Message is posted.
-You can either disable the 'Dice So Nice!' hook on a specific player to limit who can see a 3D roll or hide a roll animation by catching it before it begins.
+
+### Skip animation for a specific message (recommended)
+Set the `dice-so-nice.skip` flag on the chat message at creation time. This is per-message, multiplayer-safe, and requires no hooks or global state.
+```javascript
+let r = await new Roll('2d6').evaluate();
+await ChatMessage.create({
+    rolls: [r],
+    content: 'This roll will not trigger a 3D animation',
+    flags: {
+        'dice-so-nice': {
+            skip: true
+        }
+    }
+});
+```
 
 ### Disable the 'Dice So Nice!' hook locally
+This disables 3D animation detection for **all** messages on the current client. Use this only when you need to suppress animation globally for a player rather than for a specific message.
 ```javascript
 game.dice3d.messageHookDisabled = true;
 ```
@@ -155,8 +170,13 @@ This only affects how rolls added via message updates are hidden and revealed. T
 :::
 
 ## Hiding a dice from a roll animation
+
+:::tip[Skip vs. Hidden]
+To suppress the **entire** 3D animation for a message, use the [`dice-so-nice.skip` flag](#skip-animation-for-a-specific-message-recommended) instead. The `hidden` property below hides **individual dice** from the animation while still animating the rest.
+:::
+
 ### From the Roll object
-If you wish to hide one or more dice from a Roll object so they are not displayed by Dice So Nice, you can set a special `hidden` property on these dice results.
+If you wish to hide one or more dice from a Roll object so they are not displayed by Dice So Nice, you can set the `hidden` property on specific dice results within a DiceTerm.
 ```javascript
 let r = await new Roll('1d20+1d6').evaluate();
 //Only show the D6 in DsN

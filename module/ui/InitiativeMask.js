@@ -1,90 +1,96 @@
-// Masks initiative values in the combat tracker while their 3D roll animation is playing.
+/**
+ * Masks initiative values in the combat tracker while their 3D roll
+ * animation is playing. Freezes the tracker turn order so the result
+ * is not spoiled by Foundry's re-sort.
+ */
+export class InitiativeMask {
 
-const pendingCombatants = new Set();
-const messageToCombatant = new Map();
-// frozen turn order held while any animation is pending.
-// captured in preUpdateCombatant because Combat.rollInitiative updates combatants
-// before creating chat messages - by the time createChatMessage fires, the tracker
-// has already re-sorted. we must snapshot the pre-update order.
-let frozenOrder = null;
-// staging slot: preUpdateCombatant snapshots here, flag() promotes to frozenOrder.
-// orphan snapshots from manual init edits are harmless - the next preUpdateCombatant
-// overwrites, and flag() only promotes when no animation is already pending.
-let pendingSnapshot = null;
+    static _pendingCombatants = new Set();
+    static _messageToCombatant = new Map();
+    static _frozenOrder = null;
+    static _pendingSnapshot = null;
+    static _renderTimer = null;
 
-let renderTimer = null;
-function scheduleTrackerRender() {
-    if (renderTimer) return;
-    renderTimer = setTimeout(() => {
-        renderTimer = null;
-        ui.combat?.render();
-    }, 50);
-}
+    static _scheduleTrackerRender() {
+        if (this._renderTimer) return;
+        this._renderTimer = setTimeout(() => {
+            this._renderTimer = null;
+            ui.combat?.render();
+        }, 50);
+    }
 
-function resolveCombatantId(chatMessage) {
-    const combat = game.combat;
-    if (!combat) return null;
-    const speaker = chatMessage.speaker || {};
-    let combatant = null;
-    if (speaker.token) combatant = combat.combatants.find(c => c.tokenId === speaker.token);
-    if (!combatant && speaker.actor) combatant = combat.combatants.find(c => c.actorId === speaker.actor);
-    return combatant?.id ?? null;
-}
+    static _resolveCombatantId(chatMessage) {
+        const combat = game.combat;
+        if (!combat) return null;
+        const speaker = chatMessage.speaker || {};
+        let combatant = null;
+        if (speaker.token) combatant = combat.combatants.find(c => c.tokenId === speaker.token);
+        if (!combatant && speaker.actor) combatant = combat.combatants.find(c => c.actorId === speaker.actor);
+        return combatant?.id ?? null;
+    }
 
-export const InitiativeMask = {
-    // called from preUpdateCombatant; captures the pre-reorder turn order so the
-    // tracker can be frozen before foundry commits the initiative update
-    snapshot(combatant) {
-        if (pendingCombatants.size) return; // already frozen
+    /**
+     * Capture the pre-reorder turn order. Called from preUpdateCombatant
+     * because Combat.rollInitiative updates combatants before creating
+     * chat messages.
+     */
+    static snapshot(combatant) {
+        if (this._pendingCombatants.size) return;
         const combat = combatant?.parent;
         if (!combat || combat !== game.combat) return;
-        pendingSnapshot = combat.turns.map(c => c.id);
-    },
+        this._pendingSnapshot = combat.turns.map(c => c.id);
+    }
 
-    // called from createChatMessage when an initiative roll is about to animate
-    flag(chatMessage) {
-        const combatantId = resolveCombatantId(chatMessage);
+    /**
+     * Flag a chat message as an initiative roll about to animate.
+     */
+    static flag(chatMessage) {
+        const combatantId = this._resolveCombatantId(chatMessage);
         if (!combatantId) return;
-        if (!pendingCombatants.size && pendingSnapshot) {
-            frozenOrder = pendingSnapshot;
-            pendingSnapshot = null;
+        if (!this._pendingCombatants.size && this._pendingSnapshot) {
+            this._frozenOrder = this._pendingSnapshot;
+            this._pendingSnapshot = null;
         }
-        pendingCombatants.add(combatantId);
-        messageToCombatant.set(chatMessage.id, combatantId);
+        this._pendingCombatants.add(combatantId);
+        this._messageToCombatant.set(chatMessage.id, combatantId);
         ui.combat?.render();
-    },
+    }
 
-    // called from Dice3D when the animation for a message is done
-    release(messageId) {
-        const combatantId = messageToCombatant.get(messageId);
+    /**
+     * Release the mask for a message once its animation finishes.
+     */
+    static release(messageId) {
+        const combatantId = this._messageToCombatant.get(messageId);
         if (!combatantId) return;
-        messageToCombatant.delete(messageId);
-        pendingCombatants.delete(combatantId);
-        if (!pendingCombatants.size) frozenOrder = null;
-        scheduleTrackerRender();
-    },
+        this._messageToCombatant.delete(messageId);
+        this._pendingCombatants.delete(combatantId);
+        if (!this._pendingCombatants.size) this._frozenOrder = null;
+        this._scheduleTrackerRender();
+    }
 
-    // called from renderCombatTracker to tag pending rows, inject the hourglass,
-    // and restore the frozen turn order so foundry's re-sort doesn't spoil the result
-    apply(html) {
-        if (!pendingCombatants.size) return;
+    /**
+     * Tag pending rows in the combat tracker, inject the hourglass icon,
+     * and restore frozen turn order so Foundry's re-sort doesn't spoil results.
+     */
+    static apply(html) {
+        if (!this._pendingCombatants.size) return;
         const root = html instanceof HTMLElement ? html : html?.[0];
         if (!root) return;
 
-        if (frozenOrder) {
+        if (this._frozenOrder) {
             const rows = new Map();
             for (const li of root.querySelectorAll("[data-combatant-id]"))
                 rows.set(li.dataset.combatantId, li);
             const parent = rows.values().next().value?.parentElement;
             if (parent) {
-                for (const id of frozenOrder) {
+                for (const id of this._frozenOrder) {
                     const li = rows.get(id);
                     if (li) parent.appendChild(li);
                 }
             }
         }
 
-        for (const combatantId of pendingCombatants) {
+        for (const combatantId of this._pendingCombatants) {
             const li = root.querySelector(`[data-combatant-id="${combatantId}"]`);
             if (!li) continue;
             li.classList.add("dsn-initiative-pending");
@@ -96,4 +102,4 @@ export const InitiativeMask = {
             }
         }
     }
-};
+}

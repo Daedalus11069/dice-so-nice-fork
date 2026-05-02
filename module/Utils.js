@@ -1,30 +1,29 @@
 import { TEXTURELIST, COLORSETS } from './engine/DiceColors.js';
 import { DiceLibrary } from './engine/DiceLibrary.js';
 
-//remove a handler from a PIXI ticker even when the context changed
-export function removeTicker(fn) {
-	let ticker = canvas.app.ticker;
-	let listener = ticker._head.next;
-
-	while (listener) {
-		if (listener.fn === fn) {
-			listener = listener.destroy();
-		}
-		else {
-			listener = listener.next;
-		}
-	}
-
-	if (!ticker._head.next) {
-		ticker._cancelIfNeeded();
-	}
-	return ticker;
-}
-
 /**
  * Generic utilities class...
  */
 export class Utils {
+
+    static removeTicker(fn) {
+        let ticker = canvas.app.ticker;
+        let listener = ticker._head.next;
+
+        while (listener) {
+            if (listener.fn === fn) {
+                listener = listener.destroy();
+            }
+            else {
+                listener = listener.next;
+            }
+        }
+
+        if (!ticker._head.next) {
+            ticker._cancelIfNeeded();
+        }
+        return ticker;
+    }
 
     static DATA_FORMAT_VERSION = "6.1";
     static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "rollingArea", "advancedGlass", "ambiance"];

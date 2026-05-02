@@ -90,6 +90,7 @@ export class DiceFactory {
 			//otherwise register a phantom "dd" entry.
 			if([foundry.dice.terms.Coin, foundry.dice.terms.FateDie, foundry.dice.terms.Die].includes(term)) continue;
 			if(term.prototype instanceof foundry.dice.terms.Die) continue;
+			if(term._dsnCustomTerm) continue;
 			let objTerm = new term({});
 			if([2, 3, 4, 6, 8, 10, 12, 14, 16, 20, 24, 30].includes(objTerm.faces)){
 				this.internalAddDicePreset(objTerm);
@@ -1793,6 +1794,8 @@ export class DiceFactory {
 			appearance.background = colorsetData.background;
 			appearance.outline = colorsetData.outline;
 			appearance.edge = colorsetData.edge ? colorsetData.edge : "";
+			if(appearance.material == "auto" && colorsetData.material)
+				appearance.material = colorsetData.material;
 		}
 		let diceobj = this.getPresetBySystem(dicetype,appearance.system);
 		if(diceobj.colorset){
@@ -1980,6 +1983,10 @@ export class DiceFactory {
 				materialData.edge = appearance.edge[colorindex];
 			}
 
+			if (Array.isArray(appearance.material) && appearance.material.length == appearance.background.length) {
+				materialData.material = appearance.material[colorindex];
+			}
+
 			materialData.background = appearance.background[colorindex];
 		} else {
 			materialData.background = appearance.background;
@@ -2038,15 +2045,17 @@ export class DiceFactory {
 		}
 
 		//Same for material
-		let baseTexture = Array.isArray(materialData.texture) ? materialData.texture[0]:materialData.texture;
+		if(!materialData.material){
+			let baseTexture = Array.isArray(materialData.texture) ? materialData.texture[0]:materialData.texture;
 
-		if(appearance.material == "auto" || appearance.material == ""){
-			if(colorsetData.material)
-				materialData.material = colorsetData.material;
-			else
-				materialData.material = baseTexture.material;
-		} else {
-			materialData.material = appearance.material;
+			if(appearance.material == "auto" || appearance.material == ""){
+				if(colorsetData.material)
+					materialData.material = colorsetData.material;
+				else
+					materialData.material = baseTexture.material;
+			} else {
+				materialData.material = appearance.material;
+			}
 		}
 
 		//for font, we priorize the dicepreset font, then custom, then coloret
