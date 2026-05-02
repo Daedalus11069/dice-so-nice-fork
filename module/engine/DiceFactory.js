@@ -1794,6 +1794,8 @@ export class DiceFactory {
 			appearance.background = colorsetData.background;
 			appearance.outline = colorsetData.outline;
 			appearance.edge = colorsetData.edge ? colorsetData.edge : "";
+			if(appearance.material == "auto" && colorsetData.material)
+				appearance.material = colorsetData.material;
 		}
 		let diceobj = this.getPresetBySystem(dicetype,appearance.system);
 		if(diceobj.colorset){
@@ -1981,6 +1983,10 @@ export class DiceFactory {
 				materialData.edge = appearance.edge[colorindex];
 			}
 
+			if (Array.isArray(appearance.material) && appearance.material.length == appearance.background.length) {
+				materialData.material = appearance.material[colorindex];
+			}
+
 			materialData.background = appearance.background[colorindex];
 		} else {
 			materialData.background = appearance.background;
@@ -2039,15 +2045,17 @@ export class DiceFactory {
 		}
 
 		//Same for material
-		let baseTexture = Array.isArray(materialData.texture) ? materialData.texture[0]:materialData.texture;
+		if(!materialData.material){
+			let baseTexture = Array.isArray(materialData.texture) ? materialData.texture[0]:materialData.texture;
 
-		if(appearance.material == "auto" || appearance.material == ""){
-			if(colorsetData.material)
-				materialData.material = colorsetData.material;
-			else
-				materialData.material = baseTexture.material;
-		} else {
-			materialData.material = appearance.material;
+			if(appearance.material == "auto" || appearance.material == ""){
+				if(colorsetData.material)
+					materialData.material = colorsetData.material;
+				else
+					materialData.material = baseTexture.material;
+			} else {
+				materialData.material = appearance.material;
+			}
 		}
 
 		//for font, we priorize the dicepreset font, then custom, then coloret
