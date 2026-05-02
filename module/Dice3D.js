@@ -948,114 +948,155 @@ export class Dice3D {
             //1- We create a list of all 3D rolls, ordered ASC
             //2- We create a Roll object with the correct formula and results
             //3- We queue the showForRoll calls and then show the message
-            let orderedDiceList = [[]];
-            rolls.forEach(roll => {
-                roll.dice.forEach(diceTerm => {
-                    let index = 0;
-                    //dependent dice (parenthetical expressions like (1d4)d6) always sequence,
-                    //even when the user has the simultaneous-rolls setting enabled
-                    const dependentBucket = diceTerm.options?.dsnDependentBucket;
-                    const sequentialEnabled = !game.settings.get("dice-so-nice", "enabledSimultaneousRollForMessage");
-                    if (diceTerm.options?.hasOwnProperty("rollOrder") && (dependentBucket || sequentialEnabled)) {
-                        index = diceTerm.options.rollOrder;
-                        if (orderedDiceList[index] == null) {
-                            orderedDiceList[index] = [];
-                        }
-                    }
 
-                    //In order to allow for custom appearance and the roll level, we merge the roll appearance in the dice term
-                    if (roll.options?.appearance) {
-                        if (!diceTerm.options)
-                            diceTerm.options = {};
-                        if (!diceTerm.options.appearance)
-                            diceTerm.options.appearance = {};
-                        diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
-                    }
-
-                    //backfill damage type from roll options so term-level detection catches it
-                    //per-term values always win over whole-roll values
-                    if (roll.options?.type || roll.options?.flavor) {
-                        if (!diceTerm.options) diceTerm.options = {};
-                        if (!diceTerm.options.type && roll.options.type)
-                            diceTerm.options.type = roll.options.type;
-                        if (!diceTerm.options.flavor && roll.options.flavor)
-                            diceTerm.options.flavor = roll.options.flavor;
-                    }
-
-                    if (roll.data?.actorId) {
-                        if (!diceTerm.options) diceTerm.options = {};
-                        if (!diceTerm.options.dsnActorId)
-                            diceTerm.options.dsnActorId = roll.data.actorId;
-                    }
-
-                    orderedDiceList[index].push(diceTerm);
-                });
-            });
-            orderedDiceList = orderedDiceList.filter(el => el != null);
-
-            let rollList = [];
             const plus = new foundry.dice.terms.OperatorTerm({ operator: "+" });
-            //_evaluated is false in v12, true in v13+
             if (!plus._evaluated)
                 plus.evaluate();
 
-            orderedDiceList.forEach(dice => {
-                //add a "plus" between each term
-                if (Array.isArray(dice) && dice.length) {
-                    //strip dependency rolls from each die so the per-bucket Roll's flat .dice
-                    //list contains only this bucket's dice - otherwise a (1d4)d6 d6 in bucket 1
-                    //would re-render the d4 alongside it via Roll.dice's recursive walk
-                    const cleanDice = dice.map(this._stripDependencyRolls);
-                    let termList = [...cleanDice].map((e, i) => i < cleanDice.length - 1 ? [e, plus] : [e]).reduce((a, b) => a.concat(b));
-                    //We use the Roll class registered in the CONFIG constant in case the system overwrites it (eg: HeXXen)
-                    rollList.push(CONFIG.Dice.rolls[0].fromTerms(termList));
-                }
-            });
+            const buildRollList = (rollsToProcess) => {
+                let orderedDiceList = [[]];
+                rollsToProcess.forEach(roll => {
+                    roll.dice.forEach(diceTerm => {
+                        let index = 0;
+                        //dependent dice (parenthetical expressions like (1d4)d6) always sequence,
+                        //even when the user has the simultaneous-rolls setting enabled
+                        const dependentBucket = diceTerm.options?.dsnDependentBucket;
+                        const sequentialEnabled = !game.settings.get("dice-so-nice", "enabledSimultaneousRollForMessage");
+                        if (diceTerm.options?.hasOwnProperty("rollOrder") && (dependentBucket || sequentialEnabled)) {
+                            index = diceTerm.options.rollOrder;
+                            if (orderedDiceList[index] == null) {
+                                orderedDiceList[index] = [];
+                            }
+                        }
 
-            //call each promise one after the other, then call the showMessage function
-            const recursShowForRoll = (rollList, index) => {
+                        //In order to allow for custom appearance and the roll level, we merge the roll appearance in the dice term
+                        if (roll.options?.appearance) {
+                            if (!diceTerm.options)
+                                diceTerm.options = {};
+                            if (!diceTerm.options.appearance)
+                                diceTerm.options.appearance = {};
+                            diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
+                        }
+
+                        //backfill damage type from roll options so term-level detection catches it
+                        //per-term values always win over whole-roll values
+                        if (roll.options?.type || roll.options?.flavor) {
+                            if (!diceTerm.options) diceTerm.options = {};
+                            if (!diceTerm.options.type && roll.options.type)
+                                diceTerm.options.type = roll.options.type;
+                            if (!diceTerm.options.flavor && roll.options.flavor)
+                                diceTerm.options.flavor = roll.options.flavor;
+                        }
+
+                        if (roll.data?.actorId) {
+                            if (!diceTerm.options) diceTerm.options = {};
+                            if (!diceTerm.options.dsnActorId)
+                                diceTerm.options.dsnActorId = roll.data.actorId;
+                        }
+
+                        orderedDiceList[index].push(diceTerm);
+                    });
+                });
+                orderedDiceList = orderedDiceList.filter(el => el != null);
+
+                let rollList = [];
+                orderedDiceList.forEach(dice => {
+                    //add a "plus" between each term
+                    if (Array.isArray(dice) && dice.length) {
+                        //strip dependency rolls from each die so the per-bucket Roll's flat .dice
+                        //list contains only this bucket's dice - otherwise a (1d4)d6 d6 in bucket 1
+                        //would re-render the d4 alongside it via Roll.dice's recursive walk
+                        const cleanDice = dice.map(this._stripDependencyRolls);
+                        let termList = [...cleanDice].map((e, i) => i < cleanDice.length - 1 ? [e, plus] : [e]).reduce((a, b) => a.concat(b));
+                        //We use the Roll class registered in the CONFIG constant in case the system overwrites it (eg: HeXXen)
+                        rollList.push(CONFIG.Dice.rolls[0].fromTerms(termList));
+                    }
+                });
+                return rollList;
+            };
+
+            const resolveOwnerForActor = (actor) => {
+                if (!actor?.hasPlayerOwner) return null;
+                let ownerUser = game.users.find(user => !user.isGM && user.character?.id == actor.id);
+                if (!ownerUser) {
+                    const ownership = { ...actor.ownership };
+                    if (ownership.default != CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
+                        delete ownership.default;
+                        const playerOwners = Object.keys(ownership).filter(key => game.users.get(key) && !game.users.get(key).isGM);
+                        if (playerOwners.length == 1) {
+                            ownerUser = game.users.get(playerOwners[0]);
+                        }
+                    }
+                }
+                return ownerUser || null;
+            };
+
+            //chain rollList entries sequentially (for rollOrder), then call done
+            const showRollList = (rollList, author, speaker, done) => {
+                const recurse = (index) => {
+                    this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, speaker).then(() => {
+                        if (rollList[index + 1] != null)
+                            recurse(index + 1);
+                        else
+                            done();
+                    });
+                };
+                if (rollList.length > 0) recurse(0);
+                else done();
+            };
+
+            const ownerAppearanceSetting = game.settings.get("dice-so-nice", "forceCharacterOwnerAppearance");
+            const shouldResolveOwner = ownerAppearanceSetting === "2"
+                || (ownerAppearanceSetting === "1" && chatMessage.getFlag("core", "initiativeRoll"));
+
+            // When multiple actors contributed rolls and owner resolution is active,
+            // group by actorId so each group gets the correct owner appearance.
+            // Otherwise treat all rolls as a single group.
+            const actorIdSet = new Set(rolls.filter(r => r.data?.actorId).map(r => r.data.actorId));
+            const shouldSplitByActor = actorIdSet.size > 1 && shouldResolveOwner;
+
+            const groups = new Map();
+            if (shouldSplitByActor) {
+                rolls.forEach(roll => {
+                    const aid = roll.data?.actorId || "";
+                    if (!groups.has(aid)) groups.set(aid, []);
+                    groups.get(aid).push(roll);
+                });
+            } else {
+                groups.set(null, rolls);
+            }
+
+            const promises = [];
+            for (const [actorId, groupRolls] of groups) {
+                const rollList = buildRollList(groupRolls);
+                if (rollList.length === 0) continue;
+
                 let author = chatMessage.author;
                 let speaker = chatMessage.speaker;
-                const ownerAppearanceSetting = game.settings.get("dice-so-nice", "forceCharacterOwnerAppearance");
-                const shouldResolveOwner = ownerAppearanceSetting === "2"
-                    || (ownerAppearanceSetting === "1" && chatMessage.getFlag("core", "initiativeRoll"));
+
                 if (shouldResolveOwner) {
-                    const dsnActorId = rollList[index].dice?.[0]?.options?.dsnActorId;
+                    let resolvedActorId = actorId || rollList[0].dice?.[0]?.options?.dsnActorId;
                     let actor;
-                    if (dsnActorId) {
-                        actor = game.actors.get(dsnActorId);
+                    if (resolvedActorId) {
+                        actor = game.actors.get(resolvedActorId);
                     }
                     if (!actor && chatMessage.speaker) {
                         actor = ChatMessage.getSpeakerActor(chatMessage.speaker);
                     }
-                    if (actor && actor.hasPlayerOwner) {
-                        let ownerUser = game.users.find(user => !user.isGM && user.character?.id == actor.id);
-                        if (!ownerUser) {
-                            const ownership = { ...actor.ownership };
-                            if (ownership.default != CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
-                                delete ownership.default;
-                                const playerOwners = Object.keys(ownership).filter(key => game.users.get(key) && !game.users.get(key).isGM);
-                                if (playerOwners.length == 1) {
-                                    ownerUser = game.users.get(playerOwners[0]);
-                                }
-                            }
-                        }
-                        if (ownerUser) {
-                            author = ownerUser;
-                            if (dsnActorId) speaker = { actor: dsnActorId };
-                        }
+                    const ownerUser = resolveOwnerForActor(actor);
+                    if (ownerUser) {
+                        author = ownerUser;
+                        if (resolvedActorId) speaker = { actor: resolvedActorId };
                     }
                 }
-                this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, speaker).then(() => {
-                    index++;
-                    if (rollList[index] != null)
-                        recursShowForRoll(rollList, index);
-                    else
-                        showMessage();
-                });
-            };
 
-            recursShowForRoll(rollList, 0);
+                promises.push(new Promise(resolve => showRollList(rollList, author, speaker, resolve)));
+            }
+
+            if (promises.length > 0)
+                Promise.all(promises).then(() => showMessage());
+            else
+                showMessage();
         }
     }
 
