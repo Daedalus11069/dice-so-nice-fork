@@ -252,7 +252,7 @@ Hooks.once('init', () => {
             "1": "DICESONICE.forceCharacterOwnerAppearanceInitiative",
             "2": "DICESONICE.forceCharacterOwnerAppearanceAll"
         }),
-        default: "1",
+        default: "2",
         config: true
     });
 

@@ -982,6 +982,12 @@ export class Dice3D {
                             diceTerm.options.flavor = roll.options.flavor;
                     }
 
+                    if (roll.data?.actorId) {
+                        if (!diceTerm.options) diceTerm.options = {};
+                        if (!diceTerm.options.dsnActorId)
+                            diceTerm.options.dsnActorId = roll.data.actorId;
+                    }
+
                     orderedDiceList[index].push(diceTerm);
                 });
             });
@@ -1009,31 +1015,38 @@ export class Dice3D {
             //call each promise one after the other, then call the showMessage function
             const recursShowForRoll = (rollList, index) => {
                 let author = chatMessage.author;
+                let speaker = chatMessage.speaker;
                 const ownerAppearanceSetting = game.settings.get("dice-so-nice", "forceCharacterOwnerAppearance");
                 const shouldResolveOwner = ownerAppearanceSetting === "2"
                     || (ownerAppearanceSetting === "1" && chatMessage.getFlag("core", "initiativeRoll"));
-                if (shouldResolveOwner && chatMessage.speaker) {
-                    const actor = ChatMessage.getSpeakerActor(chatMessage.speaker);
+                if (shouldResolveOwner) {
+                    const dsnActorId = rollList[index].dice?.[0]?.options?.dsnActorId;
+                    let actor;
+                    if (dsnActorId) {
+                        actor = game.actors.get(dsnActorId);
+                    }
+                    if (!actor && chatMessage.speaker) {
+                        actor = ChatMessage.getSpeakerActor(chatMessage.speaker);
+                    }
                     if (actor && actor.hasPlayerOwner) {
-                        //get the user from game.users
                         let ownerUser = game.users.find(user => !user.isGM && user.character?.id == actor.id);
                         if (!ownerUser) {
-                            //if we could not find a player user, we try to find a player owner, if and only if the actor only has a single player owner (but can have multiple GMs)
-                            const ownership = { ...actor.ownership }; //ie {"default": 0,"Q1Qcc8RRRcvG6QjE": 3}
-                            if (ownership.default != CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) { //Check that the default isn't Owner
-                                //now get all the owners that are not GMs nor the default
+                            const ownership = { ...actor.ownership };
+                            if (ownership.default != CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
                                 delete ownership.default;
                                 const playerOwners = Object.keys(ownership).filter(key => game.users.get(key) && !game.users.get(key).isGM);
-                                //if there is only one player owner
                                 if (playerOwners.length == 1) {
                                     ownerUser = game.users.get(playerOwners[0]);
                                 }
                             }
                         }
-                        if (ownerUser) author = ownerUser;
+                        if (ownerUser) {
+                            author = ownerUser;
+                            if (dsnActorId) speaker = { actor: dsnActorId };
+                        }
                     }
                 }
-                this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, chatMessage.speaker).then(() => {
+                this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, speaker).then(() => {
                     index++;
                     if (rollList[index] != null)
                         recursShowForRoll(rollList, index);

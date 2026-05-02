@@ -69,7 +69,29 @@ roll = Roll.fromTerms([pool]);
 roll.toMessage();
 ```
 
-## Step 5: Further options
+## Step 5: Per-roll appearance in multi-actor messages
+
+When the world setting **"Force roll appearance to owner"** is enabled (the default for new worlds), Dice So Nice! resolves which player's dice appearance to use for each roll in a message. The resolution priority is:
+
+1. **`roll.data.actorId`** — If the Roll's `data` object contains an `actorId`, the actor is looked up via `game.actors.get(actorId)`. If found and the actor has a player owner, that player's dice appearance is used.
+2. **`chatMessage.speaker.actor`** — The message-level speaker actor. Same lookup as above.
+3. **`chatMessage.author`** — The user who created the message (fallback).
+
+This is especially useful for systems that create a single chat message containing rolls for multiple actors (e.g. a group skill check). By setting `actorId` in each Roll's data, each roll displays the correct player's dice appearance.
+
+```javascript
+// Example: group skill check with per-roll actor appearance
+const rolls = [];
+for (const actor of selectedActors) {
+  const roll = await new Roll("1d20").evaluate();
+  roll.data.actorId = actor.id;
+  rolls.push(roll);
+}
+```
+
+Without `actorId` in the roll data, all dice in a multi-actor message use the message author's (typically the GM's) appearance.
+
+## Step 6: Further options
 If you wish to add more features to your integration, the rest of the API has you covered:
 
 - [Roll API](/foundryvtt-dice-so-nice/api/roll/) - trigger animations programmatically, hide specific dice, disable detection, customize which elements are hidden during message updates
