@@ -7,7 +7,7 @@ Custom Dice Terms let the GM create new dice types through a GUI. Each custom di
 
 For example, you could create a **dw** — a d8-shaped die where face values represent wound severity levels (0 through 7), or a **ds** — a d6-shaped die with values -1, -1, 0, 0, 1, 1 for a success/failure die.
 
-<!-- TODO: screenshot of the Custom Dice Terms dialog showing a list of defined terms -->
+![Create a Custom DiceTerm Window](../../../assets/create-customdiceterm.jpg)
 
 ## Who Can Create Custom Dice Terms?
 
