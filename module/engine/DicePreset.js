@@ -319,6 +319,14 @@ export class DicePreset {
 							Hooks.callAll("diceSoNiceOnMaterialReady", node.material, null);
 						}
 					});
+					//cannon-es Cylinder axis is Y; d2 model geometry has flat faces along Z
+					if (this.shape === 'd2') {
+						gltf.scene.traverse(node => {
+							if (node.isMesh && node.geometry)
+								node.geometry.rotateX(Math.PI / 2);
+						});
+					}
+
 					this.model = gltf;
 					this.modelLoaded = true;
 					Hooks.callAll("diceSoNiceModelLoaded", this);

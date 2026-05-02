@@ -24,7 +24,6 @@ import {
 	Mesh,
 	Color,
 	Vector2,
-	Vector3,
 	MeshPhongMaterial,
 	MeshStandardMaterial,
 	MeshLambertMaterial,
@@ -832,11 +831,6 @@ export class DiceFactory {
 			dicemesh.layers.enableAll();
 		}
 
-		//Because of an orientation change in cannon-es for the Cylinder shape, we need to rotate the mesh for the d2
-		//https://github.com/pmndrs/cannon-es/pull/30
-		if(diceobj.shape == "d2")
-			dicemesh.lookAt(new Vector3(0,-1,0));
-		
 		dicemesh.result = null;
 		dicemesh.shape = diceobj.shape;
 		const that=dicemesh;
@@ -2187,6 +2181,11 @@ export class DiceFactory {
 		//raw vertices are ~100 units per edge, normalize to unit then scale
 		const k = scopedScale / 100;
 		bufferGeometry.scale(k, k, k);
+
+		//cannon-es Cylinder axis is Y; d2 geometry has its flat faces along Z
+		//https://github.com/pmndrs/cannon-es/pull/30
+		if (type === 'd2')
+			bufferGeometry.rotateX(Math.PI / 2);
 
 		return bufferGeometry;
 	}
