@@ -22,13 +22,11 @@
     "esmodules": [
         "./main.js"
     ],
-    "scripts": [
-        "./libs/select2.min.js"
-    ],
+    "scripts": [],
     "socket": true,
     "styles": [
         "./css/style.css",
-        "./css/select2.css"
+        "./css/slimselect.css"
     ],
     "languages": [
         {

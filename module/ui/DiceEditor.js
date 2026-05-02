@@ -233,11 +233,9 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     _onRender(context, options) {
-        const html = $(this.element);
+        const el = this.element;
 
-        html.off(".diceEditor");
-
-        const previewContainer = html.find("#dice-editor-preview-container")[0];
+        const previewContainer = el.querySelector("#dice-editor-preview-container");
         if (previewContainer && !this.preview) {
             this.preview = new DiceEditorPreview(previewContainer, game.dice3d.box.dicefactory);
             this.preview.onFaceSelect = (faces) => this._onFaceSelect(faces);
@@ -247,78 +245,92 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             });
         }
 
-        html.on("change.diceEditor", "[name=baseMaterial]", () => this._onGlobalChange());
-        html.on("change.diceEditor", "[name=baseEdgeColor]", () => this._onGlobalChange());
-        html.on("change.diceEditor", "[name=baseDiceColor]", () => this._onGlobalChange());
-        html.on("change.diceEditor", "[name=baseTexture]", () => this._onBaseTextureDropdownChange());
-        html.on("change.diceEditor", "[name=baseTextureComposite]", () => this._onBaseCompositeChange());
-        html.on("click.diceEditor", "[data-base-texture-filepicker]", () => this._onBaseTexturePicker());
-        html.on("click.diceEditor", "[data-base-texture-clear]", () => this._onBaseTextureClear());
-        html.on("change.diceEditor", "[name=dieName]", (ev) => {
-            this.libraryDie.name = ev.target.value;
-        });
-
-        //rebuild mesh on "change" (picker closed), not every "input" frame
-        html.on("input.diceEditor", "input[type=color]", (ev) => {
-            const editTarget = $(ev.target).data("edit");
-            if (editTarget) {
-                html.find(`[name=${editTarget}]`).val(ev.target.value);
+        el.addEventListener("change", (ev) => {
+            const target = ev.target;
+            if (target.matches("[name=baseMaterial]") || target.matches("[name=baseEdgeColor]") || target.matches("[name=baseDiceColor]")) {
+                this._onGlobalChange();
+            } else if (target.matches("[name=baseTexture]")) {
+                this._onBaseTextureDropdownChange();
+            } else if (target.matches("[name=baseTextureComposite]")) {
+                this._onBaseCompositeChange();
+            } else if (target.matches("[name=dieName]")) {
+                this.libraryDie.name = target.value;
+            } else if (target.matches("input[type=color]")) {
+                const editTarget = target.dataset.edit;
+                if (editTarget) {
+                    const linked = el.querySelector(`[name=${editTarget}]`);
+                    linked.value = target.value;
+                    linked.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+            } else if (target.matches("[name=faceFont]")) {
+                //faceFont dropdown change wins over any stale override from a previous glyph pick
+                el.querySelector("[name=faceFontOverride]").value = "";
+                this._onFacePropertyChange();
+            } else if (target.matches("[name=faceTexture]")) {
+                this._onFaceTextureDropdownChange();
+            } else if (target.matches("[name=faceTextureComposite]")) {
+                this._onFaceCompositeChange();
+            } else if (target.matches("[name^=face]")) {
+                this._onFacePropertyChange();
             }
         });
-        html.on("change.diceEditor", "input[type=color]", (ev) => {
-            const editTarget = $(ev.target).data("edit");
-            if (editTarget) {
-                html.find(`[name=${editTarget}]`).val(ev.target.value).trigger("change");
+
+        el.addEventListener("input", (ev) => {
+            const target = ev.target;
+            if (target.matches("input[type=color]")) {
+                const editTarget = target.dataset.edit;
+                if (editTarget) {
+                    el.querySelector(`[name=${editTarget}]`).value = target.value;
+                }
+            } else if (target.matches("input[type=range]")) {
+                target.nextElementSibling.textContent = target.value;
             }
         });
 
-        //faceFont dropdown change wins over any stale override from a previous glyph pick -
-        //registered before the generic [name^=face] handler so it runs first in jQuery order
-        html.on("change.diceEditor", "[name=faceFont]", () => {
-            html.find("[name=faceFontOverride]").val("");
+        el.addEventListener("click", (ev) => {
+            if (ev.target.closest("[data-base-texture-filepicker]")) {
+                this._onBaseTexturePicker();
+            } else if (ev.target.closest("[data-base-texture-clear]")) {
+                this._onBaseTextureClear();
+            } else if (ev.target.closest("[data-face-filepicker]")) {
+                this._onFilePicker();
+            } else if (ev.target.closest("[data-face-texture-filepicker]")) {
+                this._onFaceTexturePicker();
+            } else if (ev.target.closest("[data-face-texture-clear]")) {
+                this._onFaceTextureClear();
+            } else if (ev.target.closest("[data-action=openGlyphPicker]")) {
+                ev.preventDefault();
+                this._onOpenGlyphPicker();
+            } else if (ev.target.closest("[data-action=resetFaces]")) {
+                this._onResetFace();
+            }
         });
-        html.on("change.diceEditor", "[name=faceTexture]", () => this._onFaceTextureDropdownChange());
-        html.on("change.diceEditor", "[name=faceTextureComposite]", () => this._onFaceCompositeChange());
-        html.on("change.diceEditor", "[name^=face]", () => this._onFacePropertyChange());
-        html.on("input.diceEditor", "input[type=range]", (ev) => {
-            $(ev.target).next(".range-value").text(ev.target.value);
-        });
-        html.on("click.diceEditor", "[data-face-filepicker]", () => this._onFilePicker());
-        html.on("click.diceEditor", "[data-face-texture-filepicker]", () => this._onFaceTexturePicker());
-        html.on("click.diceEditor", "[data-face-texture-clear]", () => this._onFaceTextureClear());
-
-        html.on("click.diceEditor", "[data-action=openGlyphPicker]", (ev) => {
-            ev.preventDefault();
-            this._onOpenGlyphPicker();
-        });
-
-        html.on("click.diceEditor", "[data-action=resetFaces]", () => this._onResetFace());
     }
 
     _onOpenGlyphPicker() {
-        const html = $(this.element);
+        const el = this.element;
         GlyphPicker.open({
             onSelect: ({ labelText, font }) => {
-                html.find("[name=faceLabelText]").val(labelText);
+                el.querySelector("[name=faceLabelText]").value = labelText;
                 //FA picks carry a font family that isn't in the font dropdown - stash it in
                 //a hidden override input that _onFacePropertyChange reads preferentially.
                 //emoji picks pass font=null, meaning "leave the face font alone".
                 if (font !== null) {
-                    html.find("[name=faceFontOverride]").val(font);
-                    html.find("[name=faceFont]").val("");
+                    el.querySelector("[name=faceFontOverride]").value = font;
+                    el.querySelector("[name=faceFont]").value = "";
                 }
-                html.find("[name=faceLabelText]").trigger("change");
+                el.querySelector("[name=faceLabelText]").dispatchEvent(new Event("change", { bubbles: true }));
             }
         });
     }
 
     _onGlobalChange() {
-        const html = $(this.element);
-        this.libraryDie.baseAppearance.material = html.find("[name=baseMaterial]").val();
-        this.libraryDie.baseAppearance.edgeColor = html.find("[name=baseEdgeColor]").val();
-        this.libraryDie.baseAppearance.diceColor = html.find("[name=baseDiceColor]").val();
-        this.libraryDie.baseAppearance.texture = html.find("[name=baseTextureEffective]").val();
-        this.libraryDie.baseAppearance.textureComposite = html.find("[name=baseTextureComposite]").val() || "multiply";
+        const el = this.element;
+        this.libraryDie.baseAppearance.material = el.querySelector("[name=baseMaterial]").value;
+        this.libraryDie.baseAppearance.edgeColor = el.querySelector("[name=baseEdgeColor]").value;
+        this.libraryDie.baseAppearance.diceColor = el.querySelector("[name=baseDiceColor]").value;
+        this.libraryDie.baseAppearance.texture = el.querySelector("[name=baseTextureEffective]").value;
+        this.libraryDie.baseAppearance.textureComposite = el.querySelector("[name=baseTextureComposite]").value || "multiply";
         this._refreshPreview();
     }
 
@@ -332,11 +344,11 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
 
     _onFaceSelect(faces) {
         this.selectedFaces = faces;
-        const html = $(this.element);
+        const el = this.element;
 
         if (faces.size === 0) {
-            html.find("[data-face-indicator]").text(game.i18n.localize("DICESONICE.editorClickFace"));
-            html.find("[data-face-props]").hide();
+            el.querySelector("[data-face-indicator]").textContent = game.i18n.localize("DICESONICE.editorClickFace");
+            el.querySelector("[data-face-props]").hidden = true;
             return;
         }
 
@@ -349,77 +361,92 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             if (isD4) return `Value ${sf}`;
             return typeValue !== sf ? `Face ${sf} (${typeValue})` : `Face ${sf}`;
         }).join(", ");
-        html.find("[data-face-indicator]").text(faceLabel);
-        html.find("[data-face-props]").show();
+        el.querySelector("[data-face-indicator]").textContent = faceLabel;
+        el.querySelector("[data-face-props]").hidden = false;
         this._clampToViewport();
 
         if (faces.size === 1) {
             const shapeFace = String(shapeFaces[0]);
             const faceData = this.libraryDie.faces[shapeFace] || {};
             const { label: defaultLabel } = this._getShapeFaceDisplay(shapeFaces[0]);
-            html.find("[name=faceLabelText]").val(faceData.labelText || "").attr("placeholder", defaultLabel);
+            const faceLabelTextEl = el.querySelector("[name=faceLabelText]");
+            faceLabelTextEl.value = faceData.labelText || "";
+            faceLabelTextEl.setAttribute("placeholder", defaultLabel);
             //if faceData.font isn't in the dropdown (e.g. FA Pro from the glyph picker),
             //the select silently rejects the assignment - detect that and stash in the
             //hidden override instead so _onFacePropertyChange round-trips correctly.
-            html.find("[name=faceFont]").val(faceData.font || "");
-            const fontAccepted = html.find("[name=faceFont]").val() === (faceData.font || "");
+            const faceFontEl = el.querySelector("[name=faceFont]");
+            faceFontEl.value = faceData.font || "";
+            const fontAccepted = faceFontEl.value === (faceData.font || "");
             if (faceData.font && !fontAccepted) {
-                html.find("[name=faceFontOverride]").val(faceData.font);
-                html.find("[name=faceFont]").val("");
+                el.querySelector("[name=faceFontOverride]").value = faceData.font;
+                faceFontEl.value = "";
             } else {
-                html.find("[name=faceFontOverride]").val("");
+                el.querySelector("[name=faceFontOverride]").value = "";
             }
-            html.find("[name=faceFontScale]").val(faceData.fontScale ?? 100);
-            html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text((faceData.fontScale ?? 100) + "%");
-            html.find("[name=faceForeground]").val(faceData.foreground || "");
-            html.find("[name=faceBackground]").val(faceData.background || "");
-            html.find("[name=faceOutline]").val(faceData.outline || "");
-            html.find("[name=faceLabelImage]").val(faceData.labelImage || "");
-            html.find("[name=faceLabelImageScale]").val(faceData.labelImageScale ?? 100);
-            html.find("[name=faceLabelImageFlip]").prop("checked", !!faceData.labelImageFlip);
-            html.find("[name=faceLabelImagePosition]").val(faceData.labelImagePosition ?? 50);
-            html.find(".label-image-controls").toggle(!!faceData.labelImage);
+            el.querySelector("[name=faceFontScale]").value = faceData.fontScale ?? 100;
+            el.querySelector("[name=faceFontScale]").closest(".form-group").querySelector(".range-value").textContent = (faceData.fontScale ?? 100) + "%";
+            el.querySelector("[name=faceForeground]").value = faceData.foreground || "";
+            el.querySelector("[name=faceBackground]").value = faceData.background || "";
+            el.querySelector("[name=faceOutline]").value = faceData.outline || "";
+            el.querySelector("[name=faceLabelImage]").value = faceData.labelImage || "";
+            el.querySelector("[name=faceLabelImageScale]").value = faceData.labelImageScale ?? 100;
+            el.querySelector("[name=faceLabelImageFlip]").checked = !!faceData.labelImageFlip;
+            el.querySelector("[name=faceLabelImagePosition]").value = faceData.labelImagePosition ?? 50;
+            el.querySelector(".label-image-controls").hidden = !faceData.labelImage;
             const bgTex = faceData.backgroundTexture || "";
             const isFaceCustom = bgTex.startsWith("custom:");
             const hasFaceTexture = bgTex && bgTex !== "none";
-            html.find("[name=faceTexture]").val(isFaceCustom ? "" : bgTex).prop("disabled", isFaceCustom);
-            html.find("[name=faceTextureEffective]").val(bgTex);
-            html.find("[name=faceCustomTexturePath]").val(isFaceCustom ? bgTex.slice(7) : "");
-            html.find("[data-face-texture-clear]").toggle(isFaceCustom);
-            html.find(".face-texture-composite").toggle(hasFaceTexture);
+            const faceTextureEl = el.querySelector("[name=faceTexture]");
+            faceTextureEl.value = isFaceCustom ? "" : bgTex;
+            faceTextureEl.disabled = isFaceCustom;
+            el.querySelector("[name=faceTextureEffective]").value = bgTex;
+            el.querySelector("[name=faceCustomTexturePath]").value = isFaceCustom ? bgTex.slice(7) : "";
+            el.querySelector("[data-face-texture-clear]").hidden = !isFaceCustom;
+            el.querySelector(".face-texture-composite").hidden = !hasFaceTexture;
             const faceDefaultComposite = (!isFaceCustom && TEXTURELIST[bgTex]) ? TEXTURELIST[bgTex].composite : "";
-            html.find("[name=faceTextureComposite]").val(faceData.backgroundTextureComposite || faceDefaultComposite);
-            html.find("[name=faceEmissive]").prop("checked", !!faceData.emissive);
-            html.find("[name=faceEmissiveColor]").val(faceData.emissiveColor || "");
+            el.querySelector("[name=faceTextureComposite]").value = faceData.backgroundTextureComposite || faceDefaultComposite;
+            el.querySelector("[name=faceEmissive]").checked = !!faceData.emissive;
+            el.querySelector("[name=faceEmissiveColor]").value = faceData.emissiveColor || "";
             const base = this.libraryDie.baseAppearance;
-            html.find("[name=faceForegroundSelector]").val(faceData.foreground || base.labelColor || "#FFFFFF");
-            html.find("[name=faceBackgroundSelector]").val(faceData.background || base.diceColor || "#000000");
-            html.find("[name=faceOutlineSelector]").val(faceData.outline || base.outlineColor || "#000000");
+            el.querySelector("[name=faceForegroundSelector]").value = faceData.foreground || base.labelColor || "#FFFFFF";
+            el.querySelector("[name=faceBackgroundSelector]").value = faceData.background || base.diceColor || "#000000";
+            el.querySelector("[name=faceOutlineSelector]").value = faceData.outline || base.outlineColor || "#000000";
         } else {
-            html.find("[name=faceLabelText]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
-            html.find("[name=faceFont]").val("");
-            html.find("[name=faceFontOverride]").val("");
-            html.find("[name=faceFontScale]").val(100);
-            html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text("100%");
-            html.find("[name=faceForeground]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
-            html.find("[name=faceBackground]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
-            html.find("[name=faceOutline]").val("").attr("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
-            html.find("[name=faceLabelImage]").val("");
-            html.find("[name=faceLabelImageScale]").val(100);
-            html.find("[name=faceLabelImageFlip]").prop("checked", false);
-            html.find("[name=faceLabelImagePosition]").val(50);
-            html.find(".label-image-controls").hide();
-            html.find("[name=faceTexture]").val("").prop("disabled", false);
-            html.find("[name=faceTextureEffective]").val("");
-            html.find("[name=faceCustomTexturePath]").val("");
-            html.find("[data-face-texture-clear]").hide();
-            html.find(".face-texture-composite").hide();
-            html.find("[name=faceTextureComposite]").val("");
-            html.find("[name=faceEmissive]").prop("checked", false);
+            const faceLabelTextEl = el.querySelector("[name=faceLabelText]");
+            faceLabelTextEl.value = "";
+            faceLabelTextEl.setAttribute("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
+            el.querySelector("[name=faceFont]").value = "";
+            el.querySelector("[name=faceFontOverride]").value = "";
+            el.querySelector("[name=faceFontScale]").value = 100;
+            el.querySelector("[name=faceFontScale]").closest(".form-group").querySelector(".range-value").textContent = "100%";
+            const faceForegroundEl = el.querySelector("[name=faceForeground]");
+            faceForegroundEl.value = "";
+            faceForegroundEl.setAttribute("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
+            const faceBackgroundEl = el.querySelector("[name=faceBackground]");
+            faceBackgroundEl.value = "";
+            faceBackgroundEl.setAttribute("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
+            const faceOutlineEl = el.querySelector("[name=faceOutline]");
+            faceOutlineEl.value = "";
+            faceOutlineEl.setAttribute("placeholder", game.i18n.localize("DICESONICE.editorMixed"));
+            el.querySelector("[name=faceLabelImage]").value = "";
+            el.querySelector("[name=faceLabelImageScale]").value = 100;
+            el.querySelector("[name=faceLabelImageFlip]").checked = false;
+            el.querySelector("[name=faceLabelImagePosition]").value = 50;
+            el.querySelector(".label-image-controls").hidden = true;
+            const faceTextureEl = el.querySelector("[name=faceTexture]");
+            faceTextureEl.value = "";
+            faceTextureEl.disabled = false;
+            el.querySelector("[name=faceTextureEffective]").value = "";
+            el.querySelector("[name=faceCustomTexturePath]").value = "";
+            el.querySelector("[data-face-texture-clear]").hidden = true;
+            el.querySelector(".face-texture-composite").hidden = true;
+            el.querySelector("[name=faceTextureComposite]").value = "";
+            el.querySelector("[name=faceEmissive]").checked = false;
             const base = this.libraryDie.baseAppearance;
-            html.find("[name=faceForegroundSelector]").val(base.labelColor || "#FFFFFF");
-            html.find("[name=faceBackgroundSelector]").val(base.diceColor || "#000000");
-            html.find("[name=faceOutlineSelector]").val(base.outlineColor || "#000000");
+            el.querySelector("[name=faceForegroundSelector]").value = base.labelColor || "#FFFFFF";
+            el.querySelector("[name=faceBackgroundSelector]").value = base.diceColor || "#000000";
+            el.querySelector("[name=faceOutlineSelector]").value = base.outlineColor || "#000000";
         }
     }
 
@@ -434,24 +461,24 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     _onFacePropertyChange() {
-        const html = $(this.element);
+        const el = this.element;
 
         const faceData = {};
-        const labelText = html.find("[name=faceLabelText]").val();
+        const labelText = el.querySelector("[name=faceLabelText]").value;
         //hidden override wins over the dropdown - it holds font families that aren't in
         //prepareFontList (currently only the FA Pro family, set by the glyph picker).
-        const fontOverride = html.find("[name=faceFontOverride]").val();
-        const font = fontOverride || html.find("[name=faceFont]").val();
-        const fontScale = parseInt(html.find("[name=faceFontScale]").val()) || 100;
-        const foreground = html.find("[name=faceForeground]").val();
-        const background = html.find("[name=faceBackground]").val();
-        const outline = html.find("[name=faceOutline]").val();
-        const labelImage = html.find("[name=faceLabelImage]").val();
-        const backgroundTexture = html.find("[name=faceTextureEffective]").val();
-        const backgroundTextureComposite = html.find("[name=faceTextureComposite]").val();
-        const emissive = html.find("[name=faceEmissive]").is(":checked");
+        const fontOverride = el.querySelector("[name=faceFontOverride]").value;
+        const font = fontOverride || el.querySelector("[name=faceFont]").value;
+        const fontScale = parseInt(el.querySelector("[name=faceFontScale]").value) || 100;
+        const foreground = el.querySelector("[name=faceForeground]").value;
+        const background = el.querySelector("[name=faceBackground]").value;
+        const outline = el.querySelector("[name=faceOutline]").value;
+        const labelImage = el.querySelector("[name=faceLabelImage]").value;
+        const backgroundTexture = el.querySelector("[name=faceTextureEffective]").value;
+        const backgroundTextureComposite = el.querySelector("[name=faceTextureComposite]").value;
+        const emissive = el.querySelector("[name=faceEmissive]").checked;
 
-        html.find("[name=faceFontScale]").closest(".form-group").find(".range-value").text(fontScale + "%");
+        el.querySelector("[name=faceFontScale]").closest(".form-group").querySelector(".range-value").textContent = fontScale + "%";
 
         if (labelText) faceData.labelText = labelText;
         if (font) faceData.font = font;
@@ -461,16 +488,16 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         if (outline) faceData.outline = outline;
         if (labelImage) {
             faceData.labelImage = labelImage;
-            faceData.labelImageScale = parseInt(html.find("[name=faceLabelImageScale]").val()) || 100;
-            faceData.labelImageFlip = html.find("[name=faceLabelImageFlip]").is(":checked");
-            faceData.labelImagePosition = parseInt(html.find("[name=faceLabelImagePosition]").val()) || 50;
+            faceData.labelImageScale = parseInt(el.querySelector("[name=faceLabelImageScale]").value) || 100;
+            faceData.labelImageFlip = el.querySelector("[name=faceLabelImageFlip]").checked;
+            faceData.labelImagePosition = parseInt(el.querySelector("[name=faceLabelImagePosition]").value) || 50;
         } else {
             faceData.labelImage = null;
             faceData.labelImageScale = null;
             faceData.labelImageFlip = null;
             faceData.labelImagePosition = null;
         }
-        html.find(".label-image-controls").toggle(!!labelImage);
+        el.querySelector(".label-image-controls").hidden = !labelImage;
         if (backgroundTexture) {
             faceData.backgroundTexture = backgroundTexture;
             if (backgroundTextureComposite) faceData.backgroundTextureComposite = backgroundTextureComposite;
@@ -503,12 +530,14 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     _onFilePicker() {
-        const html = $(this.element);
+        const el = this.element;
         const fp = new foundry.applications.apps.FilePicker({
             type: "image",
             callback: async (path) => {
                 await DiceLibrary.loadImage(path);
-                html.find("[name=faceLabelImage]").val(path).trigger("change");
+                const faceLabelImageEl = el.querySelector("[name=faceLabelImage]");
+                faceLabelImageEl.value = path;
+                faceLabelImageEl.dispatchEvent(new Event("change", { bubbles: true }));
             }
         });
         fp.render(true);
@@ -530,7 +559,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     _onBaseTexturePicker() {
-        const html = $(this.element);
+        const el = this.element;
         const fp = new foundry.applications.apps.FilePicker({
             type: "image",
             callback: async (path) => {
@@ -539,13 +568,13 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
                 if (img.naturalWidth > 1024 || img.naturalHeight > 1024) {
                     ui.notifications.warn(game.i18n.localize("DICESONICE.editorCustomTextureSizeWarn"));
                 }
-                const composite = html.find("[name=baseTextureComposite]").val() || "multiply";
+                const composite = el.querySelector("[name=baseTextureComposite]").value || "multiply";
                 await DiceColors.registerCustomTexture(path, composite);
-                html.find("[name=baseTextureEffective]").val(`custom:${path}`);
-                html.find("[name=baseCustomTexturePath]").val(path);
-                html.find("[name=baseTexture]").prop("disabled", true);
-                html.find("[data-base-texture-clear]").show();
-                html.find(".texture-composite").show();
+                el.querySelector("[name=baseTextureEffective]").value = `custom:${path}`;
+                el.querySelector("[name=baseCustomTexturePath]").value = path;
+                el.querySelector("[name=baseTexture]").disabled = true;
+                el.querySelector("[data-base-texture-clear]").hidden = false;
+                el.querySelector(".texture-composite").hidden = false;
                 this._onGlobalChange();
             }
         });
@@ -553,37 +582,37 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     _onBaseTextureClear() {
-        const html = $(this.element);
-        const dropdownVal = html.find("[name=baseTexture]").val() || "none";
-        html.find("[name=baseTextureEffective]").val(dropdownVal);
-        html.find("[name=baseCustomTexturePath]").val("");
-        html.find("[name=baseTexture]").prop("disabled", false);
-        html.find("[data-base-texture-clear]").hide();
+        const el = this.element;
+        const dropdownVal = el.querySelector("[name=baseTexture]").value || "none";
+        el.querySelector("[name=baseTextureEffective]").value = dropdownVal;
+        el.querySelector("[name=baseCustomTexturePath]").value = "";
+        el.querySelector("[name=baseTexture]").disabled = false;
+        el.querySelector("[data-base-texture-clear]").hidden = true;
         const hasTexture = dropdownVal !== "none";
-        html.find(".texture-composite").toggle(hasTexture);
+        el.querySelector(".texture-composite").hidden = !hasTexture;
         if (hasTexture && TEXTURELIST[dropdownVal]) {
-            html.find("[name=baseTextureComposite]").val(TEXTURELIST[dropdownVal].composite || "source-over");
+            el.querySelector("[name=baseTextureComposite]").value = TEXTURELIST[dropdownVal].composite || "source-over";
         }
         this.libraryDie.baseAppearance.textureComposite = null;
         this._onGlobalChange();
     }
 
     _onBaseTextureDropdownChange() {
-        const html = $(this.element);
-        const val = html.find("[name=baseTexture]").val();
-        html.find("[name=baseTextureEffective]").val(val);
-        html.find("[name=baseCustomTexturePath]").val("");
-        html.find("[data-base-texture-clear]").hide();
+        const el = this.element;
+        const val = el.querySelector("[name=baseTexture]").value;
+        el.querySelector("[name=baseTextureEffective]").value = val;
+        el.querySelector("[name=baseCustomTexturePath]").value = "";
+        el.querySelector("[data-base-texture-clear]").hidden = true;
         const hasTexture = val && val !== "none";
-        html.find(".texture-composite").toggle(hasTexture);
+        el.querySelector(".texture-composite").hidden = !hasTexture;
         if (hasTexture && TEXTURELIST[val]) {
-            html.find("[name=baseTextureComposite]").val(TEXTURELIST[val].composite || "source-over");
+            el.querySelector("[name=baseTextureComposite]").value = TEXTURELIST[val].composite || "source-over";
         }
         this._onGlobalChange();
     }
 
     _onFaceTexturePicker() {
-        const html = $(this.element);
+        const el = this.element;
         const fp = new foundry.applications.apps.FilePicker({
             type: "image",
             callback: async (path) => {
@@ -592,14 +621,14 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
                 if (img.naturalWidth > 1024 || img.naturalHeight > 1024) {
                     ui.notifications.warn(game.i18n.localize("DICESONICE.editorCustomTextureSizeWarn"));
                 }
-                const composite = html.find("[name=faceTextureComposite]").val()
-                    || html.find("[name=baseTextureComposite]").val() || "multiply";
+                const composite = el.querySelector("[name=faceTextureComposite]").value
+                    || el.querySelector("[name=baseTextureComposite]").value || "multiply";
                 await DiceColors.registerCustomTexture(path, composite);
-                html.find("[name=faceTextureEffective]").val(`custom:${path}`);
-                html.find("[name=faceCustomTexturePath]").val(path);
-                html.find("[name=faceTexture]").prop("disabled", true);
-                html.find("[data-face-texture-clear]").show();
-                html.find(".face-texture-composite").show();
+                el.querySelector("[name=faceTextureEffective]").value = `custom:${path}`;
+                el.querySelector("[name=faceCustomTexturePath]").value = path;
+                el.querySelector("[name=faceTexture]").disabled = true;
+                el.querySelector("[data-face-texture-clear]").hidden = false;
+                el.querySelector(".face-texture-composite").hidden = false;
                 this._onFacePropertyChange();
             }
         });
@@ -607,55 +636,55 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     _onFaceTextureClear() {
-        const html = $(this.element);
-        const dropdownVal = html.find("[name=faceTexture]").val() || "";
-        html.find("[name=faceTextureEffective]").val(dropdownVal);
-        html.find("[name=faceCustomTexturePath]").val("");
-        html.find("[name=faceTexture]").prop("disabled", false);
-        html.find("[data-face-texture-clear]").hide();
+        const el = this.element;
+        const dropdownVal = el.querySelector("[name=faceTexture]").value || "";
+        el.querySelector("[name=faceTextureEffective]").value = dropdownVal;
+        el.querySelector("[name=faceCustomTexturePath]").value = "";
+        el.querySelector("[name=faceTexture]").disabled = false;
+        el.querySelector("[data-face-texture-clear]").hidden = true;
         const hasTexture = dropdownVal && dropdownVal !== "none";
-        html.find(".face-texture-composite").toggle(hasTexture);
+        el.querySelector(".face-texture-composite").hidden = !hasTexture;
         if (hasTexture && TEXTURELIST[dropdownVal]) {
-            html.find("[name=faceTextureComposite]").val(TEXTURELIST[dropdownVal].composite || "source-over");
+            el.querySelector("[name=faceTextureComposite]").value = TEXTURELIST[dropdownVal].composite || "source-over";
         } else {
-            html.find("[name=faceTextureComposite]").val("");
+            el.querySelector("[name=faceTextureComposite]").value = "";
         }
         this._onFacePropertyChange();
     }
 
     _onFaceTextureDropdownChange() {
-        const html = $(this.element);
-        const val = html.find("[name=faceTexture]").val();
-        html.find("[name=faceTextureEffective]").val(val);
-        html.find("[name=faceCustomTexturePath]").val("");
-        html.find("[data-face-texture-clear]").hide();
+        const el = this.element;
+        const val = el.querySelector("[name=faceTexture]").value;
+        el.querySelector("[name=faceTextureEffective]").value = val;
+        el.querySelector("[name=faceCustomTexturePath]").value = "";
+        el.querySelector("[data-face-texture-clear]").hidden = true;
         const hasTexture = val && val !== "none";
-        html.find(".face-texture-composite").toggle(hasTexture);
+        el.querySelector(".face-texture-composite").hidden = !hasTexture;
         if (hasTexture && TEXTURELIST[val]) {
-            html.find("[name=faceTextureComposite]").val(TEXTURELIST[val].composite || "source-over");
+            el.querySelector("[name=faceTextureComposite]").value = TEXTURELIST[val].composite || "source-over";
         } else if (!hasTexture) {
-            html.find("[name=faceTextureComposite]").val("");
+            el.querySelector("[name=faceTextureComposite]").value = "";
         }
     }
 
     async _onFaceCompositeChange() {
-        const html = $(this.element);
-        const effective = html.find("[name=faceTextureEffective]").val();
+        const el = this.element;
+        const effective = el.querySelector("[name=faceTextureEffective]").value;
         if (effective.startsWith("custom:")) {
             const path = effective.slice(7);
-            const composite = html.find("[name=faceTextureComposite]").val()
-                || html.find("[name=baseTextureComposite]").val() || "multiply";
+            const composite = el.querySelector("[name=faceTextureComposite]").value
+                || el.querySelector("[name=baseTextureComposite]").value || "multiply";
             await DiceColors.registerCustomTexture(path, composite);
         }
         this._onFacePropertyChange();
     }
 
     async _onBaseCompositeChange() {
-        const html = $(this.element);
-        const effective = html.find("[name=baseTextureEffective]").val();
+        const el = this.element;
+        const effective = el.querySelector("[name=baseTextureEffective]").value;
         if (effective.startsWith("custom:")) {
             const path = effective.slice(7);
-            const composite = html.find("[name=baseTextureComposite]").val();
+            const composite = el.querySelector("[name=baseTextureComposite]").value;
             await DiceColors.registerCustomTexture(path, composite);
         }
         this._onGlobalChange();
@@ -693,9 +722,7 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     static async _onSubmit(event, form, formData) {
-        const html = $(form);
-
-        this.libraryDie.name = html.find("[name=dieName]").val() || `Custom ${this.dieType.toUpperCase()}`;
+        this.libraryDie.name = form.querySelector("[name=dieName]").value || `Custom ${this.dieType.toUpperCase()}`;
 
         const library = game.dice3d.diceLibrary;
         if (this.isNew) {

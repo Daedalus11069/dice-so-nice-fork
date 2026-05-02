@@ -43,30 +43,34 @@ export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2
     }
 
     render(options) {
-        this.area = $(`
-            <div class='dice-so-nice rollable-area'>
-                <div class='resizers'>
-                    <div class='resizer nw'></div>
-                    <div class='resizer ne'></div>
-                    <div class='resizer sw'></div>
-                    <div class='resizer se'></div>
-                    <div class="info">${game.i18n.localize("DICESONICE.RollableAreaText")}</div> 
-                </div>
-            </div>
-        `);
+        this.area = document.createElement("div");
+        this.area.className = "dice-so-nice rollable-area";
+        this.area.innerHTML = `<div class='resizers'>
+            <div class='resizer nw'></div>
+            <div class='resizer ne'></div>
+            <div class='resizer sw'></div>
+            <div class='resizer se'></div>
+            <div class="info">${game.i18n.localize("DICESONICE.RollableAreaText")}</div>
+        </div>`;
 
         let rollingArea = Dice3D.CONFIG().rollingArea;
         if(!rollingArea) {
-            const $diceBox = $("#dice-box-canvas");
+            const diceBox = document.getElementById("dice-box-canvas");
+            const diceBoxRect = diceBox.getBoundingClientRect();
             rollingArea = {
-                top: $diceBox.position().top,
-                left: $diceBox.position().left,
-                width: $diceBox.width(),
-                height: $diceBox.height()
+                top: diceBoxRect.top,
+                left: diceBoxRect.left,
+                width: diceBox.offsetWidth,
+                height: diceBox.offsetHeight
             }
         }
-        this.area.appendTo($('body'));
-        this.area.css(rollingArea);
+        document.body.append(this.area);
+        Object.assign(this.area.style, {
+            top: rollingArea.top + "px",
+            left: rollingArea.left + "px",
+            width: rollingArea.width + "px",
+            height: rollingArea.height + "px"
+        });
         
         this.activateListeners();
 
@@ -77,9 +81,9 @@ export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2
         // Get the body element's top style because of the "Window Controls" plugin that adds a "top" to the body element
         const bodyTop = parseInt(window.getComputedStyle(document.body).top, 10) || 0;
 
-        let el = $(this.area).get(0);
+        let el = this.area;
         let resizing = false;
-        this.area.mousedown(function(e) {
+        this.area.addEventListener("mousedown", (e) => {
             let prevX = e.clientX;
             let prevY = e.clientY;
 
@@ -112,9 +116,9 @@ export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2
             }
         });
 
-        const resizers = $(".rollable-area > .resizers > .resizer");
+        const resizers = this.area.querySelectorAll(".resizers > .resizer");
         for(let resizer of resizers) {
-            $(resizer).mousedown(function (e) {
+            resizer.addEventListener("mousedown", (e) => {
                 resizing = true;
                 let prevX = e.clientX;
                 let prevY = e.clientY;
@@ -172,11 +176,12 @@ export class RollableAreaConfig extends HandlebarsApplicationMixin(ApplicationV2
     }
 
     async _updateObject() {
+        const rect = this.area.getBoundingClientRect();
         await this.saveSettingsAndReload({
-            top: this.area.position().top,
-            left: this.area.position().left,
-            width: this.area.width(),
-            height: this.area.height()
+            top: rect.top,
+            left: rect.left,
+            width: this.area.offsetWidth,
+            height: this.area.offsetHeight
         });
     }
 

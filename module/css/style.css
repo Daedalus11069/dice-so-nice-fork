@@ -52,6 +52,27 @@
     margin: 3px 0;
 }
 
+#dice-configuration-canvas-container {
+    position: relative;
+}
+
+#dice-configuration-canvas-container.loading #dice-configuration-canvas {
+    visibility: hidden;
+}
+
+#dice-configuration-canvas-container.loading::after {
+    content: "Rendering…";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-primary);
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+}
+
 #dice-configuration-canvas {
     width: 634px;
     height: 245px;
@@ -681,6 +702,7 @@
 /* sidebar tab: hidden by default in rail, .active or popout reveals it */
 #sidebar .dsn-sidebar-tab {
     display: none;
+    color: var(--color-text-primary);
 }
 
 #sidebar .dsn-sidebar-tab.active,
@@ -1298,4 +1320,91 @@
 .custom-diceterm-config .custom-diceterm-face-table-wrap {
     max-height: 400px;
     overflow-y: auto;
+}
+
+
+.dice-so-nice {
+    --ss-bg-color: var(--table-header-bg-color);
+    --ss-font-color: var(--color-text-primary);
+    --ss-border-color: var(--content-link-border-color);
+    --ss-border-radius: 4px;
+    --ss-primary-color: var(--table-row-color-highlight);
+    --ss-focus-color: var(--table-row-color-highlight);
+    --ss-disabled-color: var(--color-text-subtle);
+    --ss-highlight-color: var(--table-row-color-highlight);
+}
+
+.dice-so-nice .ss-main {
+    min-height: 32px;
+    height: auto;
+    border: 1px solid var(--content-link-border-color);
+    border-radius: 4px;
+    background: var(--table-header-bg-color);
+    font-size: 12px;
+    width: 306px;
+    color: var(--color-text-primary);
+    padding: 0 4px;
+    box-sizing: border-box;
+}
+
+.dice-so-nice .ss-main .ss-values {
+    padding: 3px 2px;
+    gap: 3px;
+    align-items: center;
+}
+
+.dice-so-nice .ss-main .ss-values .ss-value {
+    background: var(--content-link-background);
+    border: 1px solid var(--content-link-border-color);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 11px;
+    gap: 2px;
+    color: var(--color-text-emphatic);
+    animation: none;
+    margin: 0;
+}
+
+.dice-so-nice .ss-main .ss-values .ss-value .ss-value-text {
+    color: var(--color-text-emphatic);
+}
+
+.dice-so-nice .ss-main .ss-values .ss-value .ss-value-delete {
+    width: 10px;
+    height: 10px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+}
+
+.dice-so-nice .ss-main .ss-values .ss-value .ss-value-delete svg path {
+    stroke: var(--color-text-emphatic);
+}
+
+.dice-so-nice .ss-content {
+    border: 1px solid var(--content-link-border-color);
+    border-radius: 4px;
+    background: var(--table-header-bg-color);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.dice-so-nice .ss-content .ss-list .ss-option {
+    padding: 4px 8px;
+    font-size: 12px;
+    color: var(--color-text-primary);
+}
+
+.dice-so-nice .ss-content .ss-list .ss-option:hover {
+    background: var(--table-row-color-highlight);
+}
+
+.dice-so-nice .ss-content .ss-list .ss-option.ss-selected {
+    background: var(--table-row-color-even);
+    color: var(--color-text-emphatic);
+}
+
+.dice-so-nice .sfx-line {
+    gap: 6px;
 }

@@ -27,6 +27,7 @@
     "rollup-plugin-copy": "^3.5.0",
     "rollup-plugin-delete": "^3.0.1",
     "rollup-plugin-web-worker-loader": "github:JiDW/rollup-plugin-web-worker-loader#master",
+    "slim-select": "^3.4.3",
     "stats-gl": "^3.6.0",
     "three": "^0.184.0",
     "webworker-promise": "^0.5.1"

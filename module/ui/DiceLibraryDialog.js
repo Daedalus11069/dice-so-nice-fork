@@ -97,85 +97,103 @@ export class DiceLibraryDialog extends HandlebarsApplicationMixin(ApplicationV2)
     }
 
     _onRender(context, options) {
-        const html = $(this.element);
+        const el = this.element;
 
-        html.off(".diceLibrary");
+        el.addEventListener("click", (ev) => {
+            const toggleTarget = ev.target.closest("[data-action=toggleSection]");
+            if (toggleTarget) {
+                const section = toggleTarget.closest(".dice-library-section");
+                section.classList.toggle("collapsed");
+                return;
+            }
 
-        html.on("click.diceLibrary", "[data-action=toggleSection]", (ev) => {
-            const section = $(ev.currentTarget).closest(".dice-library-section");
-            section.toggleClass("collapsed");
-        });
+            const createNewTarget = ev.target.closest("[data-action=createNew]");
+            if (createNewTarget) {
+                ev.stopPropagation();
+                const dieType = createNewTarget.dataset.dieType;
+                const editor = new DiceEditor(dieType, null, {
+                    diceConfig: this.diceConfig,
+                    onSave: () => { this.render(true); this._refreshConfigDropdown(); }
+                });
+                editor.render(true);
+                return;
+            }
 
-        html.on("click.diceLibrary", "[data-action=createNew]", (ev) => {
-            ev.stopPropagation();
-            const dieType = $(ev.currentTarget).data("die-type");
-            const editor = new DiceEditor(dieType, null, {
-                diceConfig: this.diceConfig,
-                onSave: () => { this.render(true); this._refreshConfigDropdown(); }
-            });
-            editor.render(true);
-        });
+            const editTarget = ev.target.closest("[data-action=editDie]");
+            if (editTarget) {
+                const id = editTarget.dataset.dieId;
+                const die = game.dice3d.diceLibrary.get(id);
+                if (!die) return;
+                const editor = new DiceEditor(die.dieType, die, {
+                    onSave: () => { this.render(true); this._refreshConfigDropdown(); }
+                });
+                editor.render(true);
+                return;
+            }
 
-        html.on("click.diceLibrary", "[data-action=editDie]", (ev) => {
-            const id = $(ev.currentTarget).data("die-id");
-            const die = game.dice3d.diceLibrary.get(id);
-            if (!die) return;
-            const editor = new DiceEditor(die.dieType, die, {
-                onSave: () => { this.render(true); this._refreshConfigDropdown(); }
-            });
-            editor.render(true);
-        });
+            const duplicateTarget = ev.target.closest("[data-action=duplicateDie]");
+            if (duplicateTarget) {
+                const id = duplicateTarget.dataset.dieId;
+                game.dice3d.diceLibrary.duplicate(id).then(() => {
+                    this.render(true);
+                    this._refreshConfigDropdown();
+                });
+                return;
+            }
 
-        html.on("click.diceLibrary", "[data-action=duplicateDie]", async (ev) => {
-            const id = $(ev.currentTarget).data("die-id");
-            await game.dice3d.diceLibrary.duplicate(id);
-            this.render(true);
-            this._refreshConfigDropdown();
-        });
+            const duplicateOtherTarget = ev.target.closest("[data-action=duplicateOtherDie]");
+            if (duplicateOtherTarget) {
+                const id = duplicateOtherTarget.dataset.dieId;
+                const userId = duplicateOtherTarget.dataset.userId;
+                const owner = game.users.get(userId);
+                if (!owner) return;
+                const die = DiceLibrary.getFromUser(owner, id);
+                if (!die) return;
+                const copy = foundry.utils.deepClone(die);
+                delete copy.id;
+                copy.name = `${copy.name} (Copy)`;
+                game.dice3d.diceLibrary.add(copy).then(() => {
+                    this.render(true);
+                    this._refreshConfigDropdown();
+                });
+                return;
+            }
 
-        html.on("click.diceLibrary", "[data-action=duplicateOtherDie]", async (ev) => {
-            const id = $(ev.currentTarget).data("die-id");
-            const userId = $(ev.currentTarget).data("user-id");
-            const owner = game.users.get(userId);
-            if (!owner) return;
-            const die = DiceLibrary.getFromUser(owner, id);
-            if (!die) return;
-            const copy = foundry.utils.deepClone(die);
-            delete copy.id;
-            copy.name = `${copy.name} (Copy)`;
-            await game.dice3d.diceLibrary.add(copy);
-            this.render(true);
-            this._refreshConfigDropdown();
-        });
+            const deleteTarget = ev.target.closest("[data-action=deleteDie]");
+            if (deleteTarget) {
+                const id = deleteTarget.dataset.dieId;
+                const die = game.dice3d.diceLibrary.get(id);
+                foundry.applications.api.DialogV2.confirm({
+                    window: { title: game.i18n.localize("DICESONICE.Delete") },
+                    content: `<p>${game.i18n.format("DICESONICE.editorDeleteConfirm", { name: die?.name || "die" })}</p>`
+                }).then(confirmed => {
+                    if (!confirmed) return;
+                    game.dice3d.diceLibrary.delete(id).then(() => {
+                        game.dice3d.box.dicefactory.disposeCachedMaterials();
+                        this.render(true);
+                        this._refreshConfigDropdown();
+                    });
+                });
+                return;
+            }
 
-        html.on("click.diceLibrary", "[data-action=deleteDie]", async (ev) => {
-            const id = $(ev.currentTarget).data("die-id");
-            const die = game.dice3d.diceLibrary.get(id);
-            const confirmed = await foundry.applications.api.DialogV2.confirm({
-                window: { title: game.i18n.localize("DICESONICE.Delete") },
-                content: `<p>${game.i18n.format("DICESONICE.editorDeleteConfirm", { name: die?.name || "die" })}</p>`
-            });
-            if (!confirmed) return;
-            await game.dice3d.diceLibrary.delete(id);
-            game.dice3d.box.dicefactory.disposeCachedMaterials();
-            this.render(true);
-            this._refreshConfigDropdown();
-        });
-
-        html.on("click.diceLibrary", "[data-action=createFromFooter]", () => {
-            const dieType = html.find("[data-footer-dietype]").val();
-            if (!dieType) return;
-            const editor = new DiceEditor(dieType, null, {
-                diceConfig: this.diceConfig,
-                onSave: () => { this.render(true); this._refreshConfigDropdown(); }
-            });
-            editor.render(true);
+            const createFromFooterTarget = ev.target.closest("[data-action=createFromFooter]");
+            if (createFromFooterTarget) {
+                const dieType = el.querySelector("[data-footer-dietype]").value;
+                if (!dieType) return;
+                const editor = new DiceEditor(dieType, null, {
+                    diceConfig: this.diceConfig,
+                    onSave: () => { this.render(true); this._refreshConfigDropdown(); }
+                });
+                editor.render(true);
+                return;
+            }
         });
 
         if (this.dieType) {
-            const target = html.find(`.dice-library-section[data-die-type="${this.dieType}"]`);
-            if (target.length) {
-                target[0].scrollIntoView({ behavior: "smooth", block: "start" });
+            const target = el.querySelector(`.dice-library-section[data-die-type="${this.dieType}"]`);
+            if (target) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
             }
         }
     }

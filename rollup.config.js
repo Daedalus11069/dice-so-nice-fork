@@ -13,7 +13,6 @@ const staticFiles = [
   { name: "fonts" },
   { name: "images" },
   { name: "lang" },
-  { name: "select2.min.js", folder: "libs" },
   { name: "models", folder: "sfx" },
   { name: "sounds", folder: "sfx" },
   { name: "textures", folder: "sfx" },
@@ -81,6 +80,12 @@ const config = {
       {
         src: `node_modules/three/build/three.core.min.js`,
         dest: `dist/libs`
+      }]
+    }),
+    !isWatch && copy({
+      targets: [{
+        src: `node_modules/slim-select/dist/slimselect.css`,
+        dest: `dist/css`
       }]
     }),
     //add a copy of Draco decoder to the draco folder for three.js
