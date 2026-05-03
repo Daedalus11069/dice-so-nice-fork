@@ -186,6 +186,13 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 "medium": "DICESONICE.ThrowingForceMedium",
                 "strong": "DICESONICE.ThrowingForceStrong"
             }),
+            spawnLocationList: Utils.localize({
+                "center": "DICESONICE.SpawnCenter",
+                "topLeft": "DICESONICE.SpawnTopLeft",
+                "topRight": "DICESONICE.SpawnTopRight",
+                "bottomLeft": "DICESONICE.SpawnBottomLeft",
+                "bottomRight": "DICESONICE.SpawnBottomRight"
+            }),
             visibilityList: Utils.localize({
                 "all": "DICESONICE.visibilityAll",
                 "mine": "DICESONICE.visibilityMine",

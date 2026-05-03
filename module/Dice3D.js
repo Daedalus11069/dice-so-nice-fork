@@ -14,6 +14,8 @@ import { DiceLibrary } from './engine/DiceLibrary.js';
 import { InitiativeMask } from './ui/InitiativeMask.js';
 import { CompanionLink } from './CompanionLink.js';
 import { CustomDiceTerms } from './engine/CustomDiceTerms.js';
+import { SpawnLayout } from './interaction/SpawnLayout.js';
+import { LEGACY_TO_METERS } from './engine/SceneConstants.js';
 /**
  * Main class to handle 3D Dice animations.
  */
@@ -82,7 +84,8 @@ export class Dice3D {
             muteSoundSecretRolls: false,
             enableFlavorColorset: true,
             skipAnimationOnInactiveTab: false,
-            rollingArea: false
+            rollingArea: false,
+            persistentDiceSpawnLocation: "center"
         };
     }
 
@@ -520,6 +523,9 @@ export class Dice3D {
         if(!rollingArea) {
             if (ui.sidebar.expanded) {
                 dimensions.margin.right = ui.sidebar.element.clientWidth;
+            } else {
+                const sidebarContent = ui.sidebar.element.querySelector("#sidebar-content");
+                dimensions.margin.right = sidebarContent?.clientWidth || ui.sidebar.element.clientWidth;
             }
         } else {
             dimensions.width = rollingArea.width;
@@ -1515,6 +1521,11 @@ export class Dice3D {
         const rawAppearances = opts._rawAppearances || Dice3D.APPEARANCE(user);
         const appearance = opts.appearance || this.DiceFactory.getAppearanceForDice(rawAppearances, type);
         const diceLibrary = opts.diceLibrary ?? DiceLibrary.getLibraryForUser(user);
+        if (!position) {
+            const config = Dice3D.CONFIG(user);
+            const count = this.box.persistentDiceManager?.countPersistentDiceByOwner(user.id) ?? 0;
+            position = SpawnLayout.computeSpawnPosition(count, count + 1, config.persistentDiceSpawnLocation, this._computeSpawnBounds());
+        }
         this._beforeShow();
         const mesh = await this.box.spawnPersistentDie(type, appearance, position, diceLibrary, opts);
         if (mesh && synchronize) {
@@ -1676,6 +1687,28 @@ export class Dice3D {
         return this.box.fromPositionPct(pct);
     }
 
+    _computeSpawnBounds() {
+        const display = this.box.diceScene.display;
+        const cW = display.containerWidth;
+        const cH = display.containerHeight;
+        const iW = display.innerWidth;
+        const iH = display.innerHeight;
+        const barriersScale = 0.97;
+        const sidebarMargin = display.containerMargin?.right || 0;
+
+        const bLeft = -cW * barriersScale;
+        const bRight = (cW - 2 * sidebarMargin) * barriersScale;
+        const bTop = -cH * barriersScale;
+        const bBot = cH * barriersScale;
+
+        return {
+            minX: bLeft / iW + 0.5,
+            maxX: bRight / iW + 0.5,
+            minY: -(bBot / iH) + 0.5,
+            maxY: -(bTop / iH) + 0.5
+        };
+    }
+
     async _handlePersistentMessage(request) {
         if (!request.data) return;
         switch (request.type) {
@@ -1730,10 +1763,11 @@ export class Dice3D {
         }
 
         const count = saved.length;
+        const spawnLocation = Dice3D.CONFIG(user).persistentDiceSpawnLocation;
+        const bounds = this._computeSpawnBounds();
         for (let i = 0; i < count; i++) {
             const entry = saved[i];
-            const x = (i + 1) / (count + 1);
-            const y = 0.85;
+            const { x, y } = SpawnLayout.computeSpawnPosition(i, count, spawnLocation, bounds);
             const appearances = entry.appearances || Dice3D.APPEARANCE(user);
             const appearance = this.DiceFactory.getAppearanceForDice(appearances, entry.dieType);
             await this.spawnPersistentDie(entry.dieType, { x, y }, {
