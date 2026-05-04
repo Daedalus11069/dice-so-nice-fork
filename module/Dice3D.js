@@ -1292,7 +1292,12 @@ export class Dice3D {
         }
         return new Promise((resolve, reject) => {
             if (game.dice3d && Dice3D.CONFIG().visibility !== "none" && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
-                buildHook(resolve);
+                const message = game.messages.get(targetMessageId);
+                if (message?._dice3danimating) {
+                    buildHook(resolve);
+                } else {
+                    resolve(true);
+                }
             } else {
                 resolve(true);
             }
