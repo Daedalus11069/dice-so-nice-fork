@@ -31,6 +31,10 @@ A typical integration registers a System, adds DicePresets to it for each die ty
 - **Background texture**: Either a single texture file or an array of random texture files for every dices with a custom-defined blending mode
 - **Faces**: Each dice can have custom faces. A face can be a string or an image file. The font and its size can be changed, and any Unicode character is supported (even symbols like emojis)
 
+:::note[Supported image formats]
+When a label, bump map, emissive map, or background entry is a file path, DsN supports the following formats: **PNG**, **JPG/JPEG**, **GIF**, and **WebP**. SVG files are not supported. Texture files should be **256x256 pixels**.
+:::
+
 ## Listening to DiceSoNiceReady hook
 Before using the customization API, you must ensure that "Dice So Nice" is ready. Please refer to the [Hooks](/foundryvtt-dice-so-nice/api/hooks/) section.
 Your package should also be using es6 modules to be able to import "Dice So Nice" APIs
@@ -120,6 +124,22 @@ dice3d.addDicePreset(
     'd8'
 );
 
+dice3d.addDicePreset({
+    type: 'd6',
+    labels: ['1', '2', '3', '4', '5', '6'],
+    backgrounds: [
+        'modules/my-module/img/bg-1.webp',
+        'modules/my-module/img/bg-2.webp',
+        'modules/my-module/img/bg-3.webp',
+        'modules/my-module/img/bg-4.webp',
+        'modules/my-module/img/bg-5.webp',
+        'modules/my-module/img/bg-6.webp'
+    ],
+    labelScale: 0.8,
+    scaleModifier: 1.1,
+    system: 'my-system'
+});
+
 dice3d.addDicePreset(
     {
         type: 'df',
@@ -175,25 +195,6 @@ dice3d.addDicePreset({
 This only works with Foundry VTT v14+ which bundles Font Awesome 7 Pro. For older Foundry versions, use the matching font family name (e.g. `'"Font Awesome 6 Pro"'`).
 :::
 
-This example uses the `backgrounds`, `labelScale`, and `scaleModifier` properties:
-
-```javascript
-dice3d.addDicePreset({
-    type: 'd6',
-    labels: ['1', '2', '3', '4', '5', '6'],
-    backgrounds: [
-        'modules/my-module/img/bg-1.webp',
-        'modules/my-module/img/bg-2.webp',
-        'modules/my-module/img/bg-3.webp',
-        'modules/my-module/img/bg-4.webp',
-        'modules/my-module/img/bg-5.webp',
-        'modules/my-module/img/bg-6.webp'
-    ],
-    labelScale: 0.8,
-    scaleModifier: 1.1,
-    system: 'my-system'
-});
-```
 
 [Check the demo pages for more examples](/foundryvtt-dice-so-nice/api/demos/)
 ## Adding a custom texture
@@ -266,6 +267,13 @@ export const DICE_SCALE = {
 };
 ```
 - **visibility** Set to 'hidden' if you do not want this colorset to be visible in the players' theme list. Useful for internal colorsets.
+- **labelComposite** (Optional) Canvas composite mode applied when drawing label images. Default: `'source-over'` (no recoloring). Supported values: `'source-over'`, `'hueshift'`, `'tint'`, `'multiply'`. The driving color is the colorset's **foreground** (label color). Only affects image-based labels, not text labels.
+- **backgroundComposite** (Optional) Canvas composite mode applied when drawing per-face background images. Default: `'source-over'`. Same supported values as `labelComposite`. The driving color is the colorset's **background** (dice color).
+
+These two properties let you ship one set of label or background images and register multiple colorsets that produce visually distinct dice through color alone:
+- `'hueshift'` applies CSS hue-rotate, saturate, and brightness filters derived from the driving color (same logic as texture hueshift)
+- `'tint'` flat-colorizes the image to the driving color, preserving transparency
+- `'multiply'` darkens toward the driving color (works best on opaque source images)
 
 **Note 1:** If you provide an array of texture ID instead of a single ID, a random texture will be used for each face of the dice.
 **Note 2:** If you omit some of these attributes, Dice So Nice! will use the player config instead. For example, omitting "material" uses each player's selected material. This lets users customize slightly even with your colorset. To lock down appearance completely, set every attribute.
@@ -316,6 +324,31 @@ dice3d.addColorset({
     outline: 'black',
     texture: 'none',
     material: 'plastic'
+});
+
+// Same rune labels, two color variants - no duplicate image assets needed
+dice3d.addColorset({
+    name: 'fire-runes',
+    description: 'Fire Runes',
+    category: 'Elemental',
+    foreground: '#FF4400',
+    background: '#1A0500',
+    outline: 'none',
+    texture: 'none',
+    material: 'metal',
+    labelComposite: 'tint'
+});
+
+dice3d.addColorset({
+    name: 'ice-runes',
+    description: 'Ice Runes',
+    category: 'Elemental',
+    foreground: '#00CCFF',
+    background: '#000A1A',
+    outline: 'none',
+    texture: 'none',
+    material: 'metal',
+    labelComposite: 'tint'
 });
 ```
 [Check the demo pages for more examples](/foundryvtt-dice-so-nice/api/demos/)
