@@ -1,5 +1,3 @@
-"use strict"
-
 import { DiceSFXManager } from './sfx/DiceSFXManager.js';
 import { SFXFormulaMatcher } from './sfx/SFXFormulaMatcher.js';
 import { DiceLibrary } from './engine/DiceLibrary.js';

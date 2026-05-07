@@ -1,5 +1,3 @@
-"use strict"
-
 const SUPPORTED_MODIFIERS = ['cs', 'cf', 'kh', 'kl', 'dl', 'dh'];
 const OPERATORS = ['==', '>=', '<=', '>', '<'];
 const COUNT_KEYWORDS = ['success', 'failure', 'discarded', 'rerolled', 'exploded'];
