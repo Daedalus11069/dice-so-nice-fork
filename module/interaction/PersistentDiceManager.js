@@ -128,12 +128,8 @@ export class PersistentDiceManager {
 		this._applyPersistentDieVisibility(dicemesh);
 
 		//ghostify remote dice in "mine" mode
-		if (this.persistentDiceVisibility === "mine") {
-			const owner = dicemesh.userData.ownerUserId;
-			const mine = owner && game.user && owner === game.user.id;
-			if (!mine) {
-				this.physicsWorker.exec('setCollisionResponse', { ids: [dicemesh.id], enabled: false });
-			}
+		if (this.persistentDiceVisibility === "mine" && !this._isOwnedByLocalUser(dicemesh)) {
+			this.physicsWorker.exec('setCollisionResponse', { ids: [dicemesh.id], enabled: false });
 		}
 
 		return dicemesh;
@@ -193,9 +189,7 @@ export class PersistentDiceManager {
 
 		for (const mesh of this.persistentDiceList) {
 			this._applyPersistentDieVisibility(mesh);
-			const owner = mesh.userData.ownerUserId;
-			const mine = owner && game.user && owner === game.user.id;
-			if (mode === "mine" && !mine) {
+			if (mode === "mine" && !this._isOwnedByLocalUser(mesh)) {
 				ghostIds.push(mesh.id);
 			} else {
 				unghostIds.push(mesh.id);
@@ -210,6 +204,11 @@ export class PersistentDiceManager {
 		}
 	}
 
+	_isOwnedByLocalUser(mesh) {
+		const owner = mesh.userData.ownerUserId;
+		return !!(owner && game.user && owner === game.user.id);
+	}
+
 	_emitPersistentDiceChanged() {
 		try {
 			Hooks.callAll("dice-so-nice.persistentDiceChanged");
@@ -221,12 +220,10 @@ export class PersistentDiceManager {
 	_applyPersistentDieVisibility(dicemesh) {
 		const container = dicemesh.parent;
 		if (!container) return;
-		const owner = dicemesh.userData.ownerUserId;
-		const mine = owner && game.user && owner === game.user.id;
 		let visible;
 		switch (this.persistentDiceVisibility) {
 			case "none": visible = false; break;
-			case "mine": visible = !!mine; break;
+			case "mine": visible = this._isOwnedByLocalUser(dicemesh); break;
 			case "all":
 			default: visible = true; break;
 		}

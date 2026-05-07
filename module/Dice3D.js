@@ -364,39 +364,17 @@ export class Dice3D {
             "COLORSETS": COLORSETS
         };
 
-        const iridescenceLookUp = { value: null };
-        Object.defineProperty(iridescenceLookUp, 'value', {
-            get() {
-                const v = new ThinFilmFresnelMap();
-                Object.defineProperty(iridescenceLookUp, 'value', { value: v, writable: true, configurable: true });
-                return v;
-            },
-            set(v) {
-                Object.defineProperty(iridescenceLookUp, 'value', { value: v, writable: true, configurable: true });
-            },
-            configurable: true
-        });
-
-        const iridescenceNoise = { value: null };
-        Object.defineProperty(iridescenceNoise, 'value', {
-            get() {
-                const v = new TextureLoader().load("modules/dice-so-nice/textures/noise-thin-film.webp");
-                Object.defineProperty(iridescenceNoise, 'value', { value: v, writable: true, configurable: true });
-                return v;
-            },
-            set(v) {
-                Object.defineProperty(iridescenceNoise, 'value', { value: v, writable: true, configurable: true });
-            },
-            configurable: true
-        });
+        this._iridescenceLookUp = null;
+        this._iridescenceNoise = null;
+        const self = this;
 
         this.uniforms = {
             globalBloom: { value: 1 },
             bloomStrength: { value: 1.1 },
             bloomRadius: { value: 0.2 },
             bloomThreshold: { value: 0 },
-            iridescenceLookUp,
-            iridescenceNoise,
+            iridescenceLookUp: { get value() { return self._iridescenceLookUp ??= new ThinFilmFresnelMap(); }, set value(v) { self._iridescenceLookUp = v; } },
+            iridescenceNoise: { get value() { return self._iridescenceNoise ??= new TextureLoader().load("modules/dice-so-nice/textures/noise-thin-film.webp"); }, set value(v) { self._iridescenceNoise = v; } },
             boost: { value: 1.5 },
             time: { value: 0 }
         };
@@ -689,6 +667,7 @@ export class Dice3D {
 
         //clean up persistent dice when user disconnects (locked dice would stay stuck otherwise)
         Hooks.on("userConnected", (user, connected) => {
+            if (!this.box.initialized) return;
             if (!connected) {
                 this._cleanupDisconnectedUser(user.id);
                 this.box.clearPersistentDice({ ownerUserId: user.id });
@@ -1614,7 +1593,7 @@ export class Dice3D {
 
         const crossingNone = (oldMode === "none") !== (mode === "none");
         if (crossingNone) {
-            SettingsConfig.reloadConfirm();
+            foundry.applications.settings.SettingsConfig.reloadConfirm();
             return;
         }
 
