@@ -31,6 +31,10 @@ A typical integration registers a System, adds DicePresets to it for each die ty
 - **Background texture**: Either a single texture file or an array of random texture files for every dices with a custom-defined blending mode
 - **Faces**: Each dice can have custom faces. A face can be a string or an image file. The font and its size can be changed, and any Unicode character is supported (even symbols like emojis)
 
+:::note[Supported image formats]
+When a label, bump map, emissive map, or background entry is a file path, DsN supports the following formats: **PNG**, **JPG/JPEG**, **GIF**, and **WebP**. SVG files are not supported. Texture files should be **256x256 pixels**.
+:::
+
 ## Listening to DiceSoNiceReady hook
 Before using the customization API, you must ensure that "Dice So Nice" is ready. Please refer to the [Hooks](/foundryvtt-dice-so-nice/api/hooks/) section.
 Your package should also be using es6 modules to be able to import "Dice So Nice" APIs
@@ -120,6 +124,22 @@ dice3d.addDicePreset(
     'd8'
 );
 
+dice3d.addDicePreset({
+    type: 'd6',
+    labels: ['1', '2', '3', '4', '5', '6'],
+    backgrounds: [
+        'modules/my-module/img/bg-1.webp',
+        'modules/my-module/img/bg-2.webp',
+        'modules/my-module/img/bg-3.webp',
+        'modules/my-module/img/bg-4.webp',
+        'modules/my-module/img/bg-5.webp',
+        'modules/my-module/img/bg-6.webp'
+    ],
+    labelScale: 0.8,
+    scaleModifier: 1.1,
+    system: 'my-system'
+});
+
 dice3d.addDicePreset(
     {
         type: 'df',
@@ -175,25 +195,6 @@ dice3d.addDicePreset({
 This only works with Foundry VTT v14+ which bundles Font Awesome 7 Pro. For older Foundry versions, use the matching font family name (e.g. `'"Font Awesome 6 Pro"'`).
 :::
 
-This example uses the `backgrounds`, `labelScale`, and `scaleModifier` properties:
-
-```javascript
-dice3d.addDicePreset({
-    type: 'd6',
-    labels: ['1', '2', '3', '4', '5', '6'],
-    backgrounds: [
-        'modules/my-module/img/bg-1.webp',
-        'modules/my-module/img/bg-2.webp',
-        'modules/my-module/img/bg-3.webp',
-        'modules/my-module/img/bg-4.webp',
-        'modules/my-module/img/bg-5.webp',
-        'modules/my-module/img/bg-6.webp'
-    ],
-    labelScale: 0.8,
-    scaleModifier: 1.1,
-    system: 'my-system'
-});
-```
 
 [Check the demo pages for more examples](/foundryvtt-dice-so-nice/api/demos/)
 ## Adding a custom texture
