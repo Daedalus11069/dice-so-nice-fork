@@ -27,7 +27,11 @@ export class PlayMacro extends DiceSFX {
             DiceSFXManager.playSFX({ specialEffect: sfxId, options: {} }, box, dicemesh);
         };
 
-        macro.execute({ messageId, roll, dsnDie, playSFX });
+        try {
+            await macro.execute({ messageId, roll, dsnDie, playSFX });
+        } catch (err) {
+            console.error(`[Dice So Nice] SFX macro "${macro.name}" threw an error:`, err);
+        }
     }
 
     static getDialogContent(sfxLine,id){

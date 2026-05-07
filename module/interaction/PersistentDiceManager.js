@@ -575,6 +575,29 @@ export class PersistentDiceManager {
 				termModifiers: null,
 				_mesh: dm
 			}));
+			// build term metadata so aggregate formulas (e.g. 2d6 >= 10) work on persistent dice
+			const typeGroups = new Map();
+			for (const d of contextDice) {
+				const key = d.compositeType || d.type;
+				if (!typeGroups.has(key)) typeGroups.set(key, []);
+				typeGroups.get(key).push(d);
+			}
+			let termIdx = 0;
+			for (const [typeKey, group] of typeGroups) {
+				const faces = parseInt(typeKey.slice(1));
+				const primaryDice = group.filter(d => !d.compositeType || d.type === typeKey);
+				const logicalCount = primaryDice.length || group.length;
+				const total = primaryDice.length > 0
+					? primaryDice.reduce((sum, d) => sum + (d.compositeResult ?? d.result), 0)
+					: group.reduce((sum, d) => sum + d.result, 0);
+				for (const d of group) {
+					d.termIndex = termIdx;
+					d.termFaces = faces;
+					d.termNumber = logicalCount;
+					d.termTotal = total;
+				}
+				termIdx++;
+			}
 			const rollTotal = roll?.total ?? null;
 			for (const sfx of advancedEntries) {
 				const matchedCtx = SFXFormulaMatcher.match(sfx.formula, { dice: contextDice, rollTotal });

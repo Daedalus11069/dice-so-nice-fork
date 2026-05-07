@@ -1765,9 +1765,9 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         formula = 'rerolled(' + diceType + ')';
                     } else {
                         formula = diceType;
-                    }
-                    if (numericResults.length > 0) {
-                        formula += ' == ' + numericResults.join(',');
+                        if (numericResults.length > 0) {
+                            formula += ' == ' + numericResults.join(',');
+                        }
                     }
                 } else {
                     formula = diceType;
