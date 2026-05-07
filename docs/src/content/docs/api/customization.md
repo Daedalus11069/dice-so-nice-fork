@@ -267,6 +267,13 @@ export const DICE_SCALE = {
 };
 ```
 - **visibility** Set to 'hidden' if you do not want this colorset to be visible in the players' theme list. Useful for internal colorsets.
+- **labelComposite** (Optional) Canvas composite mode applied when drawing label images. Default: `'source-over'` (no recoloring). Supported values: `'source-over'`, `'hueshift'`, `'tint'`, `'multiply'`. The driving color is the colorset's **foreground** (label color). Only affects image-based labels, not text labels.
+- **backgroundComposite** (Optional) Canvas composite mode applied when drawing per-face background images. Default: `'source-over'`. Same supported values as `labelComposite`. The driving color is the colorset's **background** (dice color).
+
+These two properties let you ship one set of label or background images and register multiple colorsets that produce visually distinct dice through color alone:
+- `'hueshift'` applies CSS hue-rotate, saturate, and brightness filters derived from the driving color (same logic as texture hueshift)
+- `'tint'` flat-colorizes the image to the driving color, preserving transparency
+- `'multiply'` darkens toward the driving color (works best on opaque source images)
 
 **Note 1:** If you provide an array of texture ID instead of a single ID, a random texture will be used for each face of the dice.
 **Note 2:** If you omit some of these attributes, Dice So Nice! will use the player config instead. For example, omitting "material" uses each player's selected material. This lets users customize slightly even with your colorset. To lock down appearance completely, set every attribute.
@@ -317,6 +324,31 @@ dice3d.addColorset({
     outline: 'black',
     texture: 'none',
     material: 'plastic'
+});
+
+// Same rune labels, two color variants - no duplicate image assets needed
+dice3d.addColorset({
+    name: 'fire-runes',
+    description: 'Fire Runes',
+    category: 'Elemental',
+    foreground: '#FF4400',
+    background: '#1A0500',
+    outline: 'none',
+    texture: 'none',
+    material: 'metal',
+    labelComposite: 'tint'
+});
+
+dice3d.addColorset({
+    name: 'ice-runes',
+    description: 'Ice Runes',
+    category: 'Elemental',
+    foreground: '#00CCFF',
+    background: '#000A1A',
+    outline: 'none',
+    texture: 'none',
+    material: 'metal',
+    labelComposite: 'tint'
 });
 ```
 [Check the demo pages for more examples](/foundryvtt-dice-so-nice/api/demos/)

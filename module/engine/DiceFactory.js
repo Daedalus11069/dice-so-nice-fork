@@ -33,6 +33,7 @@ import {
 	DoubleSide,
 	BufferGeometryLoader
 } from 'three';
+
 export class DiceFactory {
 
 	constructor() {
@@ -1229,6 +1230,45 @@ export class DiceFactory {
 		this.baseMaterialCache[baseMaterialCacheString] = mat;
 		return mat;
 	}
+	
+	applyCompositeDrawImage(ctx, img, frame, dx, dy, dw, dh, mode, color) {
+		if (!mode || mode === 'source-over') {
+			ctx.drawImage(img, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh);
+			return;
+		}
+		if (mode === 'hueshift') {
+			const hsl = DiceColors.hexToHSL(color);
+			const saturate = 0.5 + hsl.s * 1.5;
+			const brightness = 0.5 + hsl.l;
+			ctx.save();
+			ctx.filter = `hue-rotate(${hsl.h}deg) saturate(${saturate}) brightness(${brightness})`;
+			ctx.drawImage(img, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh);
+			ctx.restore();
+			return;
+		}
+		if (!this._compositeOffscreen || this._compositeOffscreen.width < dw || this._compositeOffscreen.height < dh) {
+			this._compositeOffscreen = document.createElement('canvas');
+			this._compositeOffscreen.width = dw;
+			this._compositeOffscreen.height = dh;
+		}
+		const off = this._compositeOffscreen.getContext('2d');
+		off.clearRect(0, 0, dw, dh);
+		off.globalCompositeOperation = 'source-over';
+		off.drawImage(img, frame.x, frame.y, frame.w, frame.h, 0, 0, dw, dh);
+		if (mode === 'multiply') {
+			off.globalCompositeOperation = 'multiply';
+			off.fillStyle = color;
+			off.fillRect(0, 0, dw, dh);
+			off.globalCompositeOperation = 'destination-in';
+			off.drawImage(img, frame.x, frame.y, frame.w, frame.h, 0, 0, dw, dh);
+		} else if (mode === 'tint') {
+			off.globalCompositeOperation = 'source-atop';
+			off.fillStyle = color;
+			off.fillRect(0, 0, dw, dh);
+		}
+		ctx.drawImage(this._compositeOffscreen, 0, 0, dw, dh, dx, dy, dw, dh);
+	}
+
 	createTextMaterial(context, contextBump, contextEmissive, x, y, ts, diceobj, labels, font, index, texture, materialData) {
 		if (labels[index] === undefined) return null;
 
@@ -1315,7 +1355,7 @@ export class DiceFactory {
 					contextBump.drawImage(bkgBump.source, bkgBump.frame.x, bkgBump.frame.y, bkgBump.frame.w, bkgBump.frame.h, x, y, ts, ts);
 				}
 				if (bkgLabel && bkgLabel.source instanceof HTMLImageElement) {
-					context.drawImage(bkgLabel.source, bkgLabel.frame.x, bkgLabel.frame.y, bkgLabel.frame.w, bkgLabel.frame.h, x, y, ts, ts);
+					this.applyCompositeDrawImage(context, bkgLabel.source, bkgLabel.frame, x, y, ts, ts, materialData.backgroundComposite, backcolor);
 				}
 				if (bkgEmissive && bkgEmissive.source instanceof HTMLImageElement) {
 					contextEmissive.drawImage(bkgEmissive.source, bkgEmissive.frame.x, bkgEmissive.frame.y, bkgEmissive.frame.w, bkgEmissive.frame.h, x, y, ts, ts);
@@ -1340,7 +1380,7 @@ export class DiceFactory {
 					//vpos 0=shifted up, 0.5=centered, 1=shifted down
 					const maxOffset = ts / 2;
 					const dy = y + (ts - drawSize) / 2 + (vpos - 0.5) * 2 * maxOffset;
-					const drawImg = (ctx, src) => {
+					const drawImg = (ctx, src, compositeMode, compositeColor) => {
 						ctx.save();
 						ctx.beginPath();
 						ctx.rect(x, y, ts, ts);
@@ -1348,15 +1388,23 @@ export class DiceFactory {
 						if(flip) {
 							ctx.translate(0, y + ts);
 							ctx.scale(1, -1);
-							ctx.drawImage(src.source, src.frame.x, src.frame.y, src.frame.w, src.frame.h,
-								dx, y + ts - dy - drawSize, drawSize, drawSize);
+							if (compositeMode) {
+								this.applyCompositeDrawImage(ctx, src.source, src.frame, dx, y + ts - dy - drawSize, drawSize, drawSize, compositeMode, compositeColor);
+							} else {
+								ctx.drawImage(src.source, src.frame.x, src.frame.y, src.frame.w, src.frame.h,
+									dx, y + ts - dy - drawSize, drawSize, drawSize);
+							}
 						} else {
-							ctx.drawImage(src.source, src.frame.x, src.frame.y, src.frame.w, src.frame.h,
-								dx, dy, drawSize, drawSize);
+							if (compositeMode) {
+								this.applyCompositeDrawImage(ctx, src.source, src.frame, dx, dy, drawSize, drawSize, compositeMode, compositeColor);
+							} else {
+								ctx.drawImage(src.source, src.frame.x, src.frame.y, src.frame.w, src.frame.h,
+									dx, dy, drawSize, drawSize);
+							}
 						}
 						ctx.restore();
 					};
-					drawImg(context, text);
+					drawImg(context, text, materialData.labelComposite, forecolor);
 					if(bump) drawImg(contextBump, bump);
 					if(emissive) drawImg(contextEmissive, emissive);
 				} else if (diceobj.labelScale) {
@@ -1364,13 +1412,13 @@ export class DiceFactory {
 					const textureSize = ts * diceobj.labelScale;
 					const dx = x + ts/2 - textureSize/2;
 					const dy = y + ts/2 - textureSize/2;
-					context.drawImage(text.source, text.frame.x, text.frame.y, text.frame.w, text.frame.h, dx, dy, textureSize, textureSize);
+					this.applyCompositeDrawImage(context, text.source, text.frame, dx, dy, textureSize, textureSize, materialData.labelComposite, forecolor);
 					if(bump)
 						contextBump.drawImage(bump.source, bump.frame.x, bump.frame.y, bump.frame.w, bump.frame.h, dx, dy, textureSize, textureSize);
 					if(emissive)
 						contextEmissive.drawImage(emissive.source, emissive.frame.x, emissive.frame.y, emissive.frame.w, emissive.frame.h, dx, dy, textureSize, textureSize);
 				} else {
-					context.drawImage(text.source, text.frame.x, text.frame.y, text.frame.w, text.frame.h, x, y, ts, ts);
+					this.applyCompositeDrawImage(context, text.source, text.frame, x, y, ts, ts, materialData.labelComposite, forecolor);
 					if(bump)
 						contextBump.drawImage(bump.source, bump.frame.x, bump.frame.y, bump.frame.w, bump.frame.h,x,y,ts,ts);
 					if(emissive)
@@ -1570,7 +1618,7 @@ export class DiceFactory {
 					contextBump.drawImage(bkgBump.source, bkgBump.frame.x, bkgBump.frame.y, bkgBump.frame.w, bkgBump.frame.h,x,y,ts,ts);
 				}
 				if (bkgLabel && bkgLabel.source instanceof HTMLImageElement) {
-					context.drawImage(bkgLabel.source, bkgLabel.frame.x, bkgLabel.frame.y, bkgLabel.frame.w, bkgLabel.frame.h,x,y,ts,ts);
+					this.applyCompositeDrawImage(context, bkgLabel.source, bkgLabel.frame, x, y, ts, ts, materialData.backgroundComposite, backcolor);
 				}
 				if (bkgEmissive && bkgEmissive.source instanceof HTMLImageElement) {
 					contextEmissive.drawImage(bkgEmissive.source, bkgEmissive.frame.x, bkgEmissive.frame.y, bkgEmissive.frame.w, bkgEmissive.frame.h,x,y,ts,ts);
@@ -2086,6 +2134,8 @@ export class DiceFactory {
 
 		materialData.isGhost = appearance.isGhost?appearance.isGhost:false;
 		materialData.emissiveLabels = !!colorsetData.emissiveLabels;
+		materialData.labelComposite = colorsetData.labelComposite || 'source-over';
+		materialData.backgroundComposite = colorsetData.backgroundComposite || 'source-over';
 
 		//per-face overrides from dice library
 		if(appearance.libraryDieId) {
@@ -2163,7 +2213,7 @@ export class DiceFactory {
 		}
 
 		let cacheExtra = materialData.libraryDieId ? (appearance.libraryDieOwner || "") + materialData.libraryDieId + materialData.libraryDieUpdatedAt : "";
-		materialData.cacheString = appearance.system+materialData.background+materialData.foreground+materialData.outline+materialData.texture.name+materialData.edge+materialData.material+materialData.font+materialData.isGhost+materialData.emissiveLabels+cacheExtra;
+		materialData.cacheString = appearance.system+materialData.background+materialData.foreground+materialData.outline+materialData.texture.name+materialData.edge+materialData.material+materialData.font+materialData.isGhost+materialData.emissiveLabels+materialData.labelComposite+materialData.backgroundComposite+cacheExtra;
 		return materialData;
 	}
 

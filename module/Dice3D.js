@@ -267,7 +267,9 @@ export class Dice3D {
             texture: "custom",
             material: "custom",
             font: "custom",
-            visibility: "visible"
+            visibility: "visible",
+            labelComposite: "source-over",
+            backgroundComposite: "source-over"
         }
         colorset = foundry.utils.mergeObject(defaultValues, colorset, { applyOperators: true });
         COLORSETS[colorset.name] = colorset;
