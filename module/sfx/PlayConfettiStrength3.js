@@ -6,9 +6,9 @@ export class PlayConfettiStrength3 extends DiceSFX {
 
     /**@override play */
     async play(){
-        const strength = window.confetti.confettiStrength.high;
-        const shootConfettiProps = window.confetti.getShootConfettiProps(strength);
-
-        window.confetti.handleShootConfetti(shootConfettiProps);
+        const api = game.modules.get('celebrate').api;
+        const strength = api.confettiStrength.high;
+        const shootConfettiProps = api.getShootConfettiProps(strength);
+        api.handleShootConfetti(shootConfettiProps);
     }
 }

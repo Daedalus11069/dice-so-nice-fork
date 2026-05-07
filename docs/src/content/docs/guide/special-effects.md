@@ -211,7 +211,7 @@ if (skillValue && dsnDie.result <= Math.ceil(skillValue * 0.05)) {
 
 ### Confetti
 
-Three intensity levels. Requires the [Confetti](https://foundryvtt.com/packages/confetti) module.
+Three intensity levels. Requires the [Celebrate](https://foundryvtt.com/packages/celebrate) module.
 
 :::note
 Modules can register additional custom effects via the [SFX API](/foundryvtt-dice-so-nice/api/sfx/).
