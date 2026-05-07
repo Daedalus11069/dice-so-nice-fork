@@ -127,6 +127,15 @@ export class PersistentDiceManager {
 		//apply current visibility mode
 		this._applyPersistentDieVisibility(dicemesh);
 
+		//ghostify remote dice in "mine" mode
+		if (this.persistentDiceVisibility === "mine") {
+			const owner = dicemesh.userData.ownerUserId;
+			const mine = owner && game.user && owner === game.user.id;
+			if (!mine) {
+				this.physicsWorker.exec('setCollisionResponse', { ids: [dicemesh.id], enabled: false });
+			}
+		}
+
 		return dicemesh;
 	}
 
@@ -175,12 +184,29 @@ export class PersistentDiceManager {
 		return null;
 	}
 
-	//apply visibility mode to all persistent dice (render-only, physics stays active)
 	applyVisibility(mode) {
 		if (mode !== "none" && mode !== "mine" && mode !== "all") return;
 		this.persistentDiceVisibility = mode;
+
+		const ghostIds = [];
+		const unghostIds = [];
+
 		for (const mesh of this.persistentDiceList) {
 			this._applyPersistentDieVisibility(mesh);
+			const owner = mesh.userData.ownerUserId;
+			const mine = owner && game.user && owner === game.user.id;
+			if (mode === "mine" && !mine) {
+				ghostIds.push(mesh.id);
+			} else {
+				unghostIds.push(mesh.id);
+			}
+		}
+
+		if (ghostIds.length > 0) {
+			this.physicsWorker.exec('setCollisionResponse', { ids: ghostIds, enabled: false });
+		}
+		if (unghostIds.length > 0) {
+			this.physicsWorker.exec('setCollisionResponse', { ids: unghostIds, enabled: true });
 		}
 	}
 

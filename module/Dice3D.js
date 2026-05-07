@@ -364,13 +364,39 @@ export class Dice3D {
             "COLORSETS": COLORSETS
         };
 
+        const iridescenceLookUp = { value: null };
+        Object.defineProperty(iridescenceLookUp, 'value', {
+            get() {
+                const v = new ThinFilmFresnelMap();
+                Object.defineProperty(iridescenceLookUp, 'value', { value: v, writable: true, configurable: true });
+                return v;
+            },
+            set(v) {
+                Object.defineProperty(iridescenceLookUp, 'value', { value: v, writable: true, configurable: true });
+            },
+            configurable: true
+        });
+
+        const iridescenceNoise = { value: null };
+        Object.defineProperty(iridescenceNoise, 'value', {
+            get() {
+                const v = new TextureLoader().load("modules/dice-so-nice/textures/noise-thin-film.webp");
+                Object.defineProperty(iridescenceNoise, 'value', { value: v, writable: true, configurable: true });
+                return v;
+            },
+            set(v) {
+                Object.defineProperty(iridescenceNoise, 'value', { value: v, writable: true, configurable: true });
+            },
+            configurable: true
+        });
+
         this.uniforms = {
             globalBloom: { value: 1 },
             bloomStrength: { value: 1.1 },
             bloomRadius: { value: 0.2 },
             bloomThreshold: { value: 0 },
-            iridescenceLookUp: { value: new ThinFilmFresnelMap() },
-            iridescenceNoise: { value: new TextureLoader().load("modules/dice-so-nice/textures/noise-thin-film.webp") },
+            iridescenceLookUp,
+            iridescenceNoise,
             boost: { value: 1.5 },
             time: { value: 0 }
         };
@@ -388,19 +414,26 @@ export class Dice3D {
         this._initListeners();
         this._buildDiceBox();
         this.diceLibrary = new DiceLibrary();
-        DiceColors.loadTextures(TEXTURELIST, async (images) => {
-            DiceColors.initColorSets();
 
+        if (Dice3D.CONFIG().visibility === "none") {
+            DiceColors.initColorSets();
             Hooks.call("diceSoNiceReady", this);
-            await this.DiceFactory._loadFonts();
-            await this.diceLibrary.load();
-            await CustomDiceTerms.applyDefaultAppearances();
-            await DiceLibrary.preloadAssets();
-            await this.DiceFactory.preloadPresets();
-            await this._preloadActorDocuments();
-            //restore persistent dice from flags
-            await this._restoreAllPersistentDice();
-        });
+        } else {
+            DiceColors.loadTextures(TEXTURELIST, async (images) => {
+                DiceColors.initColorSets();
+
+                Hooks.call("diceSoNiceReady", this);
+                await this.DiceFactory._loadFonts();
+                await this.diceLibrary.load();
+                await CustomDiceTerms.applyDefaultAppearances();
+                await DiceLibrary.preloadAssets();
+                await this.DiceFactory.preloadPresets();
+                await this._preloadActorDocuments();
+                //restore persistent dice from flags
+                await this._restoreAllPersistentDice();
+            });
+        }
+
         DiceSFXManager.init();
         this._startQueueHandler();
         this._nextAnimationHandler();
@@ -502,7 +535,13 @@ export class Dice3D {
         config.dimensions = this._computeDimensions(config.rollingArea);
 
         this.box = new DiceBox(this.canvas, this.DiceFactory, config);
-        this._boxReady = this.box.initialize();
+
+        if (config.visibility === "none") {
+            this._boxReady = null;
+        } else {
+            this._boxReady = this.box.initialize();
+        }
+
         this.box.onPersistentEvent = (type, data) => this._emitPersistentEvent(type, data);
         this.box.sfxListForUser = (user) => Dice3D.ALL_CUSTOMIZATION(user).specialEffects || [];
         this.box.onQueueThrow = (throwData) => this._showPersistentThrow(throwData);
@@ -561,6 +600,8 @@ export class Dice3D {
 
         //Only used after a window resize
         this.resizeAndRebuild = () => {
+            if (!this.box.initialized) return;
+
             this.canvas.remove();
             this.dice3dRenderers.board.dispose();
             this.dice3dRenderers.board = null;
@@ -1567,8 +1608,16 @@ export class Dice3D {
 
     async setVisibility(mode) {
         if (mode !== "all" && mode !== "mine" && mode !== "none") return;
+        const oldMode = Dice3D.CONFIG().visibility;
         const settings = game.user.getFlag("dice-so-nice", "settings") || {};
         await game.user.setFlag("dice-so-nice", "settings", { ...settings, visibility: mode });
+
+        const crossingNone = (oldMode === "none") !== (mode === "none");
+        if (crossingNone) {
+            SettingsConfig.reloadConfirm();
+            return;
+        }
+
         this.box?.applyVisibility(mode);
     }
 
@@ -1715,6 +1764,7 @@ export class Dice3D {
     }
 
     async _handlePersistentMessage(request) {
+        if (!this.box.initialized) return;
         if (!request.data) return;
         switch (request.type) {
             case "persistent-create": return this._onRemotePersistentCreate(request);

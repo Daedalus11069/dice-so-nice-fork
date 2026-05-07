@@ -58,6 +58,7 @@ export class DiceBox {
 		};
 
 		this.debugMode = false;
+		this.initialized = false;
 	}
 
 	//getters delegating to DiceScene
@@ -70,7 +71,7 @@ export class DiceBox {
 	get display() { return this.diceScene?.display; }
 	get clock() { return this.diceScene?.clock; }
 	get raycaster() { return this.diceScene?.raycaster; }
-	get anisotropy() { return this.diceScene?.anisotropy; }
+	get anisotropy() { return this.diceScene?.anisotropy ?? 1; }
 	get cameraHeight() { return this.diceScene?.cameraHeight; }
 
 	//getters delegating to ThrowEngine
@@ -237,6 +238,7 @@ export class DiceBox {
 					this.throwEngine.speed = parseInt(globalAnimationSpeed, 10);
 				this.throwEngine.throwingForce = this.config.throwingForce;
 			}
+			this.initialized = true;
 			resolve();
 		});
 	}
@@ -265,6 +267,7 @@ export class DiceBox {
 	}
 
 	async update(config) {
+		if (!this.initialized) return;
 		this.showExtraDice = config.showExtraDice;
 		if (config.visibility) this.applyVisibility(config.visibility);
 
@@ -305,6 +308,7 @@ export class DiceBox {
 	}
 
 	updateBoundaries(dimensions) {
+		if (!this.initialized) return;
 		const newDimensions = this.diceScene.updateBoundaries(dimensions);
 		if (this.config.boxType == "board") {
 			this.dicefactory.setScale(this.display.scale);
@@ -540,6 +544,7 @@ export class DiceBox {
 	}
 
 	async clearAll() {
+		if (!this.initialized) return;
 		this.cancelFade();
 		await this.throwEngine.clearAll();
 		DiceSFXManager.clearQueue();
@@ -629,6 +634,7 @@ export class DiceBox {
 	}
 
 	clearScene() {
+		if (!this.initialized) return;
 		//dispose board-specific outline passes
 		if (this.outlinePass)
 			this.outlinePass.dispose();

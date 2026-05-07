@@ -38,7 +38,8 @@ export class DiceFactory {
 	constructor() {
 		this.geometries = {};
 
-		this.physicsWorker = new WebworkerPromise(new PhysicsWorker());
+		this._physicsWorker = null;
+		this._loaderGLTF = null;
 
 		this.baseScale = TARGET_D6_EDGE_METERS;
 		this.showcaseScale = TARGET_D6_EDGE_METERS * 1.2;
@@ -53,11 +54,6 @@ export class DiceFactory {
 		this.normalMapStrength = 1.5;
 		this.advancedGlass = false;
 
-		this.loaderGLTF = new GLTFLoader();
-		this.loaderDRACO = new DRACOLoader();
-		this.loaderDRACO.setDecoderPath('modules/dice-so-nice/libs/');
-		this.loaderDRACO.setDecoderConfig({type: 'wasm'});
-		this.loaderGLTF.setDRACOLoader(this.loaderDRACO);
 		this.fontLoadingPromises = [];
 
 		this.baseMaterialCache = {};
@@ -99,6 +95,24 @@ export class DiceFactory {
 		//build material_options up front so consumers like sanitizeAppearance
 		//can read it before the first scene init re-runs this with quality settings.
 		this.initializeMaterials();
+	}
+
+	get physicsWorker() {
+		if (!this._physicsWorker) {
+			this._physicsWorker = new WebworkerPromise(new PhysicsWorker());
+		}
+		return this._physicsWorker;
+	}
+
+	get loaderGLTF() {
+		if (!this._loaderGLTF) {
+			this._loaderGLTF = new GLTFLoader();
+			const draco = new DRACOLoader();
+			draco.setDecoderPath('modules/dice-so-nice/libs/');
+			draco.setDecoderConfig({type: 'wasm'});
+			this._loaderGLTF.setDRACOLoader(draco);
+		}
+		return this._loaderGLTF;
 	}
 
 	initializeMaterials(){
