@@ -48,6 +48,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         this.isActor = this.document instanceof Actor;
     }
 
+    get noScene() {
+        return Dice3D.CONFIG().visibility === "none";
+    }
+
     get title() {
         if (this.isActor) {
             return `${game.i18n.localize("DICESONICE.configTitle")} - ${this.document.name}`;
@@ -227,27 +231,29 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             { dimensions: { width: 634, height: 245 }, autoscale: false, scale: 60 }
         );
 
-        this.diceScene = new DiceScene(this.canvas, this.diceFactory, {
-            rendererCacheKey: "showcase",
-            dimensions: config.dimensions,
-            scale: config.scale,
-            autoscale: config.autoscale
-        });
-        await this.diceScene.initialize();
-        this.diceFactory.setQualitySettings(config);
-        this.diceScene.setupBloomPipeline();
+        if (!this.noScene) {
+            this.diceScene = new DiceScene(this.canvas, this.diceFactory, {
+                rendererCacheKey: "showcase",
+                dimensions: config.dimensions,
+                scale: config.scale,
+                autoscale: config.autoscale
+            });
+            await this.diceScene.initialize();
+            this.diceFactory.setQualitySettings(config);
+            this.diceScene.setupBloomPipeline();
 
-        this.showcaseView = new ShowcaseView(this.diceScene, this.diceFactory);
-        this.showcaseView.showExtraDice = config.showExtraDice;
+            this.showcaseView = new ShowcaseView(this.diceScene, this.diceFactory);
+            this.showcaseView.showExtraDice = config.showExtraDice;
 
-        if (!game.user.getFlag("dice-so-nice", "appearance") && !this.document.getFlag("dice-so-nice", "appearance")) {
-            if (this.diceFactory.preferredSystem != "standard")
-                config.appearance.global.system = this.diceFactory.preferredSystem;
-            if (this.diceFactory.preferredColorset != "standard")
-                config.appearance.global.colorset = this.diceFactory.preferredColorset;
+            if (!game.user.getFlag("dice-so-nice", "appearance") && !this.document.getFlag("dice-so-nice", "appearance")) {
+                if (this.diceFactory.preferredSystem != "standard")
+                    config.appearance.global.system = this.diceFactory.preferredSystem;
+                if (this.diceFactory.preferredColorset != "standard")
+                    config.appearance.global.colorset = this.diceFactory.preferredColorset;
+            }
+            config.diceLibrary = DiceLibrary.getLibraryForUser(game.user);
+            await this.showcaseView.showcase(config);
         }
-        config.diceLibrary = DiceLibrary.getLibraryForUser(game.user);
-        await this.showcaseView.showcase(config);
 
         this.navOrder = {};
         let triggerTypeList = [{ id: "", name: "" }];
@@ -256,37 +262,42 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         const sfxExcludedCompound = new Set(
             Object.entries(COMPOUND_DICE).filter(([k]) => parseInt(k) > 100).map(([, places]) => places[0].type)
         );
-        this.showcaseView.diceList.forEach((el) => {
-            this.navOrder[el.userData] = i++;
-            if (!sfxExcludedCompound.has(el.userData)) {
-                triggerTypeList.push({ id: el.userData, name: el.userData });
-                this.possibleResultList[el.userData] = [];
-                let preset = this.diceFactory.systems.get("standard").dice.get(el.userData);
+
+        const diceTypes = this.showcaseView
+            ? this.showcaseView.diceList.map(el => el.userData)
+            : [...this.diceFactory.systems.get("standard").dice.keys()];
+
+        diceTypes.forEach((diceType) => {
+            this.navOrder[diceType] = i++;
+            if (!sfxExcludedCompound.has(diceType)) {
+                triggerTypeList.push({ id: diceType, name: diceType });
+                this.possibleResultList[diceType] = [];
+                let preset = this.diceFactory.systems.get("standard").dice.get(diceType);
                 let termClass = Object.values(CONFIG.Dice.terms).find(term => term.name == preset.term) || foundry.dice.terms.Die;
                 let term = new termClass({});
 
-                if (el.userData == "d100") {
+                if (diceType == "d100") {
                     for (let i = 1; i <= 100; i++) {
                         let label = term.getResultLabel({ result: i });
                         let option = { id: i + "", name: label };
-                        this.possibleResultList[el.userData].push(option);
+                        this.possibleResultList[diceType].push(option);
                     }
                 } else {
                     preset.values.forEach((value) => {
                         let label = term.getResultLabel({ result: value });
                         let option = { id: value + "", name: label };
-                        this.possibleResultList[el.userData].push(option);
+                        this.possibleResultList[diceType].push(option);
                     });
                 }
 
-                this.possibleResultList[el.userData].push({ id: "kh", name: "Keep Highest / Advantage" });
-                this.possibleResultList[el.userData].push({ id: "kl", name: "Keep Lowest / Disadvantage" });
-                this.possibleResultList[el.userData].push({ id: "dh", name: "Drop Highest" });
-                this.possibleResultList[el.userData].push({ id: "dl", name: "Drop Lowest" });
-                this.possibleResultList[el.userData].push({ id: "cs", name: "Counting Success" });
-                this.possibleResultList[el.userData].push({ id: "cf", name: "Counting Failure" });
-                this.possibleResultList[el.userData].push({ id: "x", name: "Exploded" });
-                this.possibleResultList[el.userData].push({ id: "r", name: "Rerolled" });
+                this.possibleResultList[diceType].push({ id: "kh", name: "Keep Highest / Advantage" });
+                this.possibleResultList[diceType].push({ id: "kl", name: "Keep Lowest / Disadvantage" });
+                this.possibleResultList[diceType].push({ id: "dh", name: "Drop Highest" });
+                this.possibleResultList[diceType].push({ id: "dl", name: "Drop Lowest" });
+                this.possibleResultList[diceType].push({ id: "cs", name: "Counting Success" });
+                this.possibleResultList[diceType].push({ id: "cf", name: "Counting Failure" });
+                this.possibleResultList[diceType].push({ id: "x", name: "Exploded" });
+                this.possibleResultList[diceType].push({ id: "r", name: "Rerolled" });
             }
         });
 
@@ -451,7 +462,9 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     _onRender(context, options) {
         this.changeTab(this.tabGroups["dsn-dice"], "dsn-dice", { force: true });
 
-        this.element.querySelector("#dice-configuration-canvas-container").append(this.canvas);
+        if (!this.noScene) {
+            this.element.querySelector("#dice-configuration-canvas-container").append(this.canvas);
+        }
 
         if (this.isUser) {
             this.toggleHideAfterRoll();
@@ -588,6 +601,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     ev.preventDefault();
                     new DiceLibraryDialog({ diceType: actionTarget.dataset.dicetype, diceConfig: this }).render(true);
                 } else if (target.closest("[data-action=test]")) {
+                    if (this.noScene) return;
                     let config = this.getShowcaseAppearance();
                     let denominationList = [];
                     const showcaseTypes = new Set(this.showcaseView.diceList.map(el => el.userData));
@@ -717,7 +731,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     foundry.utils.saveDataToFile(json, "text/json", filename);
                 } else if (target.closest("[data-gm-push]")) {
                     this._onGMPush();
-                } else if (target.closest("#dice-configuration-canvas")) {
+                } else if (target.closest("#dice-configuration-canvas") && !this.noScene) {
                     this._onCanvasClick(ev);
                 }
             });
@@ -1224,6 +1238,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     onApply(event = null) {
         if (event)
             event.preventDefault();
+        if (this.noScene) return;
 
         const container = this.element.querySelector("#dice-configuration-canvas-container");
         container?.classList.add("loading");
@@ -1867,9 +1882,9 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
     close(options) {
         this._destroySlimSelects();
         super.close(options);
-        this.showcaseView.stopAnimation();
-        this.diceScene.clearScene();
-        this.diceFactory.disposeCachedMaterials("showcase");
+        if (this.showcaseView) this.showcaseView.stopAnimation();
+        if (this.diceScene) this.diceScene.clearScene();
+        if (!this.noScene) this.diceFactory.disposeCachedMaterials("showcase");
     }
 
     static async _onSubmit(event, form, formData) {
