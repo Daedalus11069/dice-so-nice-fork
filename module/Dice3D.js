@@ -14,6 +14,8 @@ import { DiceLibrary } from './engine/DiceLibrary.js';
 import { InitiativeMask } from './ui/InitiativeMask.js';
 import { CompanionLink } from './CompanionLink.js';
 import { CustomDiceTerms } from './engine/CustomDiceTerms.js';
+import { SpawnLayout } from './interaction/SpawnLayout.js';
+import { LEGACY_TO_METERS } from './engine/SceneConstants.js';
 /**
  * Main class to handle 3D Dice animations.
  */
@@ -82,7 +84,8 @@ export class Dice3D {
             muteSoundSecretRolls: false,
             enableFlavorColorset: true,
             skipAnimationOnInactiveTab: false,
-            rollingArea: false
+            rollingArea: false,
+            persistentDiceSpawnLocation: "center"
         };
     }
 
@@ -361,13 +364,17 @@ export class Dice3D {
             "COLORSETS": COLORSETS
         };
 
+        this._iridescenceLookUp = null;
+        this._iridescenceNoise = null;
+        const self = this;
+
         this.uniforms = {
             globalBloom: { value: 1 },
             bloomStrength: { value: 1.1 },
             bloomRadius: { value: 0.2 },
             bloomThreshold: { value: 0 },
-            iridescenceLookUp: { value: new ThinFilmFresnelMap() },
-            iridescenceNoise: { value: new TextureLoader().load("modules/dice-so-nice/textures/noise-thin-film.webp") },
+            iridescenceLookUp: { get value() { return self._iridescenceLookUp ??= new ThinFilmFresnelMap(); }, set value(v) { self._iridescenceLookUp = v; } },
+            iridescenceNoise: { get value() { return self._iridescenceNoise ??= new TextureLoader().load("modules/dice-so-nice/textures/noise-thin-film.webp"); }, set value(v) { self._iridescenceNoise = v; } },
             boost: { value: 1.5 },
             time: { value: 0 }
         };
@@ -385,19 +392,26 @@ export class Dice3D {
         this._initListeners();
         this._buildDiceBox();
         this.diceLibrary = new DiceLibrary();
-        DiceColors.loadTextures(TEXTURELIST, async (images) => {
-            DiceColors.initColorSets();
 
+        if (Dice3D.CONFIG().visibility === "none") {
+            DiceColors.initColorSets();
             Hooks.call("diceSoNiceReady", this);
-            await this.DiceFactory._loadFonts();
-            await this.diceLibrary.load();
-            await CustomDiceTerms.applyDefaultAppearances();
-            await DiceLibrary.preloadAssets();
-            await this.DiceFactory.preloadPresets();
-            await this._preloadActorDocuments();
-            //restore persistent dice from flags
-            await this._restoreAllPersistentDice();
-        });
+        } else {
+            DiceColors.loadTextures(TEXTURELIST, async (images) => {
+                DiceColors.initColorSets();
+
+                Hooks.call("diceSoNiceReady", this);
+                await this.DiceFactory._loadFonts();
+                await this.diceLibrary.load();
+                await CustomDiceTerms.applyDefaultAppearances();
+                await DiceLibrary.preloadAssets();
+                await this.DiceFactory.preloadPresets();
+                await this._preloadActorDocuments();
+                //restore persistent dice from flags
+                await this._restoreAllPersistentDice();
+            });
+        }
+
         DiceSFXManager.init();
         this._startQueueHandler();
         this._nextAnimationHandler();
@@ -454,18 +468,20 @@ export class Dice3D {
             area.top = config.rollingArea.top;
         }
 
-        this.canvas = $(`<div id="dice-box-canvas" style="position: absolute; left: ${area.left}px; top: ${area.top}px; pointer-events: none;"></div>`);
+        this.canvas = document.createElement("div");
+        this.canvas.id = "dice-box-canvas";
+        this.canvas.style.cssText = `position: absolute; left: ${area.left}px; top: ${area.top}px; pointer-events: none;`;
         if (config.canvasZIndex === "over") {
-            this.canvas.css("z-index", 1000);
-            this.canvas.appendTo($('body'));
+            this.canvas.style.zIndex = 1000;
+            document.body.append(this.canvas);
         } else if (config.canvasZIndex === "auto") {
-            this.canvas.css("z-index", 0);
-            this.canvas.appendTo($('body'));
+            this.canvas.style.zIndex = 0;
+            document.body.append(this.canvas);
         } else {
-            $("#board").after(this.canvas);
+            document.getElementById("board").after(this.canvas);
         }
-        this.canvas.width(area.width + 'px');
-        this.canvas.height(area.height + 'px');
+        this.canvas.style.width = area.width + 'px';
+        this.canvas.style.height = area.height + 'px';
     }
 
     _isAutoMode() {
@@ -476,9 +492,9 @@ export class Dice3D {
         if (!this._isAutoMode()) return;
         const maxZ = foundry.applications?.api?.ApplicationV2?._maxZ;
         if (maxZ == null) {
-            this.canvas[0].style.zIndex = 1000;
+            this.canvas.style.zIndex = 1000;
         } else {
-            this.canvas[0].style.zIndex = ++foundry.applications.api.ApplicationV2._maxZ;
+            this.canvas.style.zIndex = ++foundry.applications.api.ApplicationV2._maxZ;
         }
         if (ui.activeWindow) ui.activeWindow = null;
     }
@@ -496,8 +512,14 @@ export class Dice3D {
 
         config.dimensions = this._computeDimensions(config.rollingArea);
 
-        this.box = new DiceBox(this.canvas[0], this.DiceFactory, config);
-        this._boxReady = this.box.initialize();
+        this.box = new DiceBox(this.canvas, this.DiceFactory, config);
+
+        if (config.visibility === "none") {
+            this._boxReady = null;
+        } else {
+            this._boxReady = this.box.initialize();
+        }
+
         this.box.onPersistentEvent = (type, data) => this._emitPersistentEvent(type, data);
         this.box.sfxListForUser = (user) => Dice3D.ALL_CUSTOMIZATION(user).specialEffects || [];
         this.box.onQueueThrow = (throwData) => this._showPersistentThrow(throwData);
@@ -518,6 +540,9 @@ export class Dice3D {
         if(!rollingArea) {
             if (ui.sidebar.expanded) {
                 dimensions.margin.right = ui.sidebar.element.clientWidth;
+            } else {
+                const sidebarContent = ui.sidebar.element.querySelector("#sidebar-content");
+                dimensions.margin.right = sidebarContent?.clientWidth || ui.sidebar.element.clientWidth;
             }
         } else {
             dimensions.width = rollingArea.width;
@@ -541,7 +566,7 @@ export class Dice3D {
             this._currentAnimation.then(() => this.resizeAndRebuild());
         }
         const debouncedResizeHandler = foundry.utils.debounce(resizeHandler.bind(this), 1000);
-        $(window).resize(debouncedResizeHandler);
+        window.addEventListener("resize", debouncedResizeHandler);
 
         // Resize the play area
         // Only works if the window size hasn't changed
@@ -553,7 +578,9 @@ export class Dice3D {
 
         //Only used after a window resize
         this.resizeAndRebuild = () => {
-            this.canvas[0].remove();
+            if (!this.box.initialized) return;
+
+            this.canvas.remove();
             this.dice3dRenderers.board.dispose();
             this.dice3dRenderers.board = null;
 
@@ -569,14 +596,18 @@ export class Dice3D {
             this.DiceFactory.systems = systemBackup;
         };
 
-        $(document).on("click", ".dice-so-nice-btn-settings", (ev) => {
+        document.addEventListener("click", (ev) => {
+            const target = ev.target.closest(".dice-so-nice-btn-settings");
+            if (!target) return;
             ev.preventDefault();
-            const menu = game.settings.menus.get(ev.currentTarget.dataset.key);
+            const menu = game.settings.menus.get(target.dataset.key);
             const app = new menu.type();
             return app.render(true);
         });
 
-        $(document).on("click", ".dice-so-nice-btn-tour", (ev) => {
+        document.addEventListener("click", (ev) => {
+            const target = ev.target.closest(".dice-so-nice-btn-tour");
+            if (!target) return;
             ev.preventDefault();
             game.tours.get("dice-so-nice.dice-so-nice-tour").start();
         });
@@ -636,6 +667,7 @@ export class Dice3D {
 
         //clean up persistent dice when user disconnects (locked dice would stay stuck otherwise)
         Hooks.on("userConnected", (user, connected) => {
+            if (!this.box.initialized) return;
             if (!connected) {
                 this._cleanupDisconnectedUser(user.id);
                 this.box.clearPersistentDice({ ownerUserId: user.id });
@@ -647,16 +679,16 @@ export class Dice3D {
 
         const hideCanvasAndClear = () => {
             const config = Dice3D.CONFIG();
-            if (!config.hideAfterRoll && this.canvas.is(":visible") && !this.box.rolling) {
+            if (!config.hideAfterRoll && this.canvas.style.display !== "none" && !this.box.rolling) {
                 if (this.box.persistentDiceList.length === 0) {
-                    this.canvas.hide();
+                    this.canvas.style.display = "none";
                 }
                 this.box.clearAll();
             }
         }
 
         const mouseNDC = (event) => {
-            let rect = this.canvas[0].getBoundingClientRect();
+            let rect = this.canvas.getBoundingClientRect();
             let x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             if (x > 1)
                 x = 1;
@@ -716,7 +748,7 @@ export class Dice3D {
             //pointercancel = OS took the pointer, treat as release
             window.addEventListener("pointercancel", this._dsnPointerUp, true);
         } else {
-            $(document).on("mousedown.dicesonice", "body", async (event) => {
+            document.addEventListener("mousedown", async (event) => {
                 hideCanvasAndClear();
             });
         }
@@ -872,10 +904,10 @@ export class Dice3D {
 
         const animId = chatMessage._dice3dCurrentAnimId;
         const showMessage = () => {
-            let messageElement = $(window.ui.chat.element).find(`.message[data-message-id="${chatMessage.id}"]`);
+            let messageElement = window.ui.chat.element.querySelector(`.message[data-message-id="${chatMessage.id}"]`);
             let messageElementPopout;
             if (window.ui.sidebar.popouts.chat) {
-                messageElementPopout = $(window.ui.sidebar.popouts.chat.element).find(`.message[data-message-id="${chatMessage.id}"]`);
+                messageElementPopout = window.ui.sidebar.popouts.chat.element.querySelector(`.message[data-message-id="${chatMessage.id}"]`);
             }
 
             // Guard the fallback with _shouldShowNotifications() to avoid double-firing the notification pip (#538).
@@ -890,28 +922,36 @@ export class Dice3D {
             if (chatMessage._dice3dMessageHidden && !animId) {
                 // initial rolls done, reveal the entire message
                 chatMessage._dice3dMessageHidden = false;
-                messageElement.removeClass("dsn-hide");
-                if (messageElementPopout) messageElementPopout.removeClass("dsn-hide");
+                if (messageElement) messageElement.classList.remove("dsn-hide");
+                if (messageElementPopout) messageElementPopout.classList.remove("dsn-hide");
             }
 
             if (animId) {
                 // update rolls done, reveal elements tagged with this animation id
                 if (!chatMessage._dice3dMessageHidden) {
-                    messageElement.removeClass("dsn-hide");
-                    if (messageElementPopout) messageElementPopout.removeClass("dsn-hide");
+                    if (messageElement) messageElement.classList.remove("dsn-hide");
+                    if (messageElementPopout) messageElementPopout.classList.remove("dsn-hide");
                 }
 
                 const revealSelector = `${this._messageUpdateHideSelector}.dsn-hide[data-dsn-anim-id="${animId}"]`;
-                const toReveal = messageElement.find(revealSelector);
                 if (!chatMessage._dice3dExistingRollFingerprints)
                     chatMessage._dice3dExistingRollFingerprints = [];
-                toReveal.each(function() {
-                    chatMessage._dice3dExistingRollFingerprints.push(this.textContent.trim());
-                });
-                toReveal.removeClass("dsn-hide").removeAttr("data-dsn-anim-id");
+                if (messageElement) {
+                    const toReveal = messageElement.querySelectorAll(revealSelector);
+                    toReveal.forEach(el => {
+                        chatMessage._dice3dExistingRollFingerprints.push(el.textContent.trim());
+                    });
+                    toReveal.forEach(el => {
+                        el.classList.remove("dsn-hide");
+                        el.removeAttribute("data-dsn-anim-id");
+                    });
+                }
 
                 if (messageElementPopout) {
-                    messageElementPopout.find(revealSelector).removeClass("dsn-hide").removeAttr("data-dsn-anim-id");
+                    messageElementPopout.querySelectorAll(revealSelector).forEach(el => {
+                        el.classList.remove("dsn-hide");
+                        el.removeAttribute("data-dsn-anim-id");
+                    });
                 }
 
                 if (chatMessage._dice3dAnimFingerprints) {
@@ -1032,9 +1072,9 @@ export class Dice3D {
             };
 
             //chain rollList entries sequentially (for rollOrder), then call done
-            const showRollList = (rollList, author, speaker, done) => {
+            const showRollList = (rollList, author, speaker, done, rollTotal) => {
                 const recurse = (index) => {
-                    this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, speaker).then(() => {
+                    this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, speaker, { originalRollTotal: rollTotal }).then(() => {
                         if (rollList[index + 1] != null)
                             recurse(index + 1);
                         else
@@ -1090,7 +1130,8 @@ export class Dice3D {
                     }
                 }
 
-                promises.push(new Promise(resolve => showRollList(rollList, author, speaker, resolve)));
+                const groupRollTotal = groupRolls.reduce((sum, r) => sum + (r.total ?? 0), 0);
+                promises.push(new Promise(resolve => showRollList(rollList, author, speaker, resolve, groupRollTotal)));
             }
 
             if (promises.length > 0)
@@ -1185,6 +1226,8 @@ export class Dice3D {
         let hookedRoll = context.dsnRoll || context.roll;
         let actor = ChatMessage.getSpeakerActor(speaker);
         let notation = new DiceNotation(hookedRoll, Dice3D.ALL_CONFIG(user, actor), user);
+        notation.rollTotal = options.originalRollTotal ?? hookedRoll.total ?? null;
+        notation.messageId = messageID;
         return this.show(notation, context.user, synchronize, context.users, context.blind, speaker);
     }
 
@@ -1272,7 +1315,12 @@ export class Dice3D {
         }
         return new Promise((resolve, reject) => {
             if (game.dice3d && Dice3D.CONFIG().visibility !== "none" && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
-                buildHook(resolve);
+                const message = game.messages.get(targetMessageId);
+                if (message?._dice3danimating) {
+                    buildHook(resolve);
+                } else {
+                    resolve(true);
+                }
             } else {
                 resolve(true);
             }
@@ -1365,7 +1413,6 @@ export class Dice3D {
             const persistentItems = items.filter(i => i.type === "persistent");
 
             const commands = ephemeralItems.length > 0 ? DiceNotation.mergeQueuedRollCommands(ephemeralItems) : [];
-            const flatThrows = commands.flat();
 
             //merge persistent items into a single throwData for the unified batch
             let mergedPersistentData = null;
@@ -1392,20 +1439,33 @@ export class Dice3D {
                 };
             }
 
-            if (flatThrows.length === 0 && !mergedPersistentData) {
+            //each throw index (explosion level) becomes a separate sequential batch
+            const batches = commands.length > 0 ? [...commands] : [];
+            if (batches.length === 0 && mergedPersistentData) batches.push([]);
+
+            if (batches.length === 0) {
                 items.forEach(item => item.resolve(false));
                 return;
             }
 
+            let remainingAnimations = batches.length;
+
             this._currentAnimation = this._currentAnimation.then(async () => {
-                this.queue.push(() => new Promise(async (resolve) => {
-                    this._beforeShow();
-                    await this.box.startUnifiedBatch(flatThrows, mergedPersistentData, () => {
-                        items.forEach(item => item.resolve(true));
-                        this._afterShow();
-                        resolve();
-                    });
-                }));
+                for (let ci = 0; ci < batches.length; ci++) {
+                    //persistent data rides with the first throw group
+                    const persistentData = ci === 0 ? mergedPersistentData : null;
+                    this.queue.push(() => new Promise(async (resolve) => {
+                        this._beforeShow();
+                        await this.box.startUnifiedBatch(batches[ci], persistentData, () => {
+                            remainingAnimations--;
+                            if (remainingAnimations === 0) {
+                                items.forEach(item => item.resolve(true));
+                                this._afterShow();
+                            }
+                            resolve();
+                        });
+                    }));
+                }
 
                 return this._processQueue();
             });
@@ -1423,8 +1483,9 @@ export class Dice3D {
             clearTimeout(this.timeoutHandle);
         }
         this.box.cancelFade();
-        this.canvas.stop(true);
-        this.canvas.show();
+        this._cancelCanvasFade();
+        this.canvas.style.display = "";
+        this.canvas.style.opacity = "";
         this._raiseCanvas();
     }
 
@@ -1443,7 +1504,7 @@ export class Dice3D {
                         const hasPersistentDice = this.box.persistentDiceList.length > 0;
                         if (Dice3D.CONFIG().hideFX === 'none') {
                             if (!hasPersistentDice) {
-                                this.canvas.hide();
+                                this.canvas.style.display = "none";
                             }
                             this.box.clearAll();
                         }
@@ -1451,14 +1512,8 @@ export class Dice3D {
                             if (hasPersistentDice) {
                                 this.box.fadeOutEphemeral(1000);
                             } else {
-                                this.canvas.fadeOut({
-                                    duration: 1000,
-                                    complete: () => {
-                                        this.box.clearAll();
-                                    },
-                                    fail: () => {
-                                        this.canvas.fadeIn(0);
-                                    }
+                                this._fadeOutCanvas(1000, () => {
+                                    this.box.clearAll();
                                 });
                             }
                         }
@@ -1466,6 +1521,35 @@ export class Dice3D {
                 }, Dice3D.CONFIG().timeBeforeHide);
             }
         }
+    }
+
+    /**
+     * Fade the canvas out over `duration` ms, then call `complete`.
+     * @private
+     */
+    _fadeOutCanvas(duration, complete) {
+        this._cancelCanvasFade();
+        this.canvas.style.transition = `opacity ${duration}ms ease`;
+        this.canvas.style.opacity = "0";
+        this._canvasFadeTimer = setTimeout(() => {
+            this.canvas.style.display = "none";
+            this.canvas.style.transition = "";
+            this.canvas.style.opacity = "";
+            this._canvasFadeTimer = null;
+            if (complete) complete();
+        }, duration);
+    }
+
+    /**
+     * Cancel any in-progress canvas fade animation.
+     * @private
+     */
+    _cancelCanvasFade() {
+        if (this._canvasFadeTimer) {
+            clearTimeout(this._canvasFadeTimer);
+            this._canvasFadeTimer = null;
+        }
+        this.canvas.style.transition = "";
     }
 
     /**
@@ -1477,6 +1561,11 @@ export class Dice3D {
         const rawAppearances = opts._rawAppearances || Dice3D.APPEARANCE(user);
         const appearance = opts.appearance || this.DiceFactory.getAppearanceForDice(rawAppearances, type);
         const diceLibrary = opts.diceLibrary ?? DiceLibrary.getLibraryForUser(user);
+        if (!position) {
+            const config = Dice3D.CONFIG(user);
+            const count = this.box.persistentDiceManager?.countPersistentDiceByOwner(user.id) ?? 0;
+            position = SpawnLayout.computeSpawnPosition(count, count + 1, config.persistentDiceSpawnLocation, this._computeSpawnBounds());
+        }
         this._beforeShow();
         const mesh = await this.box.spawnPersistentDie(type, appearance, position, diceLibrary, opts);
         if (mesh && synchronize) {
@@ -1513,8 +1602,16 @@ export class Dice3D {
 
     async setVisibility(mode) {
         if (mode !== "all" && mode !== "mine" && mode !== "none") return;
+        const oldMode = Dice3D.CONFIG().visibility;
         const settings = game.user.getFlag("dice-so-nice", "settings") || {};
         await game.user.setFlag("dice-so-nice", "settings", { ...settings, visibility: mode });
+
+        const crossingNone = (oldMode === "none") !== (mode === "none");
+        if (crossingNone) {
+            foundry.applications.settings.SettingsConfig.reloadConfirm();
+            return;
+        }
+
         this.box?.applyVisibility(mode);
     }
 
@@ -1570,8 +1667,8 @@ export class Dice3D {
         if (!hasEphemeral) return false;
 
         await box.clearAll();
-        if (box.persistentDiceList.length === 0 && this.canvas?.is(":visible")) {
-            this.canvas.hide();
+        if (box.persistentDiceList.length === 0 && this.canvas && this.canvas.style.display !== "none") {
+            this.canvas.style.display = "none";
         }
         return true;
     }
@@ -1638,7 +1735,30 @@ export class Dice3D {
         return this.box.fromPositionPct(pct);
     }
 
+    _computeSpawnBounds() {
+        const display = this.box.diceScene.display;
+        const cW = display.containerWidth;
+        const cH = display.containerHeight;
+        const iW = display.innerWidth;
+        const iH = display.innerHeight;
+        const barriersScale = 0.97;
+        const sidebarMargin = display.containerMargin?.right || 0;
+
+        const bLeft = -cW * barriersScale;
+        const bRight = (cW - 2 * sidebarMargin) * barriersScale;
+        const bTop = -cH * barriersScale;
+        const bBot = cH * barriersScale;
+
+        return {
+            minX: bLeft / iW + 0.5,
+            maxX: bRight / iW + 0.5,
+            minY: -(bBot / iH) + 0.5,
+            maxY: -(bTop / iH) + 0.5
+        };
+    }
+
     async _handlePersistentMessage(request) {
+        if (!this.box.initialized) return;
         if (!request.data) return;
         switch (request.type) {
             case "persistent-create": return this._onRemotePersistentCreate(request);
@@ -1692,10 +1812,11 @@ export class Dice3D {
         }
 
         const count = saved.length;
+        const spawnLocation = Dice3D.CONFIG(user).persistentDiceSpawnLocation;
+        const bounds = this._computeSpawnBounds();
         for (let i = 0; i < count; i++) {
             const entry = saved[i];
-            const x = (i + 1) / (count + 1);
-            const y = 0.85;
+            const { x, y } = SpawnLayout.computeSpawnPosition(i, count, spawnLocation, bounds);
             const appearances = entry.appearances || Dice3D.APPEARANCE(user);
             const appearance = this.DiceFactory.getAppearanceForDice(appearances, entry.dieType);
             await this.spawnPersistentDie(entry.dieType, { x, y }, {

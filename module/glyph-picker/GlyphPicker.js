@@ -63,65 +63,72 @@ export class GlyphPicker extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     _onRender() {
-        const html = $(this.element);
-        html.off(".dsnGlyphPicker");
+        const el = this.element;
 
-        html.on("click.dsnGlyphPicker", "[data-dsn-tab]", (ev) => {
-            const tab = ev.currentTarget.dataset.dsnTab;
-            this.activeTab = tab;
-            html.find("[data-dsn-tab]").removeClass("active");
-            html.find(`[data-dsn-tab="${tab}"]`).addClass("active");
-            html.find("[data-dsn-tab-content]").each(function () {
-                this.hidden = this.dataset.dsnTabContent !== tab;
-            });
-            //reapply the search filter on the newly visible grid
-            this._applyFilter(html);
+        el.addEventListener("click", (ev) => {
+            const tabBtn = ev.target.closest("[data-dsn-tab]");
+            if (tabBtn) {
+                const tab = tabBtn.dataset.dsnTab;
+                this.activeTab = tab;
+                el.querySelectorAll("[data-dsn-tab]").forEach(t => t.classList.remove("active"));
+                el.querySelector(`[data-dsn-tab="${tab}"]`).classList.add("active");
+                el.querySelectorAll("[data-dsn-tab-content]").forEach(c => {
+                    c.hidden = c.dataset.dsnTabContent !== tab;
+                });
+                //reapply the search filter on the newly visible grid
+                this._applyFilter(el);
+                return;
+            }
+
+            const iconBtn = ev.target.closest("button.dsn-glyph-icon");
+            if (iconBtn) {
+                const glyph = iconBtn.dataset.glyph;
+                this.onSelect({ labelText: glyph, font: GlyphPicker.FA_PRO_FAMILY });
+                this.close();
+                return;
+            }
+
+            const emojiBtn = ev.target.closest("button.dsn-glyph-emoji");
+            if (emojiBtn) {
+                const glyph = emojiBtn.dataset.glyph;
+                this.onSelect({ labelText: glyph, font: null });
+                this.close();
+                return;
+            }
         });
 
         //simple substring filter on className (icons) or glyph (emoji)
-        html.on("input.dsnGlyphPicker", "input.dsn-glyph-search", (ev) => {
-            this.searchFilter = ev.target.value.toLowerCase().trim();
-            this._applyFilter(html);
+        el.addEventListener("input", (ev) => {
+            if (ev.target.matches("input.dsn-glyph-search")) {
+                this.searchFilter = ev.target.value.toLowerCase().trim();
+                this._applyFilter(el);
+            }
         });
 
-        html.on("click.dsnGlyphPicker", "button.dsn-glyph-icon", (ev) => {
-            const btn = ev.currentTarget;
-            const glyph = btn.dataset.glyph;
-            this.onSelect({ labelText: glyph, font: GlyphPicker.FA_PRO_FAMILY });
-            this.close();
-        });
-
-        html.on("click.dsnGlyphPicker", "button.dsn-glyph-emoji", (ev) => {
-            const btn = ev.currentTarget;
-            const glyph = btn.dataset.glyph;
-            this.onSelect({ labelText: glyph, font: null });
-            this.close();
-        });
-
-        this._applyFilter(html);
-        html.find("[data-dsn-tab-content]").each((_, el) => {
-            el.hidden = el.dataset.dsnTabContent !== this.activeTab;
+        this._applyFilter(el);
+        el.querySelectorAll("[data-dsn-tab-content]").forEach(c => {
+            c.hidden = c.dataset.dsnTabContent !== this.activeTab;
         });
     }
 
-    _applyFilter(html) {
+    _applyFilter(el) {
         const q = this.searchFilter;
 
-        html.find("button.dsn-glyph-icon").each(function () {
-            const name = this.dataset.name || "";
-            this.hidden = q ? !name.includes(q) : false;
+        el.querySelectorAll("button.dsn-glyph-icon").forEach(btn => {
+            const name = btn.dataset.name || "";
+            btn.hidden = q ? !name.includes(q) : false;
         });
-        html.find("[data-dsn-icon-cat]").each(function () {
-            const label = (this.dataset.label || "").toLowerCase();
+        el.querySelectorAll("[data-dsn-icon-cat]").forEach(cat => {
+            const label = (cat.dataset.label || "").toLowerCase();
             //if the search matches the category label, show every button inside it
             if (q && label.includes(q)) {
-                this.hidden = false;
-                this.querySelectorAll("button.dsn-glyph-icon").forEach(b => b.hidden = false);
+                cat.hidden = false;
+                cat.querySelectorAll("button.dsn-glyph-icon").forEach(b => b.hidden = false);
                 return;
             }
             //otherwise hide the whole category if every button got filtered out
-            const visible = this.querySelectorAll("button.dsn-glyph-icon:not([hidden])").length;
-            this.hidden = q ? visible === 0 : false;
+            const visible = cat.querySelectorAll("button.dsn-glyph-icon:not([hidden])").length;
+            cat.hidden = q ? visible === 0 : false;
         });
     }
 }

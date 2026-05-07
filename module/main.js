@@ -487,11 +487,13 @@ Hooks.on('createChatMessage', (chatMessage) => {
 
     const hasInlineRoll = game.settings.get("dice-so-nice", "animateInlineRoll") && chatMessage.content.includes('inline-roll');
     if (hasInlineRoll) {
-        let JqInlineRolls = $($.parseHTML(`<div>${chatMessage.content}</div>`)).find(".inline-roll.inline-result:not(.inline-dsn-hidden)");
-        if (JqInlineRolls.length == 0 && !chatMessage.isRoll) //it was a false positive
+        const temp = document.createElement("div");
+        temp.innerHTML = chatMessage.content;
+        let inlineRollEls = temp.querySelectorAll(".inline-roll.inline-result:not(.inline-dsn-hidden)");
+        if (inlineRollEls.length == 0 && !chatMessage.isRoll) //it was a false positive
             return;
         let inlineRollList = [];
-        JqInlineRolls.each((index, el) => {
+        inlineRollEls.forEach((el, index) => {
             //We use the Roll class registered in the CONFIG constant in case the system overwrites it (eg: HeXXen)
             let roll = CONFIG.Dice.rolls[0].fromJSON(unescape(el.dataset.roll));
             maxRollOrder++;

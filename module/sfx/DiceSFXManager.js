@@ -51,7 +51,7 @@ export const DiceSFXManager = {
         if(!DiceSFXManager.SFX_MODE_LIST){
             DiceSFXManager.SFX_MODE_LIST = {};
             Object.values(DiceSFXManager.SFX_MODE_CLASS).forEach((sfx)=>{
-                if(sfx.id.startsWith("PlayConfettiStrength") && (!game.modules.get("confetti") || !game.modules.get("confetti").active))
+                if(sfx.id.startsWith("PlayConfettiStrength") && (!game.modules.get("celebrate") || !game.modules.get("celebrate").active))
                     return;
                 DiceSFXManager.SFX_MODE_LIST[sfx.id] = sfx.specialEffectName;
             });
@@ -76,7 +76,7 @@ export const DiceSFXManager = {
 
         //for each possible sfx, initialize
         sfxUniqueList.forEach((sfxClassName) => {
-            if(sfxClassName.startsWith("PlayConfettiStrength") && (!game.modules.get("confetti") || !game.modules.get("confetti").active))
+            if(sfxClassName.startsWith("PlayConfettiStrength") && (!game.modules.get("celebrate") || !game.modules.get("celebrate").active))
                 return;
             DiceSFXManager.addSFXMode(DiceSFXManager.SFX_MODE_CLASS[sfxClassName]);
         });
@@ -99,13 +99,15 @@ export const DiceSFXManager = {
                 }
             }
             
-            let sfxInstance = new DiceSFXManager.SFX_CLASS[id](box, dicemesh, sfx.options);
+            const options = Object.assign({}, sfx.options);
+            if (sfx._messageId !== undefined) options._messageId = sfx._messageId;
+            let sfxInstance = new DiceSFXManager.SFX_CLASS[id](box, dicemesh, options);
             // Compute jitter using a simple Math.random based distribution.
             const maxJitter = DiceSFXManager.playDelayJitter || 0;
             const jitter = maxJitter > 0 ? Math.floor(Math.random() * (maxJitter + 1)) : 0;
             const delay = (DiceSFXManager.playDelayBase || 0) + jitter;
             setTimeout(()=>{
-                sfxInstance.play(sfx.options).then(result => {
+                sfxInstance.play(options).then(result => {
                     if(result !== false){
                         if(typeof sfxInstance.render === 'function')
                             DiceSFXManager.renderQueue.push(sfxInstance);

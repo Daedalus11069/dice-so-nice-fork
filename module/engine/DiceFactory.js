@@ -24,7 +24,6 @@ import {
 	Mesh,
 	Color,
 	Vector2,
-	Vector3,
 	MeshPhongMaterial,
 	MeshStandardMaterial,
 	MeshLambertMaterial,
@@ -39,7 +38,8 @@ export class DiceFactory {
 	constructor() {
 		this.geometries = {};
 
-		this.physicsWorker = new WebworkerPromise(new PhysicsWorker());
+		this._physicsWorker = null;
+		this._loaderGLTF = null;
 
 		this.baseScale = TARGET_D6_EDGE_METERS;
 		this.showcaseScale = TARGET_D6_EDGE_METERS * 1.2;
@@ -54,11 +54,6 @@ export class DiceFactory {
 		this.normalMapStrength = 1.5;
 		this.advancedGlass = false;
 
-		this.loaderGLTF = new GLTFLoader();
-		this.loaderDRACO = new DRACOLoader();
-		this.loaderDRACO.setDecoderPath('modules/dice-so-nice/libs/');
-		this.loaderDRACO.setDecoderConfig({type: 'wasm'});
-		this.loaderGLTF.setDRACOLoader(this.loaderDRACO);
 		this.fontLoadingPromises = [];
 
 		this.baseMaterialCache = {};
@@ -85,11 +80,10 @@ export class DiceFactory {
 
 		for(let i in CONFIG.Dice.terms){
 			let term = CONFIG.Dice.terms[i];
-			//skip the native core classes and any Die subclass: those are modifier-only
-			//extensions (e.g. dnd5e BasicDie) that share the standard d{n} preset and would
-			//otherwise register a phantom "dd" entry.
 			if([foundry.dice.terms.Coin, foundry.dice.terms.FateDie, foundry.dice.terms.Die].includes(term)) continue;
-			if(term.prototype instanceof foundry.dice.terms.Die) continue;
+			// skip Die subclasses that keep the default "d" denomination (e.g. dnd5e BasicDie)
+			// but allow subclasses with a custom denomination (e.g. w40k WrathDie "w")
+			if(term.prototype instanceof foundry.dice.terms.Die && term.DENOMINATION === foundry.dice.terms.Die.DENOMINATION) continue;
 			if(term._dsnCustomTerm) continue;
 			let objTerm = new term({});
 			if([2, 3, 4, 6, 8, 10, 12, 14, 16, 20, 24, 30].includes(objTerm.faces)){
@@ -100,6 +94,24 @@ export class DiceFactory {
 		//build material_options up front so consumers like sanitizeAppearance
 		//can read it before the first scene init re-runs this with quality settings.
 		this.initializeMaterials();
+	}
+
+	get physicsWorker() {
+		if (!this._physicsWorker) {
+			this._physicsWorker = new WebworkerPromise(new PhysicsWorker());
+		}
+		return this._physicsWorker;
+	}
+
+	get loaderGLTF() {
+		if (!this._loaderGLTF) {
+			this._loaderGLTF = new GLTFLoader();
+			const draco = new DRACOLoader();
+			draco.setDecoderPath('modules/dice-so-nice/libs/');
+			draco.setDecoderConfig({type: 'wasm'});
+			this._loaderGLTF.setDRACOLoader(draco);
+		}
+		return this._loaderGLTF;
 	}
 
 	initializeMaterials(){
@@ -832,11 +844,6 @@ export class DiceFactory {
 			dicemesh.layers.enableAll();
 		}
 
-		//Because of an orientation change in cannon-es for the Cylinder shape, we need to rotate the mesh for the d2
-		//https://github.com/pmndrs/cannon-es/pull/30
-		if(diceobj.shape == "d2")
-			dicemesh.lookAt(new Vector3(0,-1,0));
-		
 		dicemesh.result = null;
 		dicemesh.shape = diceobj.shape;
 		const that=dicemesh;
@@ -2187,6 +2194,11 @@ export class DiceFactory {
 		//raw vertices are ~100 units per edge, normalize to unit then scale
 		const k = scopedScale / 100;
 		bufferGeometry.scale(k, k, k);
+
+		//cannon-es Cylinder axis is Y; d2 geometry has its flat faces along Z
+		//https://github.com/pmndrs/cannon-es/pull/30
+		if (type === 'd2')
+			bufferGeometry.rotateX(Math.PI / 2);
 
 		return bufferGeometry;
 	}

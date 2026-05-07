@@ -26,7 +26,7 @@ export class Utils {
     }
 
     static DATA_FORMAT_VERSION = "6.1";
-    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "rollingArea", "advancedGlass", "ambiance"];
+    static RELOAD_REQUIRED_IF_MODIFIED = ["canvasZIndex", "bumpMapping", "useHighDPI", "glow", "antialiasing", "rollingArea", "advancedGlass", "ambiance", "visibility"];
 
     /**
      * Check if the user's version is less than a specific target version.

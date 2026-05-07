@@ -1,6 +1,5 @@
-"use strict"
-
 import { DiceSFXManager } from './sfx/DiceSFXManager.js';
+import { SFXFormulaMatcher } from './sfx/SFXFormulaMatcher.js';
 import { DiceLibrary } from './engine/DiceLibrary.js';
 
 export const COMPOUND_DICE = {
@@ -19,6 +18,8 @@ export class DiceNotation {
 		this.throws = [{dice:[]}];
 		this.userConfig = userConfig;
 		this.user = user;
+		this.rollTotal = null;
+		this.messageId = null;
 		
 		//First we need to prepare the data
 		rolls.dice.forEach(die => {
@@ -62,6 +63,7 @@ export class DiceNotation {
 		});
 		let diceNumber = 0;
 		let maxDiceNumber = game.settings.get("dice-so-nice", "maxDiceNumber");
+		let termIndex = 0;
 		//Then we can create the throws
 		rolls.dice.some(die => {
 			//We only are able to handle this list of number of face in 3D for now
@@ -87,17 +89,18 @@ export class DiceNotation {
 						if (places) {
 							const compositeType = 'd' + die.faces;
 							for (let p = 0; p < places.length; p++) {
-								this.addDie({fvttDie: die, index:i, digitPlace: places[p], compositeType, isCompoundPrimary: p === 0, options:options});
+								this.addDie({fvttDie: die, index:i, digitPlace: places[p], compositeType, isCompoundPrimary: p === 0, options:options, termIndex});
 							}
 						} else {
-							this.addDie({fvttDie: die, index:i, options:options});
+							this.addDie({fvttDie: die, index:i, options:options, termIndex});
 						}
 					}
 				}
 			}
+			termIndex++;
 		});
 	}
-	addDie({fvttDie, index, digitPlace = null, compositeType = null, isCompoundPrimary = false, options = {}}){
+	addDie({fvttDie, index, digitPlace = null, compositeType = null, isCompoundPrimary = false, options = {}, termIndex = null}){
 		let dsnDie = {};
 		let dieValue = fvttDie.results[index].result;
 
@@ -113,8 +116,7 @@ export class DiceNotation {
 		}
 
 		dsnDie.result = dieValue;
-		if(fvttDie.results[index].discarded)
-			dsnDie.discarded = true;
+		dsnDie.fvttResult = fvttDie.results[index];
 
 		const Die = foundry.dice.terms.Die;
 		const denomination = fvttDie.constructor.DENOMINATION;
@@ -162,7 +164,13 @@ export class DiceNotation {
 			if(dsnDie.options.type) delete dsnDie.options.type;
 		}
 
-		this.throws[fvttDie.results[index].indexThrow].dice.push(dsnDie);
+		dsnDie.termIndex = termIndex;
+		dsnDie.termNumber = fvttDie.number ?? null;
+		dsnDie.termTotal = fvttDie.total ?? null;
+		dsnDie.termFaces = fvttDie.faces ?? null;
+		dsnDie.termModifiers = fvttDie.modifiers ? [...fvttDie.modifiers] : [];
+
+		this.throws[dsnDie.fvttResult.indexThrow].dice.push(dsnDie);
 	}
 
 	static mergeQueuedRollCommands(queue){
@@ -172,6 +180,8 @@ export class DiceNotation {
 				if(!mergedRollCommands[i])
 					mergedRollCommands.push([]);
 				command.params.throws[i].dsnConfig = command.params.dsnConfig;
+				command.params.throws[i].rollTotal = command.params.rollTotal ?? null;
+				command.params.throws[i].messageId = command.params.messageId ?? null;
 				mergedRollCommands[i].push(command.params.throws[i]);
 			}
 		});
@@ -180,34 +190,58 @@ export class DiceNotation {
 			//Then we loop on throws
 			for(let j=0;j<mergedRollCommands[i].length;j++){
 
-				//Retrieve the sfx list (unfiltered) for this throw. We do not know yet if these sfx should be visible or not
 				let sfxList = mergedRollCommands[i][j].dsnConfig.specialEffects;
-				/*if(!sfxList || !sfxList["0"])
-					continue;*/
-				//Finally we loop over each dice in this throw
-				for(let k=0;k<mergedRollCommands[i][j].dice.length;k++){
-					const dsnDie = mergedRollCommands[i][j].dice[k];
-					//attach SFX that should trigger for this roll
-					//For each sfx configured
-					let specialEffects = Object.values(sfxList).filter(sfx => {
-						//if the dice is discarded, it should not trigger a special fx
-						if(dsnDie.discarded)
+				const allDice = mergedRollCommands[i][j].dice;
+				const rollTotal = mergedRollCommands[i][j].rollTotal;
+				const messageId = mergedRollCommands[i][j].messageId;
+				const sfxEntries = Object.values(sfxList);
+
+				// advanced formula SFX: evaluate per-formula across all dice
+				for (const sfx of sfxEntries) {
+					if (sfx.mode !== 'advanced' || !sfx.formula) continue;
+					const matchedDice = SFXFormulaMatcher.match(sfx.formula, { dice: allDice, rollTotal });
+					const sfxClass = DiceSFXManager.SFX_MODE_CLASS?.[sfx.specialEffect];
+					const oncePerMesh = sfxClass?.PLAY_ONLY_ONCE_PER_MESH;
+					for (const die of matchedDice) {
+						if (oncePerMesh && die.compositeType && die.type !== die.compositeType) continue;
+						if (!die.specialEffects) die.specialEffects = [];
+						die.specialEffects.push({
+							specialEffect: sfx.specialEffect,
+							options: sfx.options || {},
+							_messageId: messageId
+						});
+					}
+				}
+
+				// basic SFX: evaluate per-die (existing logic)
+				for(let k=0;k<allDice.length;k++){
+					const dsnDie = allDice[k];
+					let specialEffects = sfxEntries.filter(sfx => {
+						if (sfx.mode === 'advanced') return false;
+
+						if(dsnDie.fvttResult?.discarded)
 							return false;
-						
-						//if the dice is a ghost dice, it should not trigger a special fx
+
 						if(dsnDie.options.ghost)
 							return false;
 
-						//if the special effect "onResult" list contains non-numeric value, we manually deal with them here
 						let manualResultTrigger = false;
 						const mods = dsnDie.options?.modifiers;
-						//Keep Highest / Advantage. Discarded dice are already filtered out.
-						//Matches core Foundry kh/khN and adv/advN.
 						if(sfx.onResult.includes("kh") && mods?.some(m => m.startsWith("kh") || m.startsWith("adv")))
 							manualResultTrigger = true;
-						//Keep Lowest / Disadvantage. Discarded dice are already filtered out.
-						//Matches core Foundry kl/klN and dis/disN.
 						if(sfx.onResult.includes("kl") && mods?.some(m => m.startsWith("kl") || m.startsWith("dis")))
+							manualResultTrigger = true;
+						if(sfx.onResult.includes("dh") && mods?.some(m => m.startsWith("dh")))
+							manualResultTrigger = true;
+						if(sfx.onResult.includes("dl") && mods?.some(m => m.startsWith("dl")))
+							manualResultTrigger = true;
+						if(sfx.onResult.includes("cs") && dsnDie.fvttResult?.success)
+							manualResultTrigger = true;
+						if(sfx.onResult.includes("cf") && dsnDie.fvttResult?.failure)
+							manualResultTrigger = true;
+						if(sfx.onResult.includes("x") && dsnDie.fvttResult?.exploded)
+							manualResultTrigger = true;
+						if(sfx.onResult.includes("r") && dsnDie.fvttResult?.rerolled)
 							manualResultTrigger = true;
 
 						if(manualResultTrigger)
@@ -222,23 +256,31 @@ export class DiceNotation {
 							if(sfx.diceType == dsnDie.type && sfx.onResult.includes(dsnDie.result.toString()))
 								return true;
 						}
-							
-						//if a special effect was manually triggered for this dice, we also include it
+
 						if(dsnDie.options.sfx && dsnDie.options.sfx.id == sfx.diceType && sfx.onResult.includes(dsnDie.options.sfx.result.toString()))
 							return true;
 
 						return false;
 					});
-					//Now that we have a filtered list of sfx to play, we make a final list of all sfx for this die and we remove the duplicates
 					if(dsnDie.options.sfx && dsnDie.options.sfx.specialEffect)
 						specialEffects.push({
 							specialEffect:dsnDie.options.sfx.specialEffect,
 							options:dsnDie.options.sfx.options
 						});
 					if(specialEffects.length){
-						//remove duplicate
-						specialEffects = specialEffects.filter((v, i, a) => a.indexOf(v) === i);
-						mergedRollCommands[i][j].dice[k].specialEffects = specialEffects;
+						specialEffects = specialEffects.map(s => ({...s, _messageId: messageId}));
+						specialEffects = specialEffects.filter((v, i, a) => a.findIndex(x => x.specialEffect === v.specialEffect) === i);
+						if (!dsnDie.specialEffects) dsnDie.specialEffects = [];
+						dsnDie.specialEffects.push(...specialEffects);
+					}
+				}
+
+				// dedup across basic and advanced entries
+				for (const dsnDie of allDice) {
+					if (dsnDie.specialEffects) {
+						dsnDie.specialEffects = dsnDie.specialEffects.filter(
+							(v, i, a) => a.findIndex(x => x.specialEffect === v.specialEffect) === i
+						);
 					}
 				}
 			}

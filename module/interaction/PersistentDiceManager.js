@@ -1,4 +1,5 @@
 import { DiceSFXManager } from '../sfx/DiceSFXManager.js';
+import { SFXFormulaMatcher } from '../sfx/SFXFormulaMatcher.js';
 import { COMPOUND_DICE } from '../DiceNotation.js';
 import { LEGACY_TO_METERS, GRAB_LIFT_PERSISTENT } from '../engine/SceneConstants.js';
 
@@ -127,6 +128,11 @@ export class PersistentDiceManager {
 		//apply current visibility mode
 		this._applyPersistentDieVisibility(dicemesh);
 
+		//ghostify remote dice in "mine" mode
+		if (this.persistentDiceVisibility === "mine" && !this._isOwnedByLocalUser(dicemesh)) {
+			this.physicsWorker.exec('setCollisionResponse', { ids: [dicemesh.id], enabled: false });
+		}
+
 		return dicemesh;
 	}
 
@@ -175,13 +181,33 @@ export class PersistentDiceManager {
 		return null;
 	}
 
-	//apply visibility mode to all persistent dice (render-only, physics stays active)
 	applyVisibility(mode) {
 		if (mode !== "none" && mode !== "mine" && mode !== "all") return;
 		this.persistentDiceVisibility = mode;
+
+		const ghostIds = [];
+		const unghostIds = [];
+
 		for (const mesh of this.persistentDiceList) {
 			this._applyPersistentDieVisibility(mesh);
+			if (mode === "mine" && !this._isOwnedByLocalUser(mesh)) {
+				ghostIds.push(mesh.id);
+			} else {
+				unghostIds.push(mesh.id);
+			}
 		}
+
+		if (ghostIds.length > 0) {
+			this.physicsWorker.exec('setCollisionResponse', { ids: ghostIds, enabled: false });
+		}
+		if (unghostIds.length > 0) {
+			this.physicsWorker.exec('setCollisionResponse', { ids: unghostIds, enabled: true });
+		}
+	}
+
+	_isOwnedByLocalUser(mesh) {
+		const owner = mesh.userData.ownerUserId;
+		return !!(owner && game.user && owner === game.user.id);
 	}
 
 	_emitPersistentDiceChanged() {
@@ -195,12 +221,10 @@ export class PersistentDiceManager {
 	_applyPersistentDieVisibility(dicemesh) {
 		const container = dicemesh.parent;
 		if (!container) return;
-		const owner = dicemesh.userData.ownerUserId;
-		const mine = owner && game.user && owner === game.user.id;
 		let visible;
 		switch (this.persistentDiceVisibility) {
 			case "none": visible = false; break;
-			case "mine": visible = !!mine; break;
+			case "mine": visible = this._isOwnedByLocalUser(dicemesh); break;
 			case "all":
 			default: visible = true; break;
 		}
@@ -532,15 +556,83 @@ export class PersistentDiceManager {
 	}
 
 	//apply SFX matching to thrown persistent dice
-	matchSFX(heldDice, sfxList) {
+	matchSFX(heldDice, sfxList, roll = null) {
 		if (!Array.isArray(sfxList) || sfxList.length === 0) return;
+
+		// handle advanced formula entries
+		const advancedEntries = sfxList.filter(sfx => sfx.mode === 'advanced' && sfx.formula);
+		if (advancedEntries.length > 0) {
+			const contextDice = heldDice.filter(dm => dm.forcedResult != null).map(dm => ({
+				type: dm.notation.type,
+				result: dm.forcedResult,
+				compositeResult: dm.notation.compositeResult || null,
+				compositeType: dm.notation.compositeType || null,
+				options: dm.options || {},
+				termIndex: null,
+				termNumber: null,
+				termTotal: null,
+				termFaces: null,
+				termModifiers: null,
+				_mesh: dm
+			}));
+			// build term metadata so aggregate formulas (e.g. 2d6 >= 10) work on persistent dice
+			const typeGroups = new Map();
+			for (const d of contextDice) {
+				const key = d.compositeType || d.type;
+				if (!typeGroups.has(key)) typeGroups.set(key, []);
+				typeGroups.get(key).push(d);
+			}
+			let termIdx = 0;
+			for (const [typeKey, group] of typeGroups) {
+				const faces = parseInt(typeKey.slice(1));
+				const primaryDice = group.filter(d => !d.compositeType || d.type === typeKey);
+				const logicalCount = primaryDice.length || group.length;
+				const total = primaryDice.length > 0
+					? primaryDice.reduce((sum, d) => sum + (d.compositeResult ?? d.result), 0)
+					: group.reduce((sum, d) => sum + d.result, 0);
+				for (const d of group) {
+					d.termIndex = termIdx;
+					d.termFaces = faces;
+					d.termNumber = logicalCount;
+					d.termTotal = total;
+				}
+				termIdx++;
+			}
+			const rollTotal = roll?.total ?? null;
+			for (const sfx of advancedEntries) {
+				const matchedCtx = SFXFormulaMatcher.match(sfx.formula, { dice: contextDice, rollTotal });
+				const sfxClass = DiceSFXManager.SFX_MODE_CLASS?.[sfx.specialEffect];
+				const oncePerMesh = sfxClass?.PLAY_ONLY_ONCE_PER_MESH;
+				for (const ctx of matchedCtx) {
+					if (oncePerMesh && ctx.compositeType && ctx.type !== ctx.compositeType) continue;
+					const dm = ctx._mesh;
+					if (!dm.specialEffects) dm.specialEffects = [];
+					dm.specialEffects.push({ specialEffect: sfx.specialEffect, options: sfx.options || {} });
+				}
+			}
+		}
+
+		// handle basic entries (existing per-die logic)
+		const basicSfxList = sfxList.filter(sfx => !sfx.mode || sfx.mode !== 'advanced');
 		for (const dicemesh of heldDice) {
 			if (dicemesh.forcedResult == null) continue;
 			const matched = this._matchPersistentSFX(
-				sfxList, dicemesh.notation.type,
+				basicSfxList, dicemesh.notation.type,
 				dicemesh.forcedResult, dicemesh.notation.compositeResult || null, dicemesh.notation.compositeType || null
 			);
-			if (matched.length > 0) dicemesh.specialEffects = matched;
+			if (matched.length > 0) {
+				if (!dicemesh.specialEffects) dicemesh.specialEffects = [];
+				dicemesh.specialEffects.push(...matched);
+			}
+		}
+
+		// dedup across basic and advanced entries
+		for (const dicemesh of heldDice) {
+			if (dicemesh.specialEffects) {
+				dicemesh.specialEffects = dicemesh.specialEffects.filter(
+					(v, i, a) => a.findIndex(x => x.specialEffect === v.specialEffect) === i
+				);
+			}
 		}
 	}
 
