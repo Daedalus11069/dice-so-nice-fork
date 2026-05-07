@@ -80,11 +80,10 @@ export class DiceFactory {
 
 		for(let i in CONFIG.Dice.terms){
 			let term = CONFIG.Dice.terms[i];
-			//skip the native core classes and any Die subclass: those are modifier-only
-			//extensions (e.g. dnd5e BasicDie) that share the standard d{n} preset and would
-			//otherwise register a phantom "dd" entry.
 			if([foundry.dice.terms.Coin, foundry.dice.terms.FateDie, foundry.dice.terms.Die].includes(term)) continue;
-			if(term.prototype instanceof foundry.dice.terms.Die) continue;
+			// skip Die subclasses that keep the default "d" denomination (e.g. dnd5e BasicDie)
+			// but allow subclasses with a custom denomination (e.g. w40k WrathDie "w")
+			if(term.prototype instanceof foundry.dice.terms.Die && term.DENOMINATION === foundry.dice.terms.Die.DENOMINATION) continue;
 			if(term._dsnCustomTerm) continue;
 			let objTerm = new term({});
 			if([2, 3, 4, 6, 8, 10, 12, 14, 16, 20, 24, 30].includes(objTerm.faces)){
