@@ -99,13 +99,15 @@ export const DiceSFXManager = {
                 }
             }
             
-            let sfxInstance = new DiceSFXManager.SFX_CLASS[id](box, dicemesh, sfx.options);
+            const options = Object.assign({}, sfx.options);
+            if (sfx._messageId !== undefined) options._messageId = sfx._messageId;
+            let sfxInstance = new DiceSFXManager.SFX_CLASS[id](box, dicemesh, options);
             // Compute jitter using a simple Math.random based distribution.
             const maxJitter = DiceSFXManager.playDelayJitter || 0;
             const jitter = maxJitter > 0 ? Math.floor(Math.random() * (maxJitter + 1)) : 0;
             const delay = (DiceSFXManager.playDelayBase || 0) + jitter;
             setTimeout(()=>{
-                sfxInstance.play(sfx.options).then(result => {
+                sfxInstance.play(options).then(result => {
                     if(result !== false){
                         if(typeof sfxInstance.render === 'function')
                             DiceSFXManager.renderQueue.push(sfxInstance);

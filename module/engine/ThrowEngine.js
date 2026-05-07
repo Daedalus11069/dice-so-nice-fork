@@ -563,7 +563,7 @@ export class ThrowEngine {
 			const pdm = this.persistentDiceManager;
 			if (pdm) {
 				const sfxList = externalSfxList || (pdm.sfxListForUser ? pdm.sfxListForUser(game.user) : []);
-				pdm.matchSFX(heldDice, sfxList);
+				pdm.matchSFX(heldDice, sfxList, roll);
 			}
 
 		}

@@ -1,6 +1,7 @@
 import { Dice3D } from '../Dice3D.js';
 import { DiceScene } from '../engine/DiceScene.js';
 import { DiceSFXManager } from '../sfx/DiceSFXManager.js';
+import { SFXFormulaMatcher } from '../sfx/SFXFormulaMatcher.js';
 import { ShowcaseView } from '../rendering/ShowcaseView.js';
 import { Utils } from '../Utils.js';
 import { DiceNotation, COMPOUND_DICE } from '../DiceNotation.js';
@@ -280,6 +281,12 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
 
                 this.possibleResultList[el.userData].push({ id: "kh", name: "Keep Highest / Advantage" });
                 this.possibleResultList[el.userData].push({ id: "kl", name: "Keep Lowest / Disadvantage" });
+                this.possibleResultList[el.userData].push({ id: "dh", name: "Drop Highest" });
+                this.possibleResultList[el.userData].push({ id: "dl", name: "Drop Lowest" });
+                this.possibleResultList[el.userData].push({ id: "cs", name: "Counting Success" });
+                this.possibleResultList[el.userData].push({ id: "cf", name: "Counting Failure" });
+                this.possibleResultList[el.userData].push({ id: "x", name: "Exploded" });
+                this.possibleResultList[el.userData].push({ id: "r", name: "Rerolled" });
             }
         });
 
@@ -291,20 +298,24 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
         this.triggerTypeList = [...triggerTypeList, ...DiceSFXManager.EXTRA_TRIGGER_TYPE];
         foundry.utils.mergeObject(this.possibleResultList, DiceSFXManager.EXTRA_TRIGGER_RESULTS, { applyOperators: true });
 
-        //Filter out the SFX that are not registered
+        //Filter out the SFX that are not registered (skip advanced entries, they have no diceType)
         if (specialEffects) {
             let registeredTriggerTypes = this.triggerTypeList.map(trigger => trigger.id);
-            specialEffects = specialEffects.filter(sfx => registeredTriggerTypes.includes(sfx.diceType));
+            specialEffects = specialEffects.filter(sfx => sfx.mode === 'advanced' || registeredTriggerTypes.includes(sfx.diceType));
         }
 
         if (specialEffects) {
             specialEffects.forEach((sfx, index) => {
                 let sfxClass = DiceSFXManager.SFX_MODE_CLASS[sfx.specialEffect];
+                if (!sfxClass) return;
                 let dialogContent = sfxClass.getDialogContent(sfx, index);
                 let hdbsTemplate = Handlebars.compile(dialogContent.content);
+                const isAdvanced = sfx.mode === 'advanced';
 
                 specialEffectsPromises.push(foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-sfx.hbs", {
                     id: index,
+                    isAdvanced: isAdvanced,
+                    formula: isAdvanced ? (sfx.formula || '') : '',
                     diceType: sfx.diceType,
                     onResult: sfx.onResult,
                     specialEffect: sfx.specialEffect,
@@ -541,6 +552,27 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                 }
             });
 
+            this.element.addEventListener("input", (ev) => {
+                const target = ev.target;
+                if (target.matches("[data-sfx-formula]")) {
+                    const { valid, error } = SFXFormulaMatcher.validate(target.value);
+                    const errorIcon = target.parentElement.querySelector("[data-sfx-formula-error]");
+                    if (!valid && target.value.trim()) {
+                        target.classList.add("sfx-formula-invalid");
+                        if (errorIcon) {
+                            errorIcon.classList.add("visible");
+                            errorIcon.title = error || '';
+                        }
+                    } else {
+                        target.classList.remove("sfx-formula-invalid");
+                        if (errorIcon) {
+                            errorIcon.classList.remove("visible");
+                            errorIcon.title = '';
+                        }
+                    }
+                }
+            });
+
             this.element.addEventListener("click", (ev) => {
                 const target = ev.target;
                 let actionTarget;
@@ -587,6 +619,7 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                     let hdbsTemplate = Handlebars.compile(dialogContent.content);
                     foundry.applications.handlebars.renderTemplate("modules/dice-so-nice/templates/partial-sfx.hbs", {
                         id: ID, diceType: "", onResult: [], specialEffect: "",
+                        isAdvanced: false,
                         specialEffectsMode: DiceSFXManager.SFX_MODE_LIST,
                         triggerTypeList: this.triggerTypeList, possibleResultList: [],
                         options: hdbsTemplate(dialogContent.data)
@@ -595,6 +628,14 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
                         this._initSlimSelects();
                         this.setPosition();
                     });
+                } else if (target.closest("[data-sfx-mode-toggle]")) {
+                    let sfxLine = target.closest(".sfx-line");
+                    let currentMode = sfxLine.dataset.sfxMode || 'basic';
+                    if (currentMode === 'basic') {
+                        this._sfxToggleToAdvanced(sfxLine);
+                    } else {
+                        this._sfxToggleToBasic(sfxLine);
+                    }
                 } else if (target.closest("[data-sfx-delete]")) {
                     let sfxLine = target.closest(".sfx-line");
                     let selectEl = sfxLine.querySelector("[data-sfx-result]");
@@ -1479,8 +1520,10 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             sfxLine = Object.values(sfxLine);
             //Remove empty lines
             for (let i = sfxLine.length - 1; i >= 0; i--) {
-                //also prevent bug #217, unknown cause
-                if (sfxLine[i].diceType == undefined || sfxLine[i].diceType == "" || sfxLine[i].onResult == "" || Array.isArray(sfxLine[i].diceType) || Array.isArray(sfxLine[i].specialEffect))
+                if (sfxLine[i].mode === 'advanced') {
+                    if (!sfxLine[i].formula || !sfxLine[i].specialEffect || !SFXFormulaMatcher.validate(sfxLine[i].formula).valid)
+                        sfxLine.splice(i, 1);
+                } else if (sfxLine[i].diceType == undefined || sfxLine[i].diceType == "" || sfxLine[i].onResult == "" || Array.isArray(sfxLine[i].diceType) || Array.isArray(sfxLine[i].specialEffect))
                     sfxLine.splice(i, 1);
             }
             //Remove duplicate lines
@@ -1692,6 +1735,133 @@ export class DiceConfig extends HandlebarsApplicationMixin(ApplicationV2) {
             instance.destroy();
         }
         this.slimSelectInstances.clear();
+    }
+
+    _sfxToggleToAdvanced(sfxLine) {
+        const diceTypeSelect = sfxLine.querySelector("[data-sfx-dicetype]");
+        const resultSelect = sfxLine.querySelector("[data-sfx-result]");
+        const ID = sfxLine.querySelector("[data-sfx-mode-input]").name.match(/\[(\d+)\]/)[1];
+
+        // auto-convert current selections to formula
+        let formula = '';
+        if (diceTypeSelect) {
+            const diceType = diceTypeSelect.value;
+            if (diceType) {
+                if (resultSelect) {
+                    const selected = Array.from(resultSelect.selectedOptions).map(o => o.value);
+                    const specialTriggers = ["kh", "kl", "dh", "dl", "cs", "cf", "x", "r"];
+                    const numericResults = selected.filter(v => !specialTriggers.includes(v));
+
+                    if (selected.includes("kh") || selected.includes("kl") || selected.includes("dh") || selected.includes("dl")) {
+                        const mod = selected.find(v => ["kh", "kl", "dh", "dl"].includes(v));
+                        formula = '!discarded(' + diceType + mod + ')';
+                    } else if (selected.includes("cs")) {
+                        formula = 'success(' + diceType + 'cs)';
+                    } else if (selected.includes("cf")) {
+                        formula = 'failure(' + diceType + 'cf)';
+                    } else if (selected.includes("x")) {
+                        formula = 'exploded(' + diceType + ')';
+                    } else if (selected.includes("r")) {
+                        formula = 'rerolled(' + diceType + ')';
+                    } else {
+                        formula = diceType;
+                    }
+                    if (numericResults.length > 0) {
+                        formula += ' == ' + numericResults.join(',');
+                    }
+                } else {
+                    formula = diceType;
+                }
+            }
+        }
+
+        // destroy SlimSelect on the result dropdown
+        if (resultSelect && this.slimSelectInstances.has(resultSelect)) {
+            this.slimSelectInstances.get(resultSelect).destroy();
+            this.slimSelectInstances.delete(resultSelect);
+        }
+
+        // replace diceType + onResult with formula input
+        const diceTypeContainer = sfxLine.querySelector(".sfx-flex-2");
+        const resultContainer = sfxLine.querySelector(".sfx-flex-5");
+        if (diceTypeContainer) diceTypeContainer.remove();
+        if (resultContainer) resultContainer.remove();
+
+        const formulaDiv = document.createElement("div");
+        formulaDiv.className = "sfx-data sfx-flex-7 sfx-formula-container";
+        const formulaInput = document.createElement("input");
+        formulaInput.type = "text";
+        formulaInput.setAttribute("data-sfx-formula", "");
+        formulaInput.name = `sfxLine[${ID}][formula]`;
+        formulaInput.value = formula;
+        formulaInput.placeholder = game.i18n.localize("DICESONICE.sfxFormulaPlaceholder");
+        formulaInput.autocomplete = "off";
+        formulaDiv.appendChild(formulaInput);
+        const errorIcon = document.createElement("i");
+        errorIcon.className = "fas fa-circle-exclamation sfx-formula-error-icon";
+        errorIcon.setAttribute("data-sfx-formula-error", "");
+        formulaDiv.appendChild(errorIcon);
+
+        const specialEffectDiv = sfxLine.querySelector(".sfx-flex-3");
+        sfxLine.insertBefore(formulaDiv, specialEffectDiv);
+
+        // update mode state
+        sfxLine.dataset.sfxMode = "advanced";
+        sfxLine.querySelector("[data-sfx-mode-input]").value = "advanced";
+        sfxLine.querySelector("[data-sfx-mode-toggle] i").className = "fas fa-list";
+
+        this.setPosition();
+    }
+
+    async _sfxToggleToBasic(sfxLine) {
+        const confirmed = await foundry.applications.api.DialogV2.confirm({
+            window: { title: game.i18n.localize("DICESONICE.sfxModeConfirmTitle") },
+            content: `<p>${game.i18n.localize("DICESONICE.sfxModeConfirmContent")}</p>`
+        });
+        if (!confirmed) return;
+
+        const ID = sfxLine.querySelector("[data-sfx-mode-input]").name.match(/\[(\d+)\]/)[1];
+
+        // remove formula input
+        const formulaContainer = sfxLine.querySelector(".sfx-formula-container");
+        if (formulaContainer) formulaContainer.remove();
+
+        const specialEffectDiv = sfxLine.querySelector(".sfx-flex-3");
+
+        // create diceType dropdown
+        const diceTypeDiv = document.createElement("div");
+        diceTypeDiv.className = "sfx-data sfx-flex-2";
+        const diceTypeSelect = document.createElement("select");
+        diceTypeSelect.setAttribute("data-sfx-dicetype", "");
+        diceTypeSelect.name = `sfxLine[${ID}][diceType]`;
+        this.triggerTypeList.forEach(t => {
+            const opt = document.createElement("option");
+            opt.value = t.id;
+            opt.textContent = t.name;
+            diceTypeSelect.appendChild(opt);
+        });
+        diceTypeDiv.appendChild(diceTypeSelect);
+
+        // create onResult multi-select
+        const resultDiv = document.createElement("div");
+        resultDiv.className = "sfx-data sfx-flex-5";
+        const resultSelect = document.createElement("select");
+        resultSelect.setAttribute("data-sfx-result", "");
+        resultSelect.setAttribute("data-sfx-result-dicetype", "");
+        resultSelect.name = `sfxLine[${ID}][onResult]`;
+        resultSelect.multiple = true;
+        resultDiv.appendChild(resultSelect);
+
+        sfxLine.insertBefore(resultDiv, specialEffectDiv);
+        sfxLine.insertBefore(diceTypeDiv, resultDiv);
+
+        // update mode state
+        sfxLine.dataset.sfxMode = "basic";
+        sfxLine.querySelector("[data-sfx-mode-input]").value = "basic";
+        sfxLine.querySelector("[data-sfx-mode-toggle] i").className = "fas fa-code";
+
+        this._initSlimSelects();
+        this.setPosition();
     }
 
     close(options) {

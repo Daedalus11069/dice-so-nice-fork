@@ -116,9 +116,11 @@
 
 .dice-so-nice .sfxs-list .sfx-controls {
     -webkit-box-flex: 0;
-    flex: 0 0 32px;
-    margin-top: 3px;
-    text-align: right;
+    flex: 0 0 50px;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 3px;
+    align-items: center;
 }
 
 .dice-so-nice .dsn-hidden {
@@ -126,19 +128,60 @@
 }
 
 .dice-so-nice .sfx-flex-2 {
-    flex: 2;
+    flex: 0 0 80px;
 }
 
 .dice-so-nice .sfx-flex-5 {
-    flex: 5;
+    flex: 1 1 0%;
+    min-width: 0;
 }
 
 .dice-so-nice .sfx-flex-3 {
-    flex: 3;
+    flex: 0 0 190px;
+    min-width: 0;
+}
+
+.dice-so-nice .sfx-flex-7 {
+    flex: 1 1 0%;
+    min-width: 0;
 }
 
 .dice-so-nice .sfx-data select {
     width: 100%;
+    min-width: 0;
+}
+
+.dice-so-nice .sfx-formula-container {
+    position: relative;
+}
+
+.dice-so-nice .sfx-data input[data-sfx-formula] {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-family: monospace;
+    padding-right: 24px;
+}
+
+.dice-so-nice .sfx-data input.sfx-formula-invalid {
+    border-color: #cc3333;
+    outline-color: #cc3333;
+}
+
+.dice-so-nice .sfx-formula-error-icon {
+    display: none;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #cc3333;
+    font-size: 14px;
+    cursor: help;
+    pointer-events: auto;
+}
+
+.dice-so-nice .sfx-formula-error-icon.visible {
+    display: block;
 }
 
 .dice-so-nice .dice-more-theme {
@@ -1341,7 +1384,7 @@
     border-radius: 4px;
     background: var(--table-header-bg-color);
     font-size: 12px;
-    width: 306px;
+    width: 100%;
     color: var(--color-text-primary);
     padding: 0 4px;
     box-sizing: border-box;
@@ -1407,4 +1450,5 @@
 
 .dice-so-nice .sfx-line {
     gap: 6px;
+    flex-wrap: nowrap;
 }

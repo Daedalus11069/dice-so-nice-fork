@@ -1,4 +1,5 @@
 import { DiceSFXManager } from '../sfx/DiceSFXManager.js';
+import { SFXFormulaMatcher } from '../sfx/SFXFormulaMatcher.js';
 import { COMPOUND_DICE } from '../DiceNotation.js';
 import { LEGACY_TO_METERS, GRAB_LIFT_PERSISTENT } from '../engine/SceneConstants.js';
 
@@ -555,15 +556,60 @@ export class PersistentDiceManager {
 	}
 
 	//apply SFX matching to thrown persistent dice
-	matchSFX(heldDice, sfxList) {
+	matchSFX(heldDice, sfxList, roll = null) {
 		if (!Array.isArray(sfxList) || sfxList.length === 0) return;
+
+		// handle advanced formula entries
+		const advancedEntries = sfxList.filter(sfx => sfx.mode === 'advanced' && sfx.formula);
+		if (advancedEntries.length > 0) {
+			const contextDice = heldDice.filter(dm => dm.forcedResult != null).map(dm => ({
+				type: dm.notation.type,
+				result: dm.forcedResult,
+				compositeResult: dm.notation.compositeResult || null,
+				compositeType: dm.notation.compositeType || null,
+				options: dm.options || {},
+				termIndex: null,
+				termNumber: null,
+				termTotal: null,
+				termFaces: null,
+				termModifiers: null,
+				_mesh: dm
+			}));
+			const rollTotal = roll?.total ?? null;
+			for (const sfx of advancedEntries) {
+				const matchedCtx = SFXFormulaMatcher.match(sfx.formula, { dice: contextDice, rollTotal });
+				const sfxClass = DiceSFXManager.SFX_MODE_CLASS?.[sfx.specialEffect];
+				const oncePerMesh = sfxClass?.PLAY_ONLY_ONCE_PER_MESH;
+				for (const ctx of matchedCtx) {
+					if (oncePerMesh && ctx.compositeType && ctx.type !== ctx.compositeType) continue;
+					const dm = ctx._mesh;
+					if (!dm.specialEffects) dm.specialEffects = [];
+					dm.specialEffects.push({ specialEffect: sfx.specialEffect, options: sfx.options || {} });
+				}
+			}
+		}
+
+		// handle basic entries (existing per-die logic)
+		const basicSfxList = sfxList.filter(sfx => !sfx.mode || sfx.mode !== 'advanced');
 		for (const dicemesh of heldDice) {
 			if (dicemesh.forcedResult == null) continue;
 			const matched = this._matchPersistentSFX(
-				sfxList, dicemesh.notation.type,
+				basicSfxList, dicemesh.notation.type,
 				dicemesh.forcedResult, dicemesh.notation.compositeResult || null, dicemesh.notation.compositeType || null
 			);
-			if (matched.length > 0) dicemesh.specialEffects = matched;
+			if (matched.length > 0) {
+				if (!dicemesh.specialEffects) dicemesh.specialEffects = [];
+				dicemesh.specialEffects.push(...matched);
+			}
+		}
+
+		// dedup across basic and advanced entries
+		for (const dicemesh of heldDice) {
+			if (dicemesh.specialEffects) {
+				dicemesh.specialEffects = dicemesh.specialEffects.filter(
+					(v, i, a) => a.findIndex(x => x.specialEffect === v.specialEffect) === i
+				);
+			}
 		}
 	}
 

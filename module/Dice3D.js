@@ -1072,9 +1072,9 @@ export class Dice3D {
             };
 
             //chain rollList entries sequentially (for rollOrder), then call done
-            const showRollList = (rollList, author, speaker, done) => {
+            const showRollList = (rollList, author, speaker, done, rollTotal) => {
                 const recurse = (index) => {
-                    this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, speaker).then(() => {
+                    this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, speaker, { originalRollTotal: rollTotal }).then(() => {
                         if (rollList[index + 1] != null)
                             recurse(index + 1);
                         else
@@ -1130,7 +1130,8 @@ export class Dice3D {
                     }
                 }
 
-                promises.push(new Promise(resolve => showRollList(rollList, author, speaker, resolve)));
+                const groupRollTotal = groupRolls.reduce((sum, r) => sum + (r.total ?? 0), 0);
+                promises.push(new Promise(resolve => showRollList(rollList, author, speaker, resolve, groupRollTotal)));
             }
 
             if (promises.length > 0)
@@ -1225,6 +1226,8 @@ export class Dice3D {
         let hookedRoll = context.dsnRoll || context.roll;
         let actor = ChatMessage.getSpeakerActor(speaker);
         let notation = new DiceNotation(hookedRoll, Dice3D.ALL_CONFIG(user, actor), user);
+        notation.rollTotal = options.originalRollTotal ?? hookedRoll.total ?? null;
+        notation.messageId = messageID;
         return this.show(notation, context.user, synchronize, context.users, context.blind, speaker);
     }
 
@@ -1410,7 +1413,6 @@ export class Dice3D {
             const persistentItems = items.filter(i => i.type === "persistent");
 
             const commands = ephemeralItems.length > 0 ? DiceNotation.mergeQueuedRollCommands(ephemeralItems) : [];
-            const flatThrows = commands.flat();
 
             //merge persistent items into a single throwData for the unified batch
             let mergedPersistentData = null;
@@ -1437,20 +1439,33 @@ export class Dice3D {
                 };
             }
 
-            if (flatThrows.length === 0 && !mergedPersistentData) {
+            //each throw index (explosion level) becomes a separate sequential batch
+            const batches = commands.length > 0 ? [...commands] : [];
+            if (batches.length === 0 && mergedPersistentData) batches.push([]);
+
+            if (batches.length === 0) {
                 items.forEach(item => item.resolve(false));
                 return;
             }
 
+            let remainingAnimations = batches.length;
+
             this._currentAnimation = this._currentAnimation.then(async () => {
-                this.queue.push(() => new Promise(async (resolve) => {
-                    this._beforeShow();
-                    await this.box.startUnifiedBatch(flatThrows, mergedPersistentData, () => {
-                        items.forEach(item => item.resolve(true));
-                        this._afterShow();
-                        resolve();
-                    });
-                }));
+                for (let ci = 0; ci < batches.length; ci++) {
+                    //persistent data rides with the first throw group
+                    const persistentData = ci === 0 ? mergedPersistentData : null;
+                    this.queue.push(() => new Promise(async (resolve) => {
+                        this._beforeShow();
+                        await this.box.startUnifiedBatch(batches[ci], persistentData, () => {
+                            remainingAnimations--;
+                            if (remainingAnimations === 0) {
+                                items.forEach(item => item.resolve(true));
+                                this._afterShow();
+                            }
+                            resolve();
+                        });
+                    }));
+                }
 
                 return this._processQueue();
             });
