@@ -137,21 +137,40 @@ export class DiceScene {
 			this.renderer.scopedTextureCache = { type: type };
 			if (this.dicefactory.realisticLighting) {
 				let textureLoader = new TextureLoader();
-				this.renderer.scopedTextureCache.roughnessMap_fingerprint = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_finger.webp');
+				this.renderer.scopedTextureCache.roughnessMap_plastic = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_plastic.webp');
 				this.renderer.scopedTextureCache.roughnessMap_wood = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_wood.webp');
 				this.renderer.scopedTextureCache.roughnessMap_metal = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_metal.webp');
+				this.renderer.scopedTextureCache.roughnessMap_glass = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_glass.webp');
 				this.renderer.scopedTextureCache.roughnessMap_stone = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_stone.webp');
 				this.renderer.scopedTextureCache.roughnessMap_resin = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_resin.webp');
 				this.renderer.scopedTextureCache.roughnessMap_frosted = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_frosted.webp');
+				this.renderer.scopedTextureCache.roughnessMap_chrome = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_chrome.webp');
+				this.renderer.scopedTextureCache.roughnessMap_iridescent = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_iridescent.webp');
 				this.renderer.scopedTextureCache.roughnessMap_velvet = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_velvet.webp');
 
-				this.renderer.scopedTextureCache.roughnessMap_fingerprint.anisotropy = this.anisotropy;
+				this.renderer.scopedTextureCache.roughnessMap_plastic.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_wood.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_metal.anisotropy = this.anisotropy;
+				this.renderer.scopedTextureCache.roughnessMap_glass.anisotropy = this.anisotropy;
+				this.renderer.scopedTextureCache.roughnessMap_chrome.anisotropy = this.anisotropy;
+				this.renderer.scopedTextureCache.roughnessMap_iridescent.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_stone.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_resin.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_frosted.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_velvet.anisotropy = this.anisotropy;
+
+				const normalMapMaterials = ['metal', 'wood', 'stone', 'velvet'];
+				for (const mat of normalMapMaterials) {
+					const key = `normalMap_${mat}`;
+					const tex = textureLoader.load(
+						`modules/dice-so-nice/textures/normalMap_${mat}.webp`,
+						undefined,
+						undefined,
+						() => { delete this.renderer.scopedTextureCache[key]; }
+					);
+					tex.anisotropy = this.anisotropy;
+					this.renderer.scopedTextureCache[key] = tex;
+				}
 
 				this.pmremGenerator = new PMREMGenerator(this.renderer);
 				this.pmremGenerator.compileEquirectangularShader();

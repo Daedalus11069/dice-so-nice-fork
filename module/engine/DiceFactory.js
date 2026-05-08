@@ -121,127 +121,134 @@ export class DiceFactory {
 				'plastic': {
 					'type':"standard",
 					'options':{
-						metalness: 0,
-						roughness: 0.5
+						metalness: 1
 					},
 					'scopedOptions':{
-						roughnessMap : "roughnessMap_fingerprint",
+						roughnessMap : "roughnessMap_plastic",
+						metalnessMap : "roughnessMap_plastic",
 						envMap : true
 					}
 				},
 				'metal': {
 					'type':'standard',
 					'options': {
-						roughness: 0.6,
 						metalness: 1
 					},
 					'scopedOptions':{
 						roughnessMap : "roughnessMap_metal",
+						metalnessMap : "roughnessMap_metal",
+						normalMap : "normalMap_metal",
+						detailNormalScale : 1.0,
 						envMap : true
 					}
 				},
 				'wood': {
 					'type':'standard',
 					'options': {
-						roughness: 0.8,
-						metalness:0
+						metalness: 1
 					},
 					'scopedOptions':{
 						roughnessMap : "roughnessMap_wood",
+						metalnessMap : "roughnessMap_wood",
+						normalMap : "normalMap_wood",
+						detailNormalScale : 1.0,
 						envMap : true
 					}
 				},
 				'glass': this.advancedGlass ? {
 					'type':'physical',
 					'options': {
-						metalness: 0,
-						roughness: 0.05,
+						metalness: 1,
 						transmission: 1.0,
-						ior: 1.5,
-						thickness: TARGET_D6_EDGE_METERS * 0.4,
-						attenuationDistance: TARGET_D6_EDGE_METERS * 0.2,
+						ior: 1.49,
+						thickness: TARGET_D6_EDGE_METERS * 1.2,
+						attenuationDistance: TARGET_D6_EDGE_METERS * 1.2,
 						attenuationColor: new Color(0.95, 0.95, 1.0),
 						side: DoubleSide
 					},
 					'scopedOptions':{
+						roughnessMap : "roughnessMap_glass",
+						metalnessMap : "roughnessMap_glass",
 						envMap : true
 					},
 					'usesTransmissionMask': true
 				} : {
 					'type':'standard',
 					'options': {
-						roughness: 0.3,
-						metalness: 0
+						metalness: 1
 					},
 					'scopedOptions':{
-						roughnessMap : "roughnessMap_fingerprint",
+						roughnessMap : "roughnessMap_glass",
+						metalnessMap : "roughnessMap_glass",
 						envMap : true
 					}
 				},
 				'resin': this.advancedGlass ? {
 					'type':'physical',
 					'options': {
-						metalness: 0,
-						roughness: 0.2,
-						transmission: 0.65,
-						ior: 1.5,
-						thickness: TARGET_D6_EDGE_METERS * 0.5,
-						attenuationDistance: TARGET_D6_EDGE_METERS * 0.3,
+						metalness: 1,
+						roughness: 0.4,
+						transmission: 1.0,
+						ior: 1.49,
+						thickness: TARGET_D6_EDGE_METERS * 1.2,
+						attenuationDistance: TARGET_D6_EDGE_METERS * 1.2,
 						attenuationColor: new Color(0.95, 0.95, 1.0),
 						side: DoubleSide
 					},
 					'scopedOptions':{
 						roughnessMap : "roughnessMap_resin",
+						metalnessMap : "roughnessMap_resin",
 						envMap : true
 					},
 					'usesTransmissionMask': true
 				} : {
 					'type':'standard',
 					'options': {
-						roughness: 0.3,
-						metalness: 0
+						metalness: 1
 					},
 					'scopedOptions':{
-						roughnessMap : "roughnessMap_fingerprint",
+						roughnessMap : "roughnessMap_resin",
+						metalnessMap : "roughnessMap_resin",
 						envMap : true
 					}
 				},
 				'frosted': this.advancedGlass ? {
 					'type':'physical',
 					'options': {
-						metalness: 0,
-						roughness: 0.8,
-						transmission: 0.9,
-						ior: 1.45,
-						thickness: TARGET_D6_EDGE_METERS * 0.4,
-						attenuationDistance: TARGET_D6_EDGE_METERS * 0.2,
-						attenuationColor: new Color(0.95, 0.98, 1.0),
+						metalness: 1,
+						roughness: 0.3,
+						transmission: 1.0,
+						ior: 1.49,
+						thickness: TARGET_D6_EDGE_METERS * 1.2,
+						attenuationDistance: TARGET_D6_EDGE_METERS * 1.2,
+						attenuationColor: new Color(0.95, 0.95, 1.0),
 						side: DoubleSide
 					},
 					'scopedOptions':{
 						roughnessMap : "roughnessMap_frosted",
+						metalnessMap : "roughnessMap_frosted",
 						envMap : true
 					},
 					'usesTransmissionMask': true
 				} : {
 					'type':'standard',
 					'options': {
-						roughness: 0.3,
-						metalness: 0
+						metalness: 1
 					},
 					'scopedOptions':{
-						roughnessMap : "roughnessMap_fingerprint",
+						roughnessMap : "roughnessMap_frosted",
+						metalnessMap : "roughnessMap_frosted",
 						envMap : true
 					}
 				},
 				'chrome': {
 					'type':'standard',
 					'options': {
-						metalness: 1,
-						roughness: 0.1
+						metalness: 1
 					},
 					'scopedOptions':{
-						roughnessMap : "roughnessMap_fingerprint",
+						roughnessMap : "roughnessMap_chrome",
+						metalnessMap : "roughnessMap_chrome",
 						envMap : true
 					}
 				},
@@ -261,37 +268,42 @@ export class DiceFactory {
 					'type':'physical',
 					'options': {
 						metalness: 1,
-						roughness: 0.2,
 						iridescence: 1,
 						iridescenceIOR: 1.8,
 						iridescenceThicknessRange: [300,700]
 					},
 					'scopedOptions':{
+						roughnessMap : "roughnessMap_iridescent",
+						metalnessMap : "roughnessMap_iridescent",
 						envMap : true
 					}
 				},
 				'stone': {
 					'type':'standard',
 					'options': {
-						metalness: 0,
-						roughness: 1
+						metalness: 1
 					},
 					'scopedOptions':{
 						roughnessMap : "roughnessMap_stone",
+						metalnessMap : "roughnessMap_stone",
+						normalMap : "normalMap_stone",
+						detailNormalScale : 1.0,
 						envMap : true
 					}
 				},
 				'velvet': {
 					'type':'physical',
 					'options': {
-						metalness: 0,
-						roughness: 0.8,
-						sheen: 1.0,
-						sheenRoughness: 0.6,
-						sheenColor: new Color(1.0, 1.0, 1.0)
+						metalness: 1,
+						sheen: 0.5,
+						sheenRoughness: 0.8,
+						sheenColor: new Color(0.8, 0.8, 0.8)
 					},
 					'scopedOptions':{
 						roughnessMap : "roughnessMap_velvet",
+						metalnessMap : "roughnessMap_velvet",
+						normalMap : "normalMap_velvet",
+						detailNormalScale : 1.0,
 						envMap : true
 					}
 				}
@@ -705,6 +717,8 @@ export class DiceFactory {
 				//chrome/iridescent reuse a height texture for metalnessMap, stored on userData
 				if(mat.userData?.heightMap instanceof CanvasTexture)
 					mat.userData.heightMap.dispose();
+				if(mat.userData?.detailNormalMap instanceof CanvasTexture)
+					mat.userData.detailNormalMap.dispose();
 				mat.dispose();
 				delete this.baseMaterialCache[material];
 			}
@@ -1041,6 +1055,14 @@ export class DiceFactory {
 				mat.envMap = scopedTextureCache.textureCube;
 			if(materialSelected.scopedOptions.roughnessMap)
 				mat.roughnessMap = scopedTextureCache[materialSelected.scopedOptions.roughnessMap];
+			if(materialSelected.scopedOptions.metalnessMap)
+				mat.metalnessMap = scopedTextureCache[materialSelected.scopedOptions.metalnessMap];
+			const materialNormalTex = scopedTextureCache[materialSelected.scopedOptions.normalMap];
+			if(materialNormalTex) {
+				mat.normalMap = materialNormalTex;
+				mat.userData.hasMaterialNormalMap = true;
+				mat.userData.detailNormalScale = materialSelected.scopedOptions.detailNormalScale ?? 1.0;
+			}
 		}
 		let font = {
 			"type":diceobj.font,
@@ -1187,16 +1209,18 @@ export class DiceFactory {
 			mat.map.anisotropy = game.dice3d.box.anisotropy;
 
 			if(this.realisticLighting){
-				//convert the height-field bump canvas into a normal map. better lighting
-				//response than bumpMap (which uses screen-space derivatives) and the
-				//conversion is a one-shot Sobel pass at material build time.
 				let normalCanvas = this.heightCanvasToNormalCanvas(canvasBump);
-				let normalMap = new CanvasTexture(normalCanvas);
-				normalMap.flipY = false;
-				normalMap.anisotropy = game.dice3d.box.anisotropy;
-				mat.normalMap = normalMap;
+				let sobelNormalMap = new CanvasTexture(normalCanvas);
+				sobelNormalMap.flipY = false;
+				sobelNormalMap.anisotropy = game.dice3d.box.anisotropy;
 				const nScale = Math.max(0.2, Math.min(1.0, mat.roughness / 0.3));
-				mat.normalScale = new Vector2(nScale, nScale);
+				if(mat.userData.hasMaterialNormalMap) {
+					mat.normalScale = new Vector2(nScale, nScale);
+					mat.userData.detailNormalMap = sobelNormalMap;
+				} else {
+					mat.normalMap = sobelNormalMap;
+					mat.normalScale = new Vector2(nScale, nScale);
+				}
 
 				let emissiveMap = new CanvasTexture(canvasEmissive);
 				if(this.realisticLighting)
@@ -1297,14 +1321,24 @@ export class DiceFactory {
 			}
 		}
 
-		//chrome/iridescent reuse the height field as a metalness mask (engraved areas
-		//read as non-metal). normal map can't stand in for that, so build a separate
-		//height texture from the same canvas and stash it on userData for disposal.
 		switch(materialData.material){
 			case "chrome":
 			case "iridescent":
 				if(this.realisticLighting) {
-					let heightMap = new CanvasTexture(canvasBump);
+					let metalnessCanvas = document.createElement("canvas");
+					metalnessCanvas.width = canvasBump.width;
+					metalnessCanvas.height = canvasBump.height;
+					let mCtx = metalnessCanvas.getContext("2d");
+					const packedTex = scopedTextureCache[materialSelected.scopedOptions.metalnessMap];
+					if(packedTex?.image) {
+						mCtx.drawImage(packedTex.image, 0, 0, metalnessCanvas.width, metalnessCanvas.height);
+					} else {
+						mCtx.fillStyle = "#0000ff";
+						mCtx.fillRect(0, 0, metalnessCanvas.width, metalnessCanvas.height);
+					}
+					mCtx.globalCompositeOperation = 'multiply';
+					mCtx.drawImage(canvasBump, 0, 0);
+					let heightMap = new CanvasTexture(metalnessCanvas);
 					heightMap.flipY = false;
 					mat.metalnessMap = heightMap;
 					mat.userData.heightMap = heightMap;

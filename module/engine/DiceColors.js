@@ -672,9 +672,9 @@ export const COLORSETS = {
 		name: 'yellow',
 		description: 'DICESONICE.ColorYellow',
 		category: 'DICESONICE.Colors',
-		foreground: '#000000',
+		foreground: '#FFFFFF',
 		background: '#FFFF00',
-		outline: 'none',
+		outline: '#333333',
 		texture: 'none'
 	},
 	'pink': {
