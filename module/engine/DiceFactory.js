@@ -165,7 +165,64 @@ export class DiceFactory {
 					},
 					'scopedOptions':{
 						envMap : true
+					},
+					'usesTransmissionMask': true
+				} : {
+					'type':'standard',
+					'options': {
+						roughness: 0.3,
+						metalness: 0
+					},
+					'scopedOptions':{
+						roughnessMap : "roughnessMap_fingerprint",
+						envMap : true
 					}
+				},
+				'resin': this.advancedGlass ? {
+					'type':'physical',
+					'options': {
+						metalness: 0,
+						roughness: 0.2,
+						transmission: 0.65,
+						ior: 1.5,
+						thickness: TARGET_D6_EDGE_METERS * 0.5,
+						attenuationDistance: TARGET_D6_EDGE_METERS * 0.3,
+						attenuationColor: new Color(0.95, 0.95, 1.0),
+						side: DoubleSide
+					},
+					'scopedOptions':{
+						roughnessMap : "roughnessMap_resin",
+						envMap : true
+					},
+					'usesTransmissionMask': true
+				} : {
+					'type':'standard',
+					'options': {
+						roughness: 0.3,
+						metalness: 0
+					},
+					'scopedOptions':{
+						roughnessMap : "roughnessMap_fingerprint",
+						envMap : true
+					}
+				},
+				'frosted': this.advancedGlass ? {
+					'type':'physical',
+					'options': {
+						metalness: 0,
+						roughness: 0.8,
+						transmission: 0.9,
+						ior: 1.45,
+						thickness: TARGET_D6_EDGE_METERS * 0.4,
+						attenuationDistance: TARGET_D6_EDGE_METERS * 0.2,
+						attenuationColor: new Color(0.95, 0.98, 1.0),
+						side: DoubleSide
+					},
+					'scopedOptions':{
+						roughnessMap : "roughnessMap_frosted",
+						envMap : true
+					},
+					'usesTransmissionMask': true
 				} : {
 					'type':'standard',
 					'options': {
@@ -223,6 +280,20 @@ export class DiceFactory {
 						roughnessMap : "roughnessMap_stone",
 						envMap : true
 					}
+				},
+				'velvet': {
+					'type':'physical',
+					'options': {
+						metalness: 0,
+						roughness: 0.8,
+						sheen: 1.0,
+						sheenRoughness: 0.6,
+						sheenColor: new Color(1.0, 1.0, 1.0)
+					},
+					'scopedOptions':{
+						roughnessMap : "roughnessMap_velvet",
+						envMap : true
+					}
 				}
 			}
 		} else {
@@ -259,6 +330,32 @@ export class DiceFactory {
 					}
 				},
 				'glass': {
+					'type':'phong',
+					'options': {
+						specular: 0xffffff,
+						color: 0xb5b5b5,
+						shininess: 0.3,
+						reflectivity:0.1,
+						combine:MixOperation
+					},
+					'scopedOptions':{
+						envMap:true
+					}
+				},
+				'resin': {
+					'type':'phong',
+					'options': {
+						specular: 0xffffff,
+						color: 0xb5b5b5,
+						shininess: 0.3,
+						reflectivity:0.1,
+						combine:MixOperation
+					},
+					'scopedOptions':{
+						envMap:true
+					}
+				},
+				'frosted': {
 					'type':'phong',
 					'options': {
 						specular: 0xffffff,
@@ -316,6 +413,15 @@ export class DiceFactory {
 					},
 					'scopedOptions':{
 						envMap:true
+					}
+				},
+				'velvet': {
+					'type':'phong',
+					'options':{
+						specular: 0xffffff,
+						color: 0xb5b5b5,
+						shininess: 1,
+						flatShading: true
 					}
 				}
 			}
@@ -1212,14 +1318,20 @@ export class DiceFactory {
 		mat.needUpdate = true;
 		mat.userData.materialData = materialData;
 
-		//advanced glass: reuse the bump canvas as a transmissionMap so labels stay readable.
-		//transparent must be false here - alpha blending fights the transmission term.
-		if(this.advancedGlass && materialData.material === 'glass') {
+		if(this.advancedGlass && this.material_options[materialData.material]?.usesTransmissionMask) {
 			let glassMaskMap = new CanvasTexture(canvasBump);
 			glassMaskMap.flipY = false;
 			mat.transmissionMap = glassMaskMap;
 			mat.transparent = false;
 			mat.userData.advancedGlassMask = true;
+		}
+
+		if(this.advancedGlass && materialData.material === 'resin') {
+			let resinColor = new Color(materialData.background);
+			if(resinColor.getHSL({}).l < 0.05) {
+				resinColor = new Color(0.95, 0.95, 1.0);
+			}
+			mat.attenuationColor = resinColor;
 		}
 
 		mat.onBeforeCompile = ShaderUtils.applyDiceSoNiceShader;

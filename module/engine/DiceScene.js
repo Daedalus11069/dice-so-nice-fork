@@ -141,11 +141,17 @@ export class DiceScene {
 				this.renderer.scopedTextureCache.roughnessMap_wood = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_wood.webp');
 				this.renderer.scopedTextureCache.roughnessMap_metal = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_metal.webp');
 				this.renderer.scopedTextureCache.roughnessMap_stone = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_stone.webp');
+				this.renderer.scopedTextureCache.roughnessMap_resin = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_resin.webp');
+				this.renderer.scopedTextureCache.roughnessMap_frosted = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_frosted.webp');
+				this.renderer.scopedTextureCache.roughnessMap_velvet = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_velvet.webp');
 
 				this.renderer.scopedTextureCache.roughnessMap_fingerprint.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_wood.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_metal.anisotropy = this.anisotropy;
 				this.renderer.scopedTextureCache.roughnessMap_stone.anisotropy = this.anisotropy;
+				this.renderer.scopedTextureCache.roughnessMap_resin.anisotropy = this.anisotropy;
+				this.renderer.scopedTextureCache.roughnessMap_frosted.anisotropy = this.anisotropy;
+				this.renderer.scopedTextureCache.roughnessMap_velvet.anisotropy = this.anisotropy;
 
 				this.pmremGenerator = new PMREMGenerator(this.renderer);
 				this.pmremGenerator.compileEquirectangularShader();

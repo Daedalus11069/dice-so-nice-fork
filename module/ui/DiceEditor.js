@@ -186,12 +186,15 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         data.materialList = Utils.localize({
             "auto": "DICESONICE.MaterialAuto",
             "chrome": "DICESONICE.MaterialChrome",
+            "frosted": "DICESONICE.MaterialFrosted",
             "glass": "DICESONICE.MaterialGlass",
             "iridescent": "DICESONICE.MaterialIridescent",
             "metal": "DICESONICE.MaterialMetal",
             "plastic": "DICESONICE.MaterialPlastic",
             "pristine": "DICESONICE.MaterialPristine",
+            "resin": "DICESONICE.MaterialResin",
             "stone": "DICESONICE.MaterialStone",
+            "velvet": "DICESONICE.MaterialVelvet",
             "wood": "DICESONICE.MaterialWood"
         });
         data.fontList = Utils.prepareFontList();

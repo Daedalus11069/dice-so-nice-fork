@@ -204,6 +204,8 @@ export class ThrowEngine {
 				mass *= 0.65;
 				break;
 			case "glass":
+			case "resin":
+			case "frosted":
 				mass *= 2;
 				break;
 			case "stone":
