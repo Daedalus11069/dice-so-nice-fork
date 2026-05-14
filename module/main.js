@@ -379,6 +379,10 @@ Hooks.once('ready', () => {
 });
 
 const setupDiceSoNice = () => {
+    if (game.view === "stream") {
+        logger.warn("Dice So Nice! is disabled in /stream view; chat cards will display without 3D dice animations.");
+        return;
+    }
     Utils.migrateOldSettings().then((updated) => {
         if (updated) {
             if (!game.settings.get("core", "noCanvas")){

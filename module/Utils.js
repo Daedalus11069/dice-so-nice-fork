@@ -410,7 +410,8 @@ export class Utils {
 
     //reset references to resources that no longer exist
     static sanitizeAppearance(appearance, user = null) {
-        const dicefactory = game.dice3d.DiceFactory;
+        const dicefactory = game.dice3d?.DiceFactory;
+        if (!dicefactory) return appearance;
 
         for (const scope in appearance) {
             if (!appearance.hasOwnProperty(scope)) continue;
