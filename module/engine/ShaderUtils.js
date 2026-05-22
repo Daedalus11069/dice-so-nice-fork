@@ -1,8 +1,5 @@
-/**
- * This class contains utility functions for working with shaders.
- * These functions are called during the onBeforeCompile event.
- * @class ShaderUtils
- */
+import { Vector2 } from 'three';
+
 export class ShaderUtils {
 
 	static applyDiceSoNiceShader(shader) {
@@ -27,6 +24,8 @@ export class ShaderUtils {
         if (this.userData.detailNormalMap) {
             shader.uniforms.detailNormalMap = { value: this.userData.detailNormalMap };
             shader.uniforms.detailNormalScale = { value: this.userData.detailNormalScale ?? 1.0 };
+            shader.uniforms.normalMapUvOffset = { value: this.normalMap?.offset ?? new Vector2(0, 0) };
+            shader.uniforms.normalMapUvRepeat = { value: this.normalMap?.repeat ?? new Vector2(1, 1) };
             ShaderUtils.normalBlendingShaderFragment(shader);
         }
 
@@ -158,6 +157,8 @@ export class ShaderUtils {
 		shader.fragmentShader = /* glsl */`
 			uniform sampler2D detailNormalMap;
 			uniform float detailNormalScale;
+			uniform vec2 normalMapUvOffset;
+			uniform vec2 normalMapUvRepeat;
 			${shader.fragmentShader}
 		`.replace(
 			/* glsl */`#include <normal_fragment_maps>`,
@@ -185,7 +186,8 @@ export class ShaderUtils {
 
 				mapN.xy *= normalScale;
 
-				vec3 detailN = texture2D( detailNormalMap, vNormalMapUv ).xyz * 2.0 - 1.0;
+				vec2 detailUv = (vNormalMapUv - normalMapUvOffset) / normalMapUvRepeat;
+				vec3 detailN = texture2D( detailNormalMap, detailUv ).xyz * 2.0 - 1.0;
 				detailN.xy *= detailNormalScale;
 				mapN = normalize( vec3( mapN.xy + detailN.xy, mapN.z ) );
 

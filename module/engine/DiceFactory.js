@@ -1330,7 +1330,12 @@ export class DiceFactory {
 					let mCtx = metalnessCanvas.getContext("2d");
 					const packedTex = scopedTextureCache[materialSelected.scopedOptions.metalnessMap];
 					if(packedTex?.image) {
-						mCtx.drawImage(packedTex.image, 0, 0, metalnessCanvas.width, metalnessCanvas.height);
+						const frame = scopedTextureCache._atlasFrames?.[materialSelected.scopedOptions.metalnessMap];
+						if (frame) {
+							mCtx.drawImage(packedTex.image, frame.x, frame.y, frame.w, frame.h, 0, 0, metalnessCanvas.width, metalnessCanvas.height);
+						} else {
+							mCtx.drawImage(packedTex.image, 0, 0, metalnessCanvas.width, metalnessCanvas.height);
+						}
 					} else {
 						mCtx.fillStyle = "#0000ff";
 						mCtx.fillRect(0, 0, metalnessCanvas.width, metalnessCanvas.height);
