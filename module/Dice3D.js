@@ -1008,11 +1008,7 @@ export class Dice3D {
                                 diceTerm.options.rollOrder = roll.options.rollOrder;
                         }
 
-                        //dependent dice (parenthetical expressions like (1d4)d6) always sequence,
-                        //even when the user has the simultaneous-rolls setting enabled
-                        const dependentBucket = diceTerm.options?.dsnDependentBucket;
-                        const sequentialEnabled = !game.settings.get("dice-so-nice", "enabledSimultaneousRollForMessage");
-                        if (diceTerm.options?.hasOwnProperty("rollOrder") && (dependentBucket || sequentialEnabled)) {
+                        if (diceTerm.options?.hasOwnProperty("rollOrder")) {
                             index = diceTerm.options.rollOrder;
                             if (orderedDiceList[index] == null) {
                                 orderedDiceList[index] = [];

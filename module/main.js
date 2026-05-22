@@ -493,14 +493,17 @@ Hooks.on('createChatMessage', (chatMessage) => {
         if (inlineRollEls.length == 0 && !chatMessage.isRoll) //it was a false positive
             return;
         let inlineRollList = [];
+        const sequenceInlineRolls = !game.settings.get("dice-so-nice", "enabledSimultaneousRollForMessage");
         inlineRollEls.forEach((el, index) => {
             //We use the Roll class registered in the CONFIG constant in case the system overwrites it (eg: HeXXen)
             let roll = CONFIG.Dice.rolls[0].fromJSON(unescape(el.dataset.roll));
-            maxRollOrder++;
-            roll.dice.forEach(diceterm => {
-                if (!diceterm.options.hasOwnProperty("rollOrder"))
-                    diceterm.options.rollOrder = maxRollOrder;
-            });
+            if (sequenceInlineRolls) {
+                maxRollOrder++;
+                roll.dice.forEach(diceterm => {
+                    if (!diceterm.options.hasOwnProperty("rollOrder"))
+                        diceterm.options.rollOrder = maxRollOrder;
+                });
+            }
             inlineRollList.push(roll);
         });
         if (inlineRollList.length) {

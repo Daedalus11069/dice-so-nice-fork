@@ -32,20 +32,12 @@ ChatMessage.create(chatData);
 
 ## Step 4: Select roll order for multiple rolls
 If your chat message contains multiple rolls, you may wish to delay some of them until another one finishes rolling.
-In order to do so, you need to take care of two extra steps.
 
-### 1: Change the value of the `enabledSimultaneousRollForMessage` setting
-This setting is set to "true" by default. Your system should take care of changing this setting once and only once, the first time a GM connects to their world.
+Set a `rollOrder` option on a Roll or on individual DiceTerms. Rolls sharing the same `rollOrder` value animate simultaneously; different values animate sequentially in ascending order. Dice with no `rollOrder` animate in the first group.
 
-```javascript
-//Do this only once
-game.settings.set('dice-so-nice', 'enabledSimultaneousRollForMessage', false);
-```
-
-### 2: Decide on the roll orders in your messages
-By default, DsN will show the different rolls one after the other in the order of detection, starting by the "rolls" array attached to the message, then each inline rolls found inside the content.
-
-You can alter this order by specifying a `rollOrder` option on a Roll or on individual DiceTerms. Rolls sharing the same `rollOrder` value animate simultaneously; different values animate sequentially in ascending order.
+:::note
+Inline rolls have separate sequencing controlled by the world setting **"Enable simultaneous rolls for messages"**. When this setting is disabled, inline rolls auto-sequence in DOM order. Explicit `rollOrder` values always take priority over auto-sequencing.
+:::
 
 #### Roll-level rollOrder
 
@@ -64,9 +56,7 @@ secondAttack.options.rollOrder = 2;
 let secondDamage = await new Roll('2d6').evaluate();
 secondDamage.options.rollOrder = 2; // animates after the first group
 
-const rolls = [attack, damage, secondAttack, secondDamage];
-const pool = PoolTerm.fromRolls(rolls);
-Roll.fromTerms([pool]).toMessage();
+ChatMessage.create({ rolls: [attack, damage, secondAttack, secondDamage] });
 ```
 
 #### Term-level rollOrder
@@ -83,9 +73,7 @@ directDamage.dice[0].options.rollOrder = 2;
 let aoeDamage = await new Roll('d4').evaluate();
 aoeDamage.dice[0].options.rollOrder = 2;
 
-const rolls = [attack, directDamage, aoeDamage];
-const pool = PoolTerm.fromRolls(rolls);
-Roll.fromTerms([pool]).toMessage();
+ChatMessage.create({ rolls: [attack, directDamage, aoeDamage] });
 ```
 
 ## Step 5: Per-roll appearance in multi-actor messages
