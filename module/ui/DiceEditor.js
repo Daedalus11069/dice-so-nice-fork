@@ -410,7 +410,6 @@ export class DiceEditor extends HandlebarsApplicationMixin(ApplicationV2) {
             const faceDefaultComposite = (!isFaceCustom && TEXTURELIST[bgTex]) ? TEXTURELIST[bgTex].composite : "";
             el.querySelector("[name=faceTextureComposite]").value = faceData.backgroundTextureComposite || faceDefaultComposite;
             el.querySelector("[name=faceEmissive]").checked = !!faceData.emissive;
-            el.querySelector("[name=faceEmissiveColor]").value = faceData.emissiveColor || "";
             const base = this.libraryDie.baseAppearance;
             el.querySelector("[name=faceForegroundSelector]").value = faceData.foreground || base.labelColor || "#FFFFFF";
             el.querySelector("[name=faceBackgroundSelector]").value = faceData.background || base.diceColor || "#000000";
