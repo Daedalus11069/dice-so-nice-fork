@@ -22,7 +22,7 @@ Before diving into the API, here is how the customization layers fit together:
 - **Texture** - A background image drawn on each face behind the label. Textures can use different canvas blending modes.
 - **ColorSet** (theme) - A named color scheme that bundles foreground, background, outline, and edge colors together with a default texture, material, and font. Players select these as "Themes" in the settings.
 - **System** - A named collection of DicePresets. When a player selects a system, all its presets activate at once. Systems can also include custom shaders, event listeners, and settings UI.
-- **Material** - The rendering style of the dice surface (plastic, metal, glass, chrome, etc.).
+- **Material** - The rendering style of the dice surface (plastic, metal, glass, wood, chrome, stone, velvet, resin, frosted, pristine, iridescent).
 
 A typical integration registers a System, adds DicePresets to it for each die type, and optionally provides matching ColorSets and Textures.
 
@@ -247,7 +247,7 @@ The `colorset` parameter has the following attributes:
 - **texture** An array of ID, or a single ID of the texture to use if "None / Auto (Theme)" is selected in the settings.
 If it is a custom texture, make sure to call this function after the Promise from "addTexture" is resolved.
 - **material** ID of the material to use if "Auto (Theme)" is selected in the settings.
-Supported values are **plastic**, **metal**, **glass**, **wood**, **pristine**, **iridescent** and **chrome**
+Supported values are **plastic**, **metal**, **glass**, **wood**, **chrome**, **stone**, **velvet**, **resin**, **frosted**, **pristine** and **iridescent**
 - **font** is the name of the font family. This can be a Webfont too. (ex: Arial, monospace, etc)
 - **fontScale** is an object with per-die-type font scale values. Default scales when omitted:
 
