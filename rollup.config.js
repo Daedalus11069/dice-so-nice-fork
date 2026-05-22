@@ -5,7 +5,8 @@ import terser from '@rollup/plugin-terser';
 import del from 'rollup-plugin-delete';
 import copy from 'rollup-plugin-copy';
 import webWorkerLoader from 'rollup-plugin-web-worker-loader';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync, readdirSync, existsSync } from 'fs';
+import { execSync } from 'child_process';
 
 // Define static files for the copy plugin
 const staticFiles = [
@@ -58,6 +59,38 @@ const config = {
           writeFileSync('./module/module.json', JSON.stringify(moduleJson, null, 4));
           console.log(`[Dice So Nice] Module version set to ${packageJson.version}`);
           console.log(`[Dice So Nice] Compatibility verified: ${compatibilityVerified}`);
+        }
+      }
+    },
+    !isWatch && {
+      name: 'convert-atlas-png-to-webp',
+      buildStart() {
+        const texturesDir = './module/textures';
+        for (const file of readdirSync(texturesDir)) {
+          if (!file.endsWith('.json')) continue;
+          const jsonPath = `${texturesDir}/${file}`;
+          const manifest = JSON.parse(readFileSync(jsonPath, 'utf8'));
+          if (!manifest.meta?.image?.endsWith('.png')) continue;
+
+          const pngPath = `${texturesDir}/${manifest.meta.image}`;
+          const webpName = manifest.meta.image.replace(/\.png$/, '.webp');
+          const webpPath = `${texturesDir}/${webpName}`;
+
+          if (!existsSync(pngPath)) continue;
+
+          console.log(`[Dice So Nice] Converting ${manifest.meta.image} -> ${webpName}`);
+          try {
+            execSync(`cwebp -near_lossless 30 -noalpha "${pngPath}" -o "${webpPath}"`);
+          } catch (e) {
+            throw new Error(`[Dice So Nice] cwebp failed. Install libwebp (apt install webp / brew install webp).\n${e.message}`);
+          }
+
+          const pngName = manifest.meta.image;
+          manifest.meta.image = webpName;
+          writeFileSync(jsonPath, JSON.stringify(manifest, null, '\t'));
+
+          unlinkSync(pngPath);
+          console.log(`[Dice So Nice] Deleted ${pngName}`);
         }
       }
     },

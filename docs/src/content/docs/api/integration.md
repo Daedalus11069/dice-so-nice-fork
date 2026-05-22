@@ -45,8 +45,33 @@ game.settings.set('dice-so-nice', 'enabledSimultaneousRollForMessage', false);
 ### 2: Decide on the roll orders in your messages
 By default, DsN will show the different rolls one after the other in the order of detection, starting by the "rolls" array attached to the message, then each inline rolls found inside the content.
 
-You can manually alter this order by specifying a `rollOrder` option on a DiceTerm.
-In the following example, the "attack" dice will be shown first, then the directDamage and aoeDamage will be shown simultaneously after the attack dice finished rolling.
+You can alter this order by specifying a `rollOrder` option on a Roll or on individual DiceTerms. Rolls sharing the same `rollOrder` value animate simultaneously; different values animate sequentially in ascending order.
+
+#### Roll-level rollOrder
+
+Set `roll.options.rollOrder` to apply the same order to all dice terms in the roll. Per-term values take priority if both are set.
+
+```javascript
+let attack = await new Roll('d20').evaluate();
+attack.options.rollOrder = 1;
+
+let damage = await new Roll('2d6+1d4').evaluate();
+damage.options.rollOrder = 1; // animates with the attack
+
+let secondAttack = await new Roll('d20').evaluate();
+secondAttack.options.rollOrder = 2;
+
+let secondDamage = await new Roll('2d6').evaluate();
+secondDamage.options.rollOrder = 2; // animates after the first group
+
+const rolls = [attack, damage, secondAttack, secondDamage];
+const pool = PoolTerm.fromRolls(rolls);
+Roll.fromTerms([pool]).toMessage();
+```
+
+#### Term-level rollOrder
+
+For finer control, set `rollOrder` on individual dice terms. In this example, the attack die animates first, then both damage rolls animate simultaneously.
 
 ```javascript
 let attack = await new Roll('d20').evaluate();
@@ -58,15 +83,9 @@ directDamage.dice[0].options.rollOrder = 2;
 let aoeDamage = await new Roll('d4').evaluate();
 aoeDamage.dice[0].options.rollOrder = 2;
 
-//Merge rolls
-const rolls = [attack, directDamage, aoeDamage]; //array of Roll
-
-//Post directly to chat or create your own ChatMessage
-//Here we post directly to the chat
+const rolls = [attack, directDamage, aoeDamage];
 const pool = PoolTerm.fromRolls(rolls);
-roll = Roll.fromTerms([pool]);
-
-roll.toMessage();
+Roll.fromTerms([pool]).toMessage();
 ```
 
 ## Step 5: Per-roll appearance in multi-actor messages

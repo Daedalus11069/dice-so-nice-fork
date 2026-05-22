@@ -1000,6 +1000,14 @@ export class Dice3D {
                 rollsToProcess.forEach(roll => {
                     roll.dice.forEach(diceTerm => {
                         let index = 0;
+
+                        //backfill rollOrder from roll options so you don't have to set it on every dice term
+                        if (roll.options?.rollOrder != null) {
+                            if (!diceTerm.options) diceTerm.options = {};
+                            if (!diceTerm.options.hasOwnProperty("rollOrder"))
+                                diceTerm.options.rollOrder = roll.options.rollOrder;
+                        }
+
                         //dependent dice (parenthetical expressions like (1d4)d6) always sequence,
                         //even when the user has the simultaneous-rolls setting enabled
                         const dependentBucket = diceTerm.options?.dsnDependentBucket;

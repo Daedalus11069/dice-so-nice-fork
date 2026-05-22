@@ -14,7 +14,7 @@ These apply to all your dice by default:
 - **Dice Presets (Faces)** - Select the dice face style. "Standard" uses text labels on every face. Some game systems force a specific preset for all players to display their own custom dice.
 - **Theme** - Select a color theme. Themes change all color settings at once and can include multiple random colors selected each roll. A theme may also include a default texture.
 - **Texture** - Select a texture for the dice. Choose "None / Auto (Theme)" to use the theme's built-in texture, if any.
-- **Material** - Select a material (plastic, metal, glass, chrome, etc.). "Auto (Theme)" uses the theme's default material.
+- **Material** - Select a material (plastic, metal, glass, wood, chrome, stone, velvet, resin, frosted, pristine, iridescent). "Auto (Theme)" uses the theme's default material.
 - **Font** - Select a font for the dice labels. "Auto (Theme)" uses the theme's font. Dice So Nice! uses Foundry VTT's font system, so any font added via Foundry's Font Manager will be available here.
 
 ## Color Pickers

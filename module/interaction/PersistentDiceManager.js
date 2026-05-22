@@ -118,6 +118,9 @@ export class PersistentDiceManager {
 		}
 
 		let objectContainer = new Group();
+		if(dicemesh.userData.modelScale){
+			objectContainer.scale.setScalar(dicemesh.userData.modelScale);
+		}
 		objectContainer.add(dicemesh);
 		objectContainer.position.set(vectordata.pos.x, vectordata.pos.y, vectordata.pos.z);
 		this.diceScene.scene.add(objectContainer);

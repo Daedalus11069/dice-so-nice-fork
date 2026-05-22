@@ -1,8 +1,5 @@
-/**
- * This class contains utility functions for working with shaders.
- * These functions are called during the onBeforeCompile event.
- * @class ShaderUtils
- */
+import { Vector2 } from 'three';
+
 export class ShaderUtils {
 
 	static applyDiceSoNiceShader(shader) {
@@ -22,6 +19,14 @@ export class ShaderUtils {
 
         if (this.userData.advancedGlassMask) {
             ShaderUtils.glassMaskShaderFragment(shader);
+        }
+
+        if (this.userData.detailNormalMap) {
+            shader.uniforms.detailNormalMap = { value: this.userData.detailNormalMap };
+            shader.uniforms.detailNormalScale = { value: this.userData.detailNormalScale ?? 1.0 };
+            shader.uniforms.normalMapUvOffset = { value: this.normalMap?.offset ?? new Vector2(0, 0) };
+            shader.uniforms.normalMapUvRepeat = { value: this.normalMap?.repeat ?? new Vector2(1, 1) };
+            ShaderUtils.normalBlendingShaderFragment(shader);
         }
 
 		// deprecated shader hook
@@ -143,6 +148,54 @@ export class ShaderUtils {
 				material.transmissionAlpha = mix( material.transmissionAlpha, transmitted.a, material.transmission );
 
 				totalDiffuse = mix( totalDiffuse, transmitted.rgb, material.transmission );
+
+			#endif`
+		);
+	}
+
+	static normalBlendingShaderFragment(shader) {
+		shader.fragmentShader = /* glsl */`
+			uniform sampler2D detailNormalMap;
+			uniform float detailNormalScale;
+			uniform vec2 normalMapUvOffset;
+			uniform vec2 normalMapUvRepeat;
+			${shader.fragmentShader}
+		`.replace(
+			/* glsl */`#include <normal_fragment_maps>`,
+			/* glsl */`#ifdef USE_NORMALMAP_OBJECTSPACE
+
+				normal = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;
+
+				#ifdef FLIP_SIDED
+					normal = - normal;
+				#endif
+
+				#ifdef DOUBLE_SIDED
+					normal = normal * faceDirection;
+				#endif
+
+				normal = normalize( normalMatrix * normal );
+
+			#elif defined( USE_NORMALMAP_TANGENTSPACE )
+
+				vec3 mapN = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;
+
+				#if defined( USE_PACKED_NORMALMAP )
+					mapN = vec3( mapN.xy, sqrt( saturate( 1.0 - dot( mapN.xy, mapN.xy ) ) ) );
+				#endif
+
+				mapN.xy *= normalScale;
+
+				vec2 detailUv = (vNormalMapUv - normalMapUvOffset) / normalMapUvRepeat;
+				vec3 detailN = texture2D( detailNormalMap, detailUv ).xyz * 2.0 - 1.0;
+				detailN.xy *= detailNormalScale;
+				mapN = normalize( vec3( mapN.xy + detailN.xy, mapN.z ) );
+
+				normal = normalize( tbn * mapN );
+
+			#elif defined( USE_BUMPMAP )
+
+				normal = perturbNormalArb( - vViewPosition, normal, dHdxy_fwd(), faceDirection );
 
 			#endif`
 		);

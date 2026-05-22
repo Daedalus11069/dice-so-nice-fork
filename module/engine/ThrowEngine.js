@@ -204,6 +204,8 @@ export class ThrowEngine {
 				mass *= 0.65;
 				break;
 			case "glass":
+			case "resin":
+			case "frosted":
 				mass *= 2;
 				break;
 			case "stone":
@@ -256,6 +258,9 @@ export class ThrowEngine {
 		}
 
 		let objectContainer = new Group();
+		if(dicemesh.userData.modelScale){
+			objectContainer.scale.setScalar(dicemesh.userData.modelScale);
+		}
 		objectContainer.add(dicemesh);
 
 		this.diceList.push(dicemesh);

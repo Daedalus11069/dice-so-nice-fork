@@ -6,6 +6,8 @@ import {
 	DirectionalLight,
 	FloatType,
 	HalfFloatType,
+	LinearFilter,
+	NoColorSpace,
 	HemisphereLight,
 	Layers,
 	Mesh,
@@ -136,32 +138,26 @@ export class DiceScene {
 		return new Promise(resolve => {
 			this.renderer.scopedTextureCache = { type: type };
 			if (this.dicefactory.realisticLighting) {
-				let textureLoader = new TextureLoader();
-				this.renderer.scopedTextureCache.roughnessMap_fingerprint = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_finger.webp');
-				this.renderer.scopedTextureCache.roughnessMap_wood = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_wood.webp');
-				this.renderer.scopedTextureCache.roughnessMap_metal = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_metal.webp');
-				this.renderer.scopedTextureCache.roughnessMap_stone = textureLoader.load('modules/dice-so-nice/textures/roughnessMap_stone.webp');
 
-				this.renderer.scopedTextureCache.roughnessMap_fingerprint.anisotropy = this.anisotropy;
-				this.renderer.scopedTextureCache.roughnessMap_wood.anisotropy = this.anisotropy;
-				this.renderer.scopedTextureCache.roughnessMap_metal.anisotropy = this.anisotropy;
-				this.renderer.scopedTextureCache.roughnessMap_stone.anisotropy = this.anisotropy;
+				this._loadPbrAtlas().then(() => {
+					this.pmremGenerator = new PMREMGenerator(this.renderer);
+					this.pmremGenerator.compileEquirectangularShader();
 
-				this.pmremGenerator = new PMREMGenerator(this.renderer);
-				this.pmremGenerator.compileEquirectangularShader();
-
-				new HDRLoader()
-					.setDataType(HalfFloatType)
-					.setPath('modules/dice-so-nice/textures/equirectangular/')
-					.load(this.dicefactory.ambiance + '.hdr', function (texture) {
-						this.renderer.scopedTextureCache.textureCube = this.pmremGenerator.fromEquirectangular(texture).texture;
-						this.renderer.scopedTextureCache.textureCube.colorSpace = SRGBColorSpace;
-						this.scene.environment = this.renderer.scopedTextureCache.textureCube;
-						texture.dispose();
-						this.pmremGenerator.dispose();
-						resolve();
-
-					}.bind(this));
+					new HDRLoader()
+						.setDataType(HalfFloatType)
+						.setPath('modules/dice-so-nice/textures/equirectangular/')
+						.load(this.dicefactory.ambiance + '.hdr', function (texture) {
+							this.renderer.scopedTextureCache.textureCube = this.pmremGenerator.fromEquirectangular(texture).texture;
+							this.renderer.scopedTextureCache.textureCube.colorSpace = SRGBColorSpace;
+							this.scene.environment = this.renderer.scopedTextureCache.textureCube;
+							texture.dispose();
+							this.pmremGenerator.dispose();
+							resolve();
+						}.bind(this));
+				}).catch(e => {
+					console.error('Dice So Nice | PBR texture load failed completely', e);
+					resolve();
+				});
 			} else {
 				let loader = new CubeTextureLoader();
 				loader.setPath('modules/dice-so-nice/textures/cubemap/');
@@ -174,6 +170,43 @@ export class DiceScene {
 				resolve();
 			}
 		});
+	}
+
+	async _loadPbrAtlas() {
+		const cache = this.renderer.scopedTextureCache;
+		try {
+			const response = await fetch('modules/dice-so-nice/textures/pbr-maps.json');
+			if (!response.ok) throw new Error(`HTTP ${response.status} loading pbr-maps.json`);
+			const manifest = await response.json();
+			const atlasW = manifest.meta.size.w;
+			const atlasH = manifest.meta.size.h;
+
+			const atlasTexture = await new Promise((resolve, reject) => {
+				new TextureLoader().load(
+					`modules/dice-so-nice/textures/${manifest.meta.image}`,
+					resolve, undefined, reject
+				);
+			});
+			atlasTexture.generateMipmaps = false;
+			atlasTexture.minFilter = LinearFilter;
+			atlasTexture.colorSpace = NoColorSpace;
+
+			cache._atlasFrames = {};
+
+			for (const [frameKey, frameData] of Object.entries(manifest.frames)) {
+				const key = frameKey.replace(/\.webp$/, '');
+				const { x, y, w, h } = frameData.frame;
+
+				const clone = atlasTexture.clone();
+				clone.repeat.set(w / atlasW, h / atlasH);
+				clone.offset.set(x / atlasW, (atlasH - y - h) / atlasH);
+				clone.anisotropy = this.anisotropy;
+				cache[key] = clone;
+				cache._atlasFrames[key] = { x, y, w, h };
+			}
+		} catch (e) {
+			console.error('Dice So Nice | PBR atlas load failed', e);
+		}
 	}
 
 	setScene(dimensions) {

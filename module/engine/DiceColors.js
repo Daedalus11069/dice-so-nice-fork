@@ -672,9 +672,9 @@ export const COLORSETS = {
 		name: 'yellow',
 		description: 'DICESONICE.ColorYellow',
 		category: 'DICESONICE.Colors',
-		foreground: '#000000',
+		foreground: '#FFFFFF',
 		background: '#FFFF00',
-		outline: 'none',
+		outline: '#333333',
 		texture: 'none'
 	},
 	'pink': {
@@ -740,6 +740,39 @@ export const COLORSETS = {
 		outline: ['#3D2D03','#472D04','#301700','#471A04'],
 		edge: ['#FF5D0D','#FF7B00','#FFA20D','#FFBA0D'],
 		texture: ['bronze01','bronze02','bronze03','bronze03b','bronze03b','bronze04']
+	},
+	'amber': {
+		name: 'amber',
+		description: 'DICESONICE.ColorAmber',
+		category: 'DICESONICE.AcquiredTaste',
+		foreground: '#ffd700',
+		background: '#c87533',
+		outline: '#8b4513',
+		edge: '#b8860b',
+		texture: 'none',
+		material: 'resin'
+	},
+	'sea_glass': {
+		name: 'sea_glass',
+		description: 'DICESONICE.ColorSeaGlass',
+		category: 'DICESONICE.AcquiredTaste',
+		foreground: '#ffffff',
+		background: '#a8d8d8',
+		outline: '#5f9ea0',
+		edge: '#88c0c0',
+		texture: 'none',
+		material: 'frosted'
+	},
+	'royal_velvet': {
+		name: 'royal_velvet',
+		description: 'DICESONICE.ColorRoyalVelvet',
+		category: 'DICESONICE.AcquiredTaste',
+		foreground: '#f5deb3',
+		background: '#4a0e4e',
+		outline: '#2d0a2e',
+		edge: '#6b1a6e',
+		texture: 'none',
+		material: 'velvet'
 	},
 	'custom': {
 		name: 'custom',
@@ -997,7 +1030,7 @@ export class DiceColors {
 		// generate the colors, textures, and materials for the random set
 		if(!entries)
 		{
-			const RANDOM_MATERIALS = ['plastic', 'metal', 'wood', 'glass', 'chrome', 'pristine', 'iridescent', 'stone'];
+			const RANDOM_MATERIALS = ['plastic', 'metal', 'wood', 'glass', 'chrome', 'pristine', 'iridescent', 'stone', 'resin', 'frosted', 'velvet'];
 			for (let i = 0; i < 10; i++) {
 				let randcolor = this.randomColor();
 				let randtex = this.getTexture('random');

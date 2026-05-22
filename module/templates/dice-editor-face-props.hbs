@@ -54,7 +54,7 @@
             <button type="button" class="file-picker" data-face-filepicker><i class="fas fa-file-import"></i></button>
         </div>
     </div>
-    <div class="label-image-controls" style="display:none">
+    <div class="label-image-controls" hidden>
         <div class="form-group">
             <label>{{localize "DICESONICE.editorImageScale"}}</label>
             <div class="form-fields">
@@ -89,10 +89,10 @@
         <div class="form-fields custom-texture-fields">
             <input type="text" name="faceCustomTexturePath" value="{{faceCustomTexturePath}}" readonly placeholder="" />
             <button type="button" class="file-picker" data-face-texture-filepicker><i class="fas fa-file-import"></i></button>
-            <button type="button" class="custom-texture-clear" data-face-texture-clear title="{{localize 'DICESONICE.editorClearCustomTexture'}}" {{#unless isFaceCustomTexture}}style="display:none"{{/unless}}><i class="fas fa-times"></i></button>
+            <button type="button" class="custom-texture-clear" data-face-texture-clear title="{{localize 'DICESONICE.editorClearCustomTexture'}}" {{#unless isFaceCustomTexture}}hidden{{/unless}}><i class="fas fa-times"></i></button>
         </div>
     </div>
-    <div class="form-group face-texture-composite" {{#unless hasFaceTexture}}style="display:none"{{/unless}}>
+    <div class="form-group face-texture-composite" {{#unless hasFaceTexture}}hidden{{/unless}}>
         <label>{{localize "DICESONICE.editorBlendMode"}}</label>
         <div class="form-fields">
             <select name="faceTextureComposite">

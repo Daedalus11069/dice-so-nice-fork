@@ -57,10 +57,10 @@
                 <div class="form-fields custom-texture-fields">
                     <input type="text" name="baseCustomTexturePath" value="{{customTexturePath}}" readonly placeholder="" />
                     <button type="button" class="file-picker" data-base-texture-filepicker><i class="fas fa-file-import"></i></button>
-                    <button type="button" class="custom-texture-clear" data-base-texture-clear title="{{localize 'DICESONICE.editorClearCustomTexture'}}" {{#unless isCustomTexture}}style="display:none"{{/unless}}><i class="fas fa-times"></i></button>
+                    <button type="button" class="custom-texture-clear" data-base-texture-clear title="{{localize 'DICESONICE.editorClearCustomTexture'}}" {{#unless isCustomTexture}}hidden{{/unless}}><i class="fas fa-times"></i></button>
                 </div>
             </div>
-            <div class="form-group texture-composite" {{#unless hasBaseTexture}}style="display:none"{{/unless}}>
+            <div class="form-group texture-composite" {{#unless hasBaseTexture}}hidden{{/unless}}>
                 <label>{{localize "DICESONICE.editorBlendMode"}}</label>
                 <div class="form-fields">
                     <select name="baseTextureComposite">
@@ -69,7 +69,7 @@
                 </div>
             </div>
             <hr />
-            <div class="dice-editor-face-props" data-face-props style="display:none;">
+            <div class="dice-editor-face-props" data-face-props hidden>
                 <h3>{{localize "DICESONICE.editorFaceProps"}}</h3>
                 {{{facePropsHtml}}}
             </div>
