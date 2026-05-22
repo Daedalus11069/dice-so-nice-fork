@@ -181,7 +181,7 @@
     "DICESONICE.MaterialIridescent": "Opalizujący",
     "DICESONICE.MaterialStone": "Kamień",
     "DICESONICE.FontAuto": "Auto (Motyw)",
-    "DICESONICE.System.Standard": "Domyślnie",
+    "DICESONICE.System.Standard": "Standardowe",
     "DICESONICE.System.Dot": "Kropka (Biała)",
     "DICESONICE.System.DotBlack": "Kropka (Czarna)",
     "DICESONICE.SurfaceFelt": "Filc",
@@ -287,7 +287,7 @@
     "DICESONICE.settingsDisplay": "Wyświetlanie",
     "DICESONICE.ExportLibrary": "Eksportuj moją bibliotekę kości",
     "DICESONICE.persistentDiceOutlines": "Trwałe kontury kości",
-    "DICESONICE.advancedGlass": "Zaawansowane renderowanie szkła",
+    "DICESONICE.advancedGlass": "Zaawansowane renderowanie półprzezroczyste",
     "DICESONICE.ambiance": "Nastrój",
     "DICESONICE.AmbianceNeutral": "Neutralny",
     "DICESONICE.AmbianceNeon": "Neonowy",
@@ -525,5 +525,11 @@
     "DICESONICE.CustomDiceTermSaved": "{denomination} zostało zapisane.",
     "DICESONICE.CustomDiceTermImportError": "Nie udało się zaimportować warunków niestandardowych kości.",
     "DICESONICE.CustomDiceTermImportResult": "Import zakończony: {imported} zaimportowano, {skipped} pominięto.",
-    "DICESONICE.CustomDiceTermDefaultAppearance": "Domyślny wygląd"
+    "DICESONICE.CustomDiceTermDefaultAppearance": "Domyślny wygląd",
+    "DICESONICE.ColorAmber": "Żywica bursztynowa",
+    "DICESONICE.ColorSeaGlass": "Morskie szkło",
+    "DICESONICE.ColorRoyalVelvet": "Królewski aksamit",
+    "DICESONICE.MaterialResin": "Żywica",
+    "DICESONICE.MaterialFrosted": "Matowe",
+    "DICESONICE.MaterialVelvet": "Aksamit"
 }

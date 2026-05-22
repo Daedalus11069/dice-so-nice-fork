@@ -284,7 +284,7 @@
     "DICESONICE.ChatCommandDescription": "Lancer des dés 3D sans créer de message",
     "DICESONICE.ChatCommandCompletionDescription": "Entrer une formule de jet.",
     "DICESONICE.settingsDisplay": "Affichage",
-    "DICESONICE.advancedGlass": "Rendu avancé du verre",
+    "DICESONICE.advancedGlass": "Rendu avancé de la transparence",
     "DICESONICE.ambiance": "Ambiance",
     "DICESONICE.AmbianceNeutral": "Neutre",
     "DICESONICE.AmbianceNeon": "Néon",
@@ -528,5 +528,11 @@
     "DICESONICE.sfxFormulaErrorBadKeyword": "Mot-clé inconnu « {kw} ». Utilisez : success, failure, discarded, rerolled, exploded",
     "DICESONICE.sfxModeToggle": "Passer du mode simple au mode avancé",
     "DICESONICE.sfxFormulaPlaceholder": "ex : d20 == 1,20 ou success(d6cs=3) > 2",
-    "DICESONICE.sfxFormulaErrorTooManyParts": "Trop d'éléments. Utilisez le format : [nombre]d<faces>[modificateur] [valeur de l'opérateur]"
+    "DICESONICE.sfxFormulaErrorTooManyParts": "Trop d'éléments. Utilisez le format : [nombre]d<faces>[modificateur] [valeur de l'opérateur]",
+    "DICESONICE.ColorSeaGlass": "Verre Marin",
+    "DICESONICE.MaterialResin": "Résine",
+    "DICESONICE.MaterialFrosted": "Dépoli",
+    "DICESONICE.MaterialVelvet": "Velours",
+    "DICESONICE.ColorAmber": "Résine Ambrée",
+    "DICESONICE.ColorRoyalVelvet": "Velours Royal"
 }
