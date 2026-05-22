@@ -884,8 +884,7 @@ export class DiceFactory {
 
 		if(diceobj.model){
 			dicemesh = diceobj.model.scene.children[0].clone();
-			let scale = (scopedScale / 100) * (diceobj.scaleModifier || 1);
-			dicemesh.scale.set(scale,scale,scale);
+			dicemesh.userData.modelScale = (scopedScale / 100) * (diceobj.scaleModifier || 1);
 			if(!dicemesh.geometry)
 				dicemesh.geometry = {};
 			if(diceobj.model.animations.length>0){

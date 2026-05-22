@@ -258,6 +258,9 @@ export class ThrowEngine {
 		}
 
 		let objectContainer = new Group();
+		if(dicemesh.userData.modelScale){
+			objectContainer.scale.setScalar(dicemesh.userData.modelScale);
+		}
 		objectContainer.add(dicemesh);
 
 		this.diceList.push(dicemesh);

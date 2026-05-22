@@ -1,4 +1,4 @@
-import { Mesh, PlaneGeometry, ShadowMaterial } from 'three';
+import { Mesh, Group, PlaneGeometry, ShadowMaterial } from 'three';
 import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
 import { Utils } from '../Utils.js';
 
@@ -87,20 +87,30 @@ export class ShowcaseView {
 				const preset = this.dicefactory.getPresetBySystem(selectordice[count], appearance.system);
 				const modifier = preset?.scaleModifier || 1;
 				const showcaseNormalize = modifier > 1 ? 1 / modifier : 1;
-				dicemesh.scale.set(
-					Math.min(dicemesh.scale.x * 5 / columns, dicemesh.scale.x * 2 / rows) * showcaseNormalize,
-					Math.min(dicemesh.scale.y * 5 / columns, dicemesh.scale.y * 2 / rows) * showcaseNormalize,
-					Math.min(dicemesh.scale.z * 5 / columns, dicemesh.scale.z * 2 / rows) * showcaseNormalize
+
+				let sceneObject = dicemesh;
+				if(dicemesh.userData.modelScale){
+					let container = new Group();
+					container.scale.setScalar(dicemesh.userData.modelScale);
+					container.add(dicemesh);
+					sceneObject = container;
+				}
+
+				const s = sceneObject.scale;
+				sceneObject.scale.set(
+					Math.min(s.x * 5 / columns, s.x * 2 / rows) * showcaseNormalize,
+					Math.min(s.y * 5 / columns, s.y * 2 / rows) * showcaseNormalize,
+					Math.min(s.z * 5 / columns, s.z * 2 / rows) * showcaseNormalize
 				);
 
-				dicemesh.position.set(x * this.diceScene.display.containerWidth / columns, 0, y * this.diceScene.display.containerHeight / rows);
+				sceneObject.position.set(x * this.diceScene.display.containerWidth / columns, 0, y * this.diceScene.display.containerHeight / rows);
 
-				dicemesh.castShadow = this.dicefactory.shadows;
+				sceneObject.castShadow = this.dicefactory.shadows;
 
-				dicemesh.userData = selectordice[count];
+				sceneObject.userData = selectordice[count];
 
-				this.diceList.push(dicemesh);
-				this.diceScene.scene.add(dicemesh);
+				this.diceList.push(sceneObject);
+				this.diceScene.scene.add(sceneObject);
 				count++;
 			}
 		}
