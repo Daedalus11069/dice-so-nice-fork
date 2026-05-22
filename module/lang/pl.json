@@ -525,5 +525,11 @@
     "DICESONICE.CustomDiceTermSaved": "{denomination} zostało zapisane.",
     "DICESONICE.CustomDiceTermImportError": "Nie udało się zaimportować warunków niestandardowych kości.",
     "DICESONICE.CustomDiceTermImportResult": "Import zakończony: {imported} zaimportowano, {skipped} pominięto.",
-    "DICESONICE.CustomDiceTermDefaultAppearance": "Domyślny wygląd"
+    "DICESONICE.CustomDiceTermDefaultAppearance": "Domyślny wygląd",
+    "DICESONICE.ColorAmber": "Żywica bursztynowa",
+    "DICESONICE.ColorSeaGlass": "Morskie szkło",
+    "DICESONICE.ColorRoyalVelvet": "Królewski aksamit",
+    "DICESONICE.MaterialResin": "Żywica",
+    "DICESONICE.MaterialFrosted": "Matowe",
+    "DICESONICE.MaterialVelvet": "Aksamit"
 }
