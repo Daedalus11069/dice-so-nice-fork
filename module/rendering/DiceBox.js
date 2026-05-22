@@ -341,6 +341,14 @@ export class DiceBox {
 		}
 
 		this.isVisible = true;
+
+		if (!this.diceScene.animatedDiceDetected) {
+			dicemesh.traverse(obj => {
+				if (obj.mixer || obj.material?.mixer)
+					this.diceScene.animatedDiceDetected = true;
+			});
+		}
+
 		this.renderScene();
 
 		return dicemesh;
