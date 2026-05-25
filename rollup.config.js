@@ -5,7 +5,8 @@ import terser from '@rollup/plugin-terser';
 import del from 'rollup-plugin-delete';
 import copy from 'rollup-plugin-copy';
 import webWorkerLoader from 'rollup-plugin-web-worker-loader';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync, readdirSync, existsSync } from 'fs';
+import { execSync } from 'child_process';
 
 // Define static files for the copy plugin
 const staticFiles = [
@@ -13,7 +14,6 @@ const staticFiles = [
   { name: "fonts" },
   { name: "images" },
   { name: "lang" },
-  { name: "select2.min.js", folder: "libs" },
   { name: "models", folder: "sfx" },
   { name: "sounds", folder: "sfx" },
   { name: "textures", folder: "sfx" },
@@ -62,6 +62,38 @@ const config = {
         }
       }
     },
+    !isWatch && {
+      name: 'convert-atlas-png-to-webp',
+      buildStart() {
+        const texturesDir = './module/textures';
+        for (const file of readdirSync(texturesDir)) {
+          if (!file.endsWith('.json')) continue;
+          const jsonPath = `${texturesDir}/${file}`;
+          const manifest = JSON.parse(readFileSync(jsonPath, 'utf8'));
+          if (!manifest.meta?.image?.endsWith('.png')) continue;
+
+          const pngPath = `${texturesDir}/${manifest.meta.image}`;
+          const webpName = manifest.meta.image.replace(/\.png$/, '.webp');
+          const webpPath = `${texturesDir}/${webpName}`;
+
+          if (!existsSync(pngPath)) continue;
+
+          console.log(`[Dice So Nice] Converting ${manifest.meta.image} -> ${webpName}`);
+          try {
+            execSync(`cwebp -near_lossless 30 -noalpha "${pngPath}" -o "${webpPath}"`);
+          } catch (e) {
+            throw new Error(`[Dice So Nice] cwebp failed. Install libwebp (apt install webp / brew install webp).\n${e.message}`);
+          }
+
+          const pngName = manifest.meta.image;
+          manifest.meta.image = webpName;
+          writeFileSync(jsonPath, JSON.stringify(manifest, null, '\t'));
+
+          unlinkSync(pngPath);
+          console.log(`[Dice So Nice] Deleted ${pngName}`);
+        }
+      }
+    },
     !isWatch && del({
       targets: 'dist/*',
       runOnce: true
@@ -81,6 +113,12 @@ const config = {
       {
         src: `node_modules/three/build/three.core.min.js`,
         dest: `dist/libs`
+      }]
+    }),
+    !isWatch && copy({
+      targets: [{
+        src: `node_modules/slim-select/dist/slimselect.css`,
+        dest: `dist/css`
       }]
     }),
     //add a copy of Draco decoder to the draco folder for three.js

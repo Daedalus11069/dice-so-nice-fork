@@ -1,15 +1,21 @@
-import { DiceFactory } from './DiceFactory.js';
-import { DiceBox } from './DiceBox.js';
-import { DiceColors, TEXTURELIST, COLORSETS } from './DiceColors.js';
+import { DiceFactory } from './engine/DiceFactory.js';
+import { DiceBox } from './rendering/DiceBox.js';
+import { DiceColors, TEXTURELIST, COLORSETS } from './engine/DiceColors.js';
 import { DiceNotation } from './DiceNotation.js';
-import { DiceSFXManager } from './DiceSFXManager.js';
+import { DiceSFXManager } from './sfx/DiceSFXManager.js';
 import { Accumulator } from './Accumulator.js';
 import { Utils } from './Utils.js';
 import { ThinFilmFresnelMap } from './libs/ThinFilmFresnelMap.js';
 import { TextureLoader } from 'three';
 import { DiceTourMain } from './tours/DiceTourMain.js';
-import { DiceSFX } from './DiceSFX.js';
+import { DiceSFX } from './sfx/DiceSFX.js';
 import { DiceSystem } from './DiceSystem.js';
+import { DiceLibrary } from './engine/DiceLibrary.js';
+import { InitiativeMask } from './ui/InitiativeMask.js';
+import { CompanionLink } from './CompanionLink.js';
+import { CustomDiceTerms } from './engine/CustomDiceTerms.js';
+import { SpawnLayout } from './interaction/SpawnLayout.js';
+import { LEGACY_TO_METERS } from './engine/SceneConstants.js';
 /**
  * Main class to handle 3D Dice animations.
  */
@@ -25,6 +31,8 @@ export class Dice3D {
                 quality.antialiasing = "none";
                 quality.useHighDPI = false;
                 quality.imageQuality = "low";
+                quality.persistentDiceOutlines = false;
+                quality.advancedGlass = false;
                 break;
             case 1:
                 quality.bumpMapping = true;
@@ -33,6 +41,8 @@ export class Dice3D {
                 quality.antialiasing = "none";
                 quality.useHighDPI = false;
                 quality.imageQuality = "medium";
+                quality.persistentDiceOutlines = false;
+                quality.advancedGlass = false;
                 break;
             case 2:
             case 3:
@@ -42,12 +52,13 @@ export class Dice3D {
                 quality.antialiasing = game.canvas.app.renderer.context.webGLVersion === 2 ? "msaa" : "smaa";
                 quality.useHighDPI = true;
                 quality.imageQuality = "high";
+                quality.persistentDiceOutlines = true;
+                quality.advancedGlass = true;
                 break;
         }
         return {
-            enabled: true,
+            visibility: "all",
             showExtraDice: game.dice3d && game.dice3d.hasOwnProperty("defaultShowExtraDice") ? game.dice3d.defaultShowExtraDice : false,
-            onlyShowOwnDice: false,
             hideAfterRoll: true,
             timeBeforeHide: 2000,
             hideFX: 'fadeOut',
@@ -60,16 +71,21 @@ export class Dice3D {
             sounds: true,
             soundsSurface: 'felt',
             soundsVolume: 0.5,
-            canvasZIndex: 'over',
+            canvasZIndex: 'auto',
             throwingForce: 'medium',
             useHighDPI: quality.useHighDPI,
             antialiasing: quality.antialiasing,
             glow: quality.glow,
+            persistentDiceOutlines: quality.persistentDiceOutlines,
+            advancedGlass: quality.advancedGlass,
+            ambiance: "foyer_1k",
             showOthersSFX: true,
             immersiveDarkness: true,
             muteSoundSecretRolls: false,
             enableFlavorColorset: true,
-            rollingArea: false
+            skipAnimationOnInactiveTab: false,
+            rollingArea: false,
+            persistentDiceSpawnLocation: "center"
         };
     }
 
@@ -90,23 +106,32 @@ export class Dice3D {
     }
 
     static ALL_DEFAULT_OPTIONS(user = game.user) {
-        let options = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, { appearance: Dice3D.DEFAULT_APPEARANCE(user) }, { performDeletions: true });
+        let options = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, { appearance: Dice3D.DEFAULT_APPEARANCE(user) }, { applyOperators: true });
         options.appearance.global.system = game.dice3d.DiceFactory.preferredSystem;
         options.appearance.global.colorset = game.dice3d.DiceFactory.preferredColorset;
         return options;
     }
 
     static CONFIG(user = game.user) {
-        let userSettings = user.getFlag("dice-so-nice", "settings") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "settings")) : null;
-        let config = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, userSettings, { performDeletions: true });
-        foundry.utils.mergeObject(config, { "-=appearance": null, "-=sfxLine": null }, { performDeletions: true });
+        let userSettings = user.getFlag("dice-so-nice", "settings") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "settings")) : {};
+        let config = foundry.utils.mergeObject(Dice3D.DEFAULT_OPTIONS, userSettings, { applyOperators: true });
+        delete config.appearance;
+        delete config.sfxLine;
         return config;
     }
 
-    static APPEARANCE(user = game.user) {
-        let userAppearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : null;
-        let appearance = foundry.utils.mergeObject(Dice3D.DEFAULT_APPEARANCE(user), userAppearance, { performDeletions: true });
-        return foundry.utils.mergeObject(appearance, { "-=dimensions": null }, { performDeletions: true });
+    static APPEARANCE(user = game.user, actor = null) {
+        let userAppearance = user.getFlag("dice-so-nice", "appearance") ? foundry.utils.duplicate(user.getFlag("dice-so-nice", "appearance")) : {};
+        let appearance = foundry.utils.mergeObject(Dice3D.DEFAULT_APPEARANCE(user), userAppearance, { applyOperators: true });
+        delete appearance.dimensions;
+        if (actor) {
+            let actorAppearance = actor.getFlag("dice-so-nice", "appearance");
+            if (actorAppearance) {
+                actorAppearance = foundry.utils.duplicate(actorAppearance);
+                appearance = foundry.utils.mergeObject(appearance, actorAppearance, { applyOperators: true });
+            }
+        }
+        return Utils.sanitizeAppearance(appearance, user);
     }
 
     static SFX(user = game.user) {
@@ -136,7 +161,7 @@ export class Dice3D {
     /**
      * Get the full customizations settings for the _showAnimation method 
      */
-    static ALL_CUSTOMIZATION(user = game.user, dicefactory = null) {
+    static ALL_CUSTOMIZATION(user = game.user, dicefactory = null, actor = null) {
         let specialEffects = Dice3D.SFX(user) || [];
         game.users.forEach((other) => {
             if (other.isGM && other.id != user.id) {
@@ -147,18 +172,19 @@ export class Dice3D {
                 }
             }
         });
-        let config = foundry.utils.mergeObject({ appearance: Dice3D.APPEARANCE(user) }, { specialEffects: specialEffects }, { performDeletions: true });
-        if (dicefactory && !game.user.getFlag("dice-so-nice", "appearance")) {
+        let config = foundry.utils.mergeObject({ appearance: Dice3D.APPEARANCE(user, actor) }, { specialEffects: specialEffects }, { applyOperators: true });
+        if (dicefactory && !user.getFlag("dice-so-nice", "appearance") && !actor?.getFlag("dice-so-nice", "appearance")) {
             if (dicefactory.preferredSystem != "standard")
                 config.appearance.global.system = dicefactory.preferredSystem;
             if (dicefactory.preferredColorset != "custom")
                 config.appearance.global.colorset = dicefactory.preferredColorset;
         }
+        config.diceLibrary = DiceLibrary.getLibraryForUser(user);
         return config;
     }
 
-    static ALL_CONFIG(user = game.user) {
-        let ret = foundry.utils.mergeObject(Dice3D.CONFIG(user), { appearance: Dice3D.APPEARANCE(user) }, { performDeletions: true });
+    static ALL_CONFIG(user = game.user, actor = null) {
+        let ret = foundry.utils.mergeObject(Dice3D.CONFIG(user), { appearance: Dice3D.APPEARANCE(user, actor) }, { applyOperators: true });
         ret.specialEffects = Dice3D.SFX(user);
         return ret;
     }
@@ -193,9 +219,25 @@ export class Dice3D {
     }
 
     /**
+     * Force preload of every dice preset registered under a given system id.
+     * Useful for systems/modules that register internal dice presets that
+     * users may never select in their appearance settings - without this,
+     * those presets load lazily on the first roll and cause visible lag.
+     *
+     * Call this once after registering your presets (typically from the
+     * `diceSoNiceReady` hook).
+     *
+     * @param {String} systemId - Id of the system whose presets should be preloaded
+     * @returns {Promise<void>}
+     */
+    async preloadPresets(systemId) {
+        await this.DiceFactory.forceLoadPresets(systemId);
+    }
+
+    /**
      * Add a texture to the list of textures and preload it
-     * @param {String} textureID 
-     * @param {Object} textureData 
+     * @param {String} textureID
+     * @param {Object} textureData
      * @returns {Promise}
      */
     addTexture(textureID, textureData) {
@@ -225,9 +267,11 @@ export class Dice3D {
             texture: "custom",
             material: "custom",
             font: "custom",
-            visibility: "visible"
+            visibility: "visible",
+            labelComposite: "source-over",
+            backgroundComposite: "source-over"
         }
-        colorset = foundry.utils.mergeObject(defaultValues, colorset, { performDeletions: true });
+        colorset = foundry.utils.mergeObject(defaultValues, colorset, { applyOperators: true });
         COLORSETS[colorset.name] = colorset;
         DiceColors.initColorSets(colorset);
 
@@ -266,6 +310,19 @@ export class Dice3D {
     }
 
     /**
+     * Get available SFX modes by id -> localized name.
+     * @returns {Object<string, string>}
+     */
+    getSFXModes() {
+        const modes = DiceSFXManager.SFX_MODE_LIST || {};
+        const localized = {};
+        Object.entries(modes).forEach(([id, key]) => {
+            localized[id] = game.i18n.localize(key);
+        });
+        return localized;
+    }
+
+    /**
      * Load a save file by its name
      * @param {String} name 
      * @returns {Promise}
@@ -284,6 +341,12 @@ export class Dice3D {
         return this.DiceFactory.systems;
     }
 
+    /**
+     * @param {string} selector - CSS selector for the elements to hide during a message update animation (default: ".dice-roll")
+     */
+    setMessageUpdateHideSelector(selector) {
+        this._messageUpdateHideSelector = selector;
+    }
 
     /**
      * Constructor. Create and initialize a new Dice3d.
@@ -292,7 +355,8 @@ export class Dice3D {
         Hooks.call("diceSoNiceInit", this);
         this.dice3dRenderers = {
             "board": null,
-            "showcase": null
+            "showcase": null,
+            "editor": null
         };
 
         this.exports = {
@@ -302,32 +366,54 @@ export class Dice3D {
             "COLORSETS": COLORSETS
         };
 
+        this._iridescenceLookUp = null;
+        this._iridescenceNoise = null;
+        const self = this;
+
         this.uniforms = {
             globalBloom: { value: 1 },
             bloomStrength: { value: 1.1 },
             bloomRadius: { value: 0.2 },
             bloomThreshold: { value: 0 },
-            iridescenceLookUp: { value: new ThinFilmFresnelMap() },
-            iridescenceNoise: { value: new TextureLoader().load("modules/dice-so-nice/textures/noise-thin-film.webp") },
+            iridescenceLookUp: { get value() { return self._iridescenceLookUp ??= new ThinFilmFresnelMap(); }, set value(v) { self._iridescenceLookUp = v; } },
+            iridescenceNoise: { get value() { return self._iridescenceNoise ??= new TextureLoader().load("modules/dice-so-nice/textures/noise-thin-film.webp"); }, set value(v) { self._iridescenceNoise = v; } },
             boost: { value: 1.5 },
             time: { value: 0 }
         };
 
         this.hiddenAnimationQueue = [];
+        this._messageUpdateHideSelector = ".dice-roll";
         this.defaultShowExtraDice = Dice3D.DEFAULT_OPTIONS.showExtraDice;
+
+        //local user's persistent dice data, keyed by persistentId
+        this._persistentDiceData = new Map();
     }
 
     init() {
         this._buildCanvas();
         this._initListeners();
         this._buildDiceBox();
-        DiceColors.loadTextures(TEXTURELIST, async (images) => {
-            DiceColors.initColorSets();
+        this.diceLibrary = new DiceLibrary();
 
+        if (Dice3D.CONFIG().visibility === "none") {
+            DiceColors.initColorSets();
             Hooks.call("diceSoNiceReady", this);
-            await this.DiceFactory._loadFonts();
-            await this.DiceFactory.preloadPresets();
-        });
+        } else {
+            DiceColors.loadTextures(TEXTURELIST, async (images) => {
+                DiceColors.initColorSets();
+
+                Hooks.call("diceSoNiceReady", this);
+                await this.DiceFactory._loadFonts();
+                await this.diceLibrary.load();
+                await CustomDiceTerms.applyDefaultAppearances();
+                await DiceLibrary.preloadAssets();
+                await this.DiceFactory.preloadPresets();
+                await this._preloadActorDocuments();
+                //restore persistent dice from flags
+                await this._restoreAllPersistentDice();
+            });
+        }
+
         DiceSFXManager.init();
         this._startQueueHandler();
         this._nextAnimationHandler();
@@ -336,7 +422,29 @@ export class Dice3D {
     }
 
     get canInteract() {
-        return !this.box.running;
+        return !this.box.running || this.box.persistentDiceList.length > 0;
+    }
+
+    async _preloadActorDocuments() {
+        let preloadList = game.settings.get("dice-so-nice", "documentsForPreload");
+        if (!preloadList?.length) return;
+
+        let cleaned = false;
+        const validUuids = [];
+        for (const uuid of preloadList) {
+            const doc = foundry.utils.fromUuidSync(uuid);
+            if (!doc) {
+                cleaned = true;
+                continue;
+            }
+            validUuids.push(uuid);
+            await DiceLibrary.preloadAssets(null, uuid);
+            await this.DiceFactory.preloadPresets(false, null, {}, uuid);
+        }
+
+        if (cleaned && game.user.isGM) {
+            await game.settings.set("dice-so-nice", "documentsForPreload", validUuids);
+        }
     }
 
     /**
@@ -362,21 +470,35 @@ export class Dice3D {
             area.top = config.rollingArea.top;
         }
 
-        if (!config.enabled) {
-            area.width = 1;
-            area.height = 1;
-        }
-
-        this.canvas = $(`<div id="dice-box-canvas" style="position: absolute; left: ${area.left}px; top: ${area.top}px; pointer-events: none;"></div>`);
+        this.canvas = document.createElement("div");
+        this.canvas.id = "dice-box-canvas";
+        this.canvas.style.cssText = `position: absolute; left: ${area.left}px; top: ${area.top}px; pointer-events: none;`;
         if (config.canvasZIndex === "over") {
-            this.canvas.css("z-index", 1000);
-            this.canvas.appendTo($('body'));
+            this.canvas.style.zIndex = 1000;
+            document.body.append(this.canvas);
+        } else if (config.canvasZIndex === "auto") {
+            this.canvas.style.zIndex = 0;
+            document.body.append(this.canvas);
+        } else {
+            document.getElementById("board").after(this.canvas);
         }
-        else {
-            $("#board").after(this.canvas);
+        this.canvas.style.width = area.width + 'px';
+        this.canvas.style.height = area.height + 'px';
+    }
+
+    _isAutoMode() {
+        return Dice3D.CONFIG().canvasZIndex === 'auto';
+    }
+
+    _raiseCanvas() {
+        if (!this._isAutoMode()) return;
+        const maxZ = foundry.applications?.api?.ApplicationV2?._maxZ;
+        if (maxZ == null) {
+            this.canvas.style.zIndex = 1000;
+        } else {
+            this.canvas.style.zIndex = ++foundry.applications.api.ApplicationV2._maxZ;
         }
-        this.canvas.width(area.width + 'px');
-        this.canvas.height(area.height + 'px');
+        if (ui.activeWindow) ui.activeWindow = null;
     }
 
     /**
@@ -386,13 +508,50 @@ export class Dice3D {
      */
     _buildDiceBox() {
         this.DiceFactory = new DiceFactory();
+        CustomDiceTerms.registerPresetsInFactory(this.DiceFactory);
         let config = Dice3D.ALL_CONFIG();
         config.boxType = "board";
 
         config.dimensions = this._computeDimensions(config.rollingArea);
 
-        this.box = new DiceBox(this.canvas[0], this.DiceFactory, config);
-        this.box.initialize();
+        this.box = new DiceBox(this.canvas, this.DiceFactory, config);
+
+        if (config.visibility === "none") {
+            this._boxReady = null;
+        } else {
+            this._boxReady = this.box.initialize();
+        }
+
+        this.box.onPersistentEvent = (type, data) => this._emitPersistentEvent(type, data);
+        this.box.sfxListForUser = (user) => Dice3D.ALL_CUSTOMIZATION(user).specialEffects || [];
+        this.box.onQueueThrow = (throwData) => this._showPersistentThrow(throwData);
+    }
+
+    _computeDimensions(rollingArea) {
+        const dimensions = {
+            width: window.innerWidth,
+            height: window.innerHeight - 1,
+            margin: {
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0
+            }
+        };
+
+        if(!rollingArea) {
+            if (ui.sidebar.expanded) {
+                dimensions.margin.right = ui.sidebar.element.clientWidth;
+            } else {
+                const sidebarContent = ui.sidebar.element.querySelector("#sidebar-content");
+                dimensions.margin.right = sidebarContent?.clientWidth || ui.sidebar.element.clientWidth;
+            }
+        } else {
+            dimensions.width = rollingArea.width;
+            dimensions.height = rollingArea.height;
+        }
+
+        return dimensions;
     }
 
     _computeDimensions(rollingArea) {
@@ -427,23 +586,13 @@ export class Dice3D {
     _initListeners() {
         this._rtime;
         this._timeout = false;
-        $(window).resize(() => {
-            this._rtime = new Date();
-            if (this._timeout === false) {
-                this._timeout = true;
-                setTimeout(resizeEnd.bind(this), 1000);
-            }
-        });
 
-        const resizeEnd = () => {
-            if (new Date() - this._rtime < 1000) {
-                setTimeout(resizeEnd.bind(this), 1000);
-            } else {
-                this._timeout = false;
-                //resize ended probably, lets update the canvas
-                this.resizeAndRebuild();
-            }
-        };
+        const resizeHandler = () => {
+            //resize ended probably, lets update the canvas once the current animation is complete
+            this._currentAnimation.then(() => this.resizeAndRebuild());
+        }
+        const debouncedResizeHandler = foundry.utils.debounce(resizeHandler.bind(this), 1000);
+        window.addEventListener("resize", debouncedResizeHandler);
 
         // Resize the play area
         // Only works if the window size hasn't changed
@@ -455,7 +604,9 @@ export class Dice3D {
 
         //Only used after a window resize
         this.resizeAndRebuild = () => {
-            this.canvas[0].remove();
+            if (!this.box.initialized) return;
+
+            this.canvas.remove();
             this.dice3dRenderers.board.dispose();
             this.dice3dRenderers.board = null;
 
@@ -471,14 +622,18 @@ export class Dice3D {
             this.DiceFactory.systems = systemBackup;
         };
 
-        $(document).on("click", ".dice-so-nice-btn-settings", (ev) => {
+        document.addEventListener("click", (ev) => {
+            const target = ev.target.closest(".dice-so-nice-btn-settings");
+            if (!target) return;
             ev.preventDefault();
-            const menu = game.settings.menus.get(ev.currentTarget.dataset.key);
+            const menu = game.settings.menus.get(target.dataset.key);
             const app = new menu.type();
             return app.render(true);
         });
 
-        $(document).on("click", ".dice-so-nice-btn-tour", (ev) => {
+        document.addEventListener("click", (ev) => {
+            const target = ev.target.closest(".dice-so-nice-btn-tour");
+            if (!target) return;
             ev.preventDefault();
             game.tours.get("dice-so-nice.dice-so-nice-tour").start();
         });
@@ -487,28 +642,79 @@ export class Dice3D {
             switch (request.type) {
                 case "show":
                     if (!request.users || request.users.includes(game.user.id))
-                        this.show(request.data, game.users.get(request.user));
+                        this.show(request.data, game.users.get(request.user), false, null, false, request.speaker);
                     break;
                 case "update":
-                    if (request.user == game.user.id || Dice3D.CONFIG().showOthersSFX)
-                        DiceSFXManager.init();
-                    if (request.user != game.user.id) {
-                        this.DiceFactory.preloadPresets(false, request.user);
+                    if (request.document) {
+                        DiceLibrary.preloadAssets(null, request.document);
+                        this.DiceFactory.preloadPresets(false, null, {}, request.document);
+                        if (game.user.isGM) {
+                            let preloadList = game.settings.get("dice-so-nice", "documentsForPreload");
+                            if (!preloadList.includes(request.document)) {
+                                preloadList = [...preloadList, request.document];
+                                game.settings.set("dice-so-nice", "documentsForPreload", preloadList);
+                            }
+                        }
+                    } else {
+                        if (request.user == game.user.id || Dice3D.CONFIG().showOthersSFX)
+                            DiceSFXManager.init();
+                        if (request.user != game.user.id) {
+                            DiceLibrary.preloadAssets(request.user);
+                            this.DiceFactory.preloadPresets(false, request.user);
+                        }
                     }
+                    break;
+                case "gmPush":
+                    //GM overwrote my flags - reload my own state so new config takes effect without a reload
+                    if (request.targets && request.targets.includes(game.user.id)) {
+                        DiceSFXManager.init();
+                        this.update(Dice3D.CONFIG());
+                        ui.notifications.info(game.i18n.localize("DICESONICE.GMPushReceived"));
+                    }
+                    break;
+                case "customTermSync":
+                    CustomDiceTerms.sync(request.definitions || {}, this.DiceFactory);
+                    CustomDiceTerms.applyDefaultAppearances();
+                    break;
+                case "persistent-create":
+                case "persistent-remove":
+                case "persistent-clear":
+                case "persistent-pickup":
+                case "persistent-move":
+                case "persistent-release":
+                case "persistent-preroll":
+                case "persistent-throw":
+                    if (request.user !== game.user.id)
+                        this._handlePersistentMessage(request).catch(err =>
+                            console.error("[Dice So Nice] Persistent sync error:", err));
                     break;
             }
         });
 
+        //clean up persistent dice when user disconnects (locked dice would stay stuck otherwise)
+        Hooks.on("userConnected", (user, connected) => {
+            if (!this.box.initialized) return;
+            if (!connected) {
+                this._cleanupDisconnectedUser(user.id);
+                this.box.clearPersistentDice({ ownerUserId: user.id });
+                return;
+            }
+            //restore connecting user's persistent dice from their flags
+            this._restorePersistentDiceFromFlags(user.id, false);
+        });
+
         const hideCanvasAndClear = () => {
             const config = Dice3D.CONFIG();
-            if (!config.hideAfterRoll && this.canvas.is(":visible") && !this.box.rolling) {
-                this.canvas.hide();
+            if (!config.hideAfterRoll && this.canvas.style.display !== "none" && !this.box.rolling) {
+                if (this.box.persistentDiceList.length === 0) {
+                    this.canvas.style.display = "none";
+                }
                 this.box.clearAll();
             }
         }
 
         const mouseNDC = (event) => {
-            let rect = this.canvas[0].getBoundingClientRect();
+            let rect = this.canvas.getBoundingClientRect();
             let x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             if (x > 1)
                 x = 1;
@@ -517,32 +723,58 @@ export class Dice3D {
         }
 
         if (game.settings.get("dice-so-nice", "allowInteractivity")) {
-            $(document).on("mousemove.dicesonice", "body", async (event) => {
-                if (!this.canInteract)
-                    return;
-                await this.box.onMouseMove(event, mouseNDC(event));
-            });
-
-            $(document).on("mousedown.dicesonice", "body", async (event) => {
-                if (!this.canInteract)
-                    return;
+            //pointer events + setPointerCapture to avoid dropped drags
+            //capture phase on window so nothing downstream can stopPropagation
+            //TODO: touch/pen input not supported yet for persistent dice
+            this._dsnPointerDown = async (event) => {
+                if (event.pointerType && event.pointerType !== "mouse") return;
+                if (!this.canInteract) return;
+                //temporarily flip pointer-events to auto so elementsFromPoint can see the canvas,
+                //then restore immediately. respects stacking order (modals, dialogs, etc.)
+                //look up fresh each time in case _buildCanvas recreated the div
+                const dsnEl = document.getElementById("dice-box-canvas");
+                if (dsnEl && typeof document.elementFromPoint === "function") {
+                    const prevPE = dsnEl.style.pointerEvents;
+                    let topmost;
+                    dsnEl.style.pointerEvents = "auto";
+                    try {
+                        topmost = document.elementFromPoint(event.clientX, event.clientY);
+                    } finally {
+                        dsnEl.style.pointerEvents = prevPE;
+                    }
+                    if (topmost && topmost !== dsnEl && !dsnEl.contains(topmost)) {
+                        return;
+                    }
+                }
                 let hit = await this.box.onMouseDown(event, mouseNDC(event));
-                if (hit)
+                if (hit) {
+                    try {
+                        document.documentElement.setPointerCapture?.(event.pointerId);
+                    } catch (e) { /* capture is best-effort */ }
                     this._beforeShow();
-                else {
+                } else {
                     hideCanvasAndClear();
                 }
-            });
-
-            $(document).on("mouseup.dicesonice", "body", async (event) => {
-                if (!this.canInteract)
-                    return;
+            };
+            this._dsnPointerMove = async (event) => {
+                if (event.pointerType && event.pointerType !== "mouse") return;
+                if (!this.canInteract) return;
+                await this.box.onMouseMove(event, mouseNDC(event));
+            };
+            this._dsnPointerUp = async (event) => {
+                if (event.pointerType && event.pointerType !== "mouse") return;
+                if (!this.canInteract) return;
                 let hit = await this.box.onMouseUp(event);
-                if (hit)
-                    this._afterShow();
-            });
+                if (hit) this._afterShow();
+            };
+            //no removeEventListener needed, _initListeners runs once per session
+            window.addEventListener("pointerdown", this._dsnPointerDown, true);
+            window.addEventListener("pointermove", this._dsnPointerMove, true);
+            window.addEventListener("pointerup", this._dsnPointerUp, true);
+            //pointercancel = OS took the pointer, treat as release
+            window.addEventListener("pointercancel", this._dsnPointerUp, true);
         } else {
-            $(document).on("mousedown.dicesonice", "body", async (event) => {
+            document.addEventListener("mousedown", async (event) => {
                 hideCanvasAndClear();
             });
         }
@@ -599,7 +831,7 @@ export class Dice3D {
      */
     isEnabled() {
         let combatEnabled = (!game.combat || !game.combat.started) || (game.combat && game.combat.started && !game.settings.get("dice-so-nice", "disabledDuringCombat"));
-        return Dice3D.CONFIG().enabled && combatEnabled;
+        return Dice3D.CONFIG().visibility !== "none" && combatEnabled;
     }
 
     /**
@@ -612,53 +844,167 @@ export class Dice3D {
     }
 
     /**
+     * Add metadata to dice with roll dependencies (ie 1d(1d4)) so they can be sorted into the same bucket and
+     * rolled after their dependencies resolve, without dragging those dependencies into the same bucket and causing them to roll together.
+     */
+    _assignDependentRollOrder(rolls) {
+        const DiceTerm = foundry.dice.terms.DiceTerm;
+        const RollClass = foundry.dice.Roll;
+        const ParentheticalTerm = foundry.dice.terms.ParentheticalTerm;
+        const PoolTerm = foundry.dice.terms.PoolTerm;
+        const FunctionTerm = foundry.dice.terms.FunctionTerm;
+
+        //collect the immediate dice contained in a roll-term subtree without descending
+        //into die _number/_faces
+        const collectTopDice = (term, out) => {
+            if (!term) return;
+            if (term instanceof DiceTerm) { out.push(term); return; }
+            if (term instanceof ParentheticalTerm && term.roll) {
+                for (const t of term.roll.terms ?? []) collectTopDice(t, out);
+                return;
+            }
+            if ((term instanceof PoolTerm || term instanceof FunctionTerm) && term.rolls) {
+                for (const r of term.rolls)
+                    for (const t of r.terms ?? []) collectTopDice(t, out);
+            }
+        };
+
+        //recursively visit a die: mark inner dependency dice and return this die depth
+        const visitDie = (die) => {
+            let innerMax = -1;
+            for (const sub of [die._number, die._faces]) {
+                if (sub instanceof RollClass) {
+                    const innerDice = [];
+                    for (const t of sub.terms ?? []) collectTopDice(t, innerDice);
+                    for (const innerDie of innerDice) {
+                        if (!innerDie.options) innerDie.options = {};
+                        innerDie.options.dsnDependentBucket = true;
+                        const d = visitDie(innerDie);
+                        if (d > innerMax) innerMax = d;
+                    }
+                }
+            }
+            const myDepth = innerMax + 1;
+            if (!die.options) die.options = {};
+            if (myDepth > 0) die.options.dsnDependentBucket = true;
+            if (die.options.dsnDependentBucket) {
+                //compose with any pre-existing rollOrder
+                const existing = die.options.hasOwnProperty("rollOrder") ? die.options.rollOrder : 0;
+                die.options.rollOrder = existing + myDepth;
+            }
+            return myDepth;
+        };
+
+        for (const roll of rolls ?? []) {
+            const tops = [];
+            for (const t of roll.terms ?? []) collectTopDice(t, tops);
+            for (const die of tops) visitDie(die);
+        }
+    }
+
+    /**
+     * Returns a die with _number/_faces Roll dependencies that have been collapsed to their primitive values.
+     * Returns the original die unchanged when no dependencies are present.
+     */
+    _stripDependencyRolls(die) {
+        const RollClass = foundry.dice.Roll;
+        if (!(die._number instanceof RollClass) && !(die._faces instanceof RollClass)) return die;
+        //shallow clone preserving prototype so instanceof checks (Die / DiceTerm) still pass
+        const clone = Object.assign(Object.create(Object.getPrototypeOf(die)), die);
+        clone.options = { ...die.options };
+        if (die._number instanceof RollClass) clone._number = die.number;
+        if (die._faces instanceof RollClass) clone._faces = die.faces;
+        return clone;
+    }
+
+    /**
      * Parse, sort and add the dice animation to the queue for a chat message and an array of Roll
      * Used internally by the message Hooks. Not meant to be used outside of the module.
      * Please use the showForRoll method instead.
-     * @param {ChatMessage} chatMessage 
-     * @param {Array<Roll>} rolls 
+     * @param {ChatMessage} chatMessage
+     * @param {Array<Roll>} rolls
      */
     renderRolls(chatMessage, rolls) {
+        //sequence dependent dice like (1d4)d6 so the inner roll resolves before the outer one spawns
+        this._assignDependentRollOrder(rolls);
+
+        const animId = chatMessage._dice3dCurrentAnimId;
         const showMessage = () => {
-            delete chatMessage._dice3danimating;
-
-            let messageElement = $(window.ui.chat.element).find(`.message[data-message-id="${chatMessage.id}"]`);
-            messageElement.removeClass("dsn-hide");
-
+            let messageElement = window.ui.chat.element.querySelector(`.message[data-message-id="${chatMessage.id}"]`);
             let messageElementPopout;
             if (window.ui.sidebar.popouts.chat) {
-                messageElementPopout = $(window.ui.sidebar.popouts.chat.element).find(`.message[data-message-id="${chatMessage.id}"]`);
-                messageElementPopout.removeClass("dsn-hide");
+                messageElementPopout = window.ui.sidebar.popouts.chat.element.querySelector(`.message[data-message-id="${chatMessage.id}"]`);
             }
 
-            // Manage v13 popup system - TODO clean up consistency jquery
+            // Guard the fallback with _shouldShowNotifications() to avoid double-firing the notification pip (#538).
             const notificationElement = document.querySelector(`#chat-notifications .message[data-message-id="${chatMessage.id}"]`);
             if (notificationElement) {
                 notificationElement.classList.remove("dsn-hide");
-                notificationElement._lifeSpan = 0; // Reset lifespan so timeout duration starts from when the message is shown. No public method yet
-            }
-
-            if(!ui.sidebar.expanded) {
+                notificationElement._lifeSpan = 0;
+            } else if (ui.chat._shouldShowNotifications()) {
                 ui.chat.notify(chatMessage, { newMessage: true, existing: ui.chat.element.querySelector(`[data-message-id="${chatMessage.id}"]`) });
             }
 
-            if (chatMessage._dice3dMessageHidden) {
-                //first/initial rolls are done
+            if (chatMessage._dice3dMessageHidden && !animId) {
+                // initial rolls done, reveal the entire message
                 chatMessage._dice3dMessageHidden = false;
-            } else if (chatMessage._dice3dRollsHidden && chatMessage._dice3dRollsHidden.length) {
-                //subsequent rolls. for every 'done' roll we reveal x hidden rolls by shifting the _dice3dRollsHidden array
-                messageElement.find(`.dice-roll.dsn-hide`).slice(0, chatMessage._dice3dRollsHidden.shift()).removeClass("dsn-hide");
+                if (messageElement) messageElement.classList.remove("dsn-hide");
+                if (messageElementPopout) messageElementPopout.classList.remove("dsn-hide");
+            }
 
-                if (window.ui.sidebar.popouts.chat) {
-                    messageElementPopout.find(`.dice-roll.dsn-hide`).slice(0, chatMessage._dice3dRollsHidden.shift()).removeClass("dsn-hide");
+            if (animId) {
+                // update rolls done, reveal elements tagged with this animation id
+                if (!chatMessage._dice3dMessageHidden) {
+                    if (messageElement) messageElement.classList.remove("dsn-hide");
+                    if (messageElementPopout) messageElementPopout.classList.remove("dsn-hide");
+                }
+
+                const revealSelector = `${this._messageUpdateHideSelector}.dsn-hide[data-dsn-anim-id="${animId}"]`;
+                if (!chatMessage._dice3dExistingRollFingerprints)
+                    chatMessage._dice3dExistingRollFingerprints = [];
+                if (messageElement) {
+                    const toReveal = messageElement.querySelectorAll(revealSelector);
+                    toReveal.forEach(el => {
+                        chatMessage._dice3dExistingRollFingerprints.push(el.textContent.trim());
+                    });
+                    toReveal.forEach(el => {
+                        el.classList.remove("dsn-hide");
+                        el.removeAttribute("data-dsn-anim-id");
+                    });
+                }
+
+                if (messageElementPopout) {
+                    messageElementPopout.querySelectorAll(revealSelector).forEach(el => {
+                        el.classList.remove("dsn-hide");
+                        el.removeAttribute("data-dsn-anim-id");
+                    });
+                }
+
+                if (chatMessage._dice3dAnimFingerprints) {
+                    delete chatMessage._dice3dAnimFingerprints[animId];
                 }
             }
 
-            Hooks.callAll("diceSoNiceRollComplete", chatMessage.id);
+            InitiativeMask.release(chatMessage.id);
 
-            if (window.ui.chat.isAtBottom || chatMessage.user.id === game.user.id)
+            chatMessage._dice3dPendingRenders = (chatMessage._dice3dPendingRenders || 1) - 1;
+            let companionIds = [];
+            if (chatMessage._dice3dPendingRenders <= 0) {
+                chatMessage._dice3dPendingRenders = 0;
+                delete chatMessage._dice3danimating;
+                delete chatMessage._dice3dCountNewRolls;
+                delete chatMessage._dice3dExistingRollFingerprints;
+                delete chatMessage._dice3dAnimFingerprints;
+                delete chatMessage._dice3dCurrentAnimId;
+                delete chatMessage._dice3dAnimIdCounter;
+                companionIds = CompanionLink.release(chatMessage.id);
+            }
+
+            Hooks.callAll("diceSoNiceRollComplete", chatMessage.id, companionIds);
+
+            if (window.ui.chat.isAtBottom || chatMessage.author?.id === game.user.id)
                 window.ui.chat.scrollBottom({ popout: false });
-            if (window.ui.sidebar.popouts.chat && (window.ui.sidebar.popouts.chat.isAtBottom || chatMessage.user.id === game.user.id))
+            if (window.ui.sidebar.popouts.chat && (window.ui.sidebar.popouts.chat.isAtBottom || chatMessage.author?.id === game.user.id))
                 window.ui.sidebar.popouts.chat.scrollBottom();
         }
 
@@ -668,81 +1014,160 @@ export class Dice3D {
             //1- We create a list of all 3D rolls, ordered ASC
             //2- We create a Roll object with the correct formula and results
             //3- We queue the showForRoll calls and then show the message
-            let orderedDiceList = [[]];
-            rolls.forEach(roll => {
-                roll.dice.forEach(diceTerm => {
-                    let index = 0;
-                    if (!game.settings.get("dice-so-nice", "enabledSimultaneousRollForMessage") && diceTerm.options.hasOwnProperty("rollOrder")) {
-                        index = diceTerm.options.rollOrder;
-                        if (orderedDiceList[index] == null) {
-                            orderedDiceList[index] = [];
-                        }
-                    }
 
-                    //In order to allow for custom appearance and the roll level, we merge the roll appearance in the dice term
-                    if (roll.options?.appearance) {
-                        if (!diceTerm.options)
-                            diceTerm.options = {};
-                        if (!diceTerm.options.appearance)
-                            diceTerm.options.appearance = {};
-                        diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
-                    }
-
-                    orderedDiceList[index].push(diceTerm);
-                });
-            });
-            orderedDiceList = orderedDiceList.filter(el => el != null);
-
-            let rollList = [];
             const plus = new foundry.dice.terms.OperatorTerm({ operator: "+" });
-            //_evaluated is false in v12, true in v13+
             if (!plus._evaluated)
                 plus.evaluate();
 
-            orderedDiceList.forEach(dice => {
-                //add a "plus" between each term
-                if (Array.isArray(dice) && dice.length) {
-                    let termList = [...dice].map((e, i) => i < dice.length - 1 ? [e, plus] : [e]).reduce((a, b) => a.concat(b));
-                    //We use the Roll class registered in the CONFIG constant in case the system overwrites it (eg: HeXXen)
-                    rollList.push(CONFIG.Dice.rolls[0].fromTerms(termList));
-                }
-            });
+            const buildRollList = (rollsToProcess) => {
+                let orderedDiceList = [[]];
+                rollsToProcess.forEach(roll => {
+                    roll.dice.forEach(diceTerm => {
+                        let index = 0;
 
-            //call each promise one after the other, then call the showMessage function
-            const recursShowForRoll = (rollList, index) => {
-                let author = chatMessage.author;
-                if (chatMessage.getFlag("core", "initiativeRoll") && game.settings.get("dice-so-nice", "forceCharacterOwnerAppearanceForInitiative")) {
-                    if (chatMessage.speaker) {
-                        const actor = game.actors.get(chatMessage.speaker.actor);
-                        if (actor && actor.hasPlayerOwner) {
-                            //get the user from game.users
-                            author = game.users.find(user => !user.isGM && user.character?.id == actor.id);
-                            if (!author) {
-                                //if we could not find a player user, we try to find a player owner, if and only if the actor only has a single player owner (but can have multiple GMs)
-                                const ownership = { ...actor.ownership }; //ie {"default": 0,"Q1Qcc8RRRcvG6QjE": 3}
-                                if (ownership.default != CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) { //Check that the default isn't Owner
-                                    //now get all the owners that are not GMs nor the default
-                                    delete ownership.default;
-                                    const playerOwners = Object.keys(ownership).filter(key => game.users.get(key) && !game.users.get(key).isGM);
-                                    //if there is only one player owner
-                                    if (playerOwners.length == 1) {
-                                        author = game.users.get(playerOwners[0]);
-                                    }
-                                }
+                        //backfill rollOrder from roll options so you don't have to set it on every dice term
+                        if (roll.options?.rollOrder != null) {
+                            if (!diceTerm.options) diceTerm.options = {};
+                            if (!diceTerm.options.hasOwnProperty("rollOrder"))
+                                diceTerm.options.rollOrder = roll.options.rollOrder;
+                        }
+
+                        if (diceTerm.options?.hasOwnProperty("rollOrder")) {
+                            index = diceTerm.options.rollOrder;
+                            if (orderedDiceList[index] == null) {
+                                orderedDiceList[index] = [];
                             }
+                        }
+
+                        //In order to allow for custom appearance and the roll level, we merge the roll appearance in the dice term
+                        if (roll.options?.appearance) {
+                            if (!diceTerm.options)
+                                diceTerm.options = {};
+                            if (!diceTerm.options.appearance)
+                                diceTerm.options.appearance = {};
+                            diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
+                        }
+
+                        //backfill damage type from roll options so term-level detection catches it
+                        //per-term values always win over whole-roll values
+                        if (roll.options?.type || roll.options?.flavor) {
+                            if (!diceTerm.options) diceTerm.options = {};
+                            if (!diceTerm.options.type && roll.options.type)
+                                diceTerm.options.type = roll.options.type;
+                            if (!diceTerm.options.flavor && roll.options.flavor)
+                                diceTerm.options.flavor = roll.options.flavor;
+                        }
+
+                        if (roll.data?.actorId) {
+                            if (!diceTerm.options) diceTerm.options = {};
+                            if (!diceTerm.options.dsnActorId)
+                                diceTerm.options.dsnActorId = roll.data.actorId;
+                        }
+
+                        orderedDiceList[index].push(diceTerm);
+                    });
+                });
+                orderedDiceList = orderedDiceList.filter(el => el != null);
+
+                let rollList = [];
+                orderedDiceList.forEach(dice => {
+                    //add a "plus" between each term
+                    if (Array.isArray(dice) && dice.length) {
+                        //strip dependency rolls from each die so the per-bucket Roll's flat .dice
+                        //list contains only this bucket's dice - otherwise a (1d4)d6 d6 in bucket 1
+                        //would re-render the d4 alongside it via Roll.dice's recursive walk
+                        const cleanDice = dice.map(this._stripDependencyRolls);
+                        let termList = [...cleanDice].map((e, i) => i < cleanDice.length - 1 ? [e, plus] : [e]).reduce((a, b) => a.concat(b));
+                        //We use the Roll class registered in the CONFIG constant in case the system overwrites it (eg: HeXXen)
+                        rollList.push(CONFIG.Dice.rolls[0].fromTerms(termList));
+                    }
+                });
+                return rollList;
+            };
+
+            const resolveOwnerForActor = (actor) => {
+                if (!actor?.hasPlayerOwner) return null;
+                let ownerUser = game.users.find(user => !user.isGM && user.character?.id == actor.id);
+                if (!ownerUser) {
+                    const ownership = { ...actor.ownership };
+                    if (ownership.default != CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
+                        delete ownership.default;
+                        const playerOwners = Object.keys(ownership).filter(key => game.users.get(key) && !game.users.get(key).isGM);
+                        if (playerOwners.length == 1) {
+                            ownerUser = game.users.get(playerOwners[0]);
                         }
                     }
                 }
-                this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, chatMessage.speaker).then(() => {
-                    index++;
-                    if (rollList[index] != null)
-                        recursShowForRoll(rollList, index);
-                    else
-                        showMessage();
-                });
+                return ownerUser || null;
             };
 
-            recursShowForRoll(rollList, 0);
+            //chain rollList entries sequentially (for rollOrder), then call done
+            const showRollList = (rollList, author, speaker, done, rollTotal) => {
+                const recurse = (index) => {
+                    this.showForRoll(rollList[index], author, false, null, false, chatMessage.id, speaker, { originalRollTotal: rollTotal }).then(() => {
+                        if (rollList[index + 1] != null)
+                            recurse(index + 1);
+                        else
+                            done();
+                    });
+                };
+                if (rollList.length > 0) recurse(0);
+                else done();
+            };
+
+            const ownerAppearanceSetting = game.settings.get("dice-so-nice", "forceCharacterOwnerAppearance");
+            const shouldResolveOwner = ownerAppearanceSetting === "2"
+                || (ownerAppearanceSetting === "1" && chatMessage.getFlag("core", "initiativeRoll"));
+
+            // When multiple actors contributed rolls and owner resolution is active,
+            // group by actorId so each group gets the correct owner appearance.
+            // Otherwise treat all rolls as a single group.
+            const actorIdSet = new Set(rolls.filter(r => r.data?.actorId).map(r => r.data.actorId));
+            const shouldSplitByActor = actorIdSet.size > 1 && shouldResolveOwner;
+
+            const groups = new Map();
+            if (shouldSplitByActor) {
+                rolls.forEach(roll => {
+                    const aid = roll.data?.actorId || "";
+                    if (!groups.has(aid)) groups.set(aid, []);
+                    groups.get(aid).push(roll);
+                });
+            } else {
+                groups.set(null, rolls);
+            }
+
+            const promises = [];
+            for (const [actorId, groupRolls] of groups) {
+                const rollList = buildRollList(groupRolls);
+                if (rollList.length === 0) continue;
+
+                let author = chatMessage.author;
+                let speaker = chatMessage.speaker;
+
+                if (shouldResolveOwner) {
+                    let resolvedActorId = actorId || rollList[0].dice?.[0]?.options?.dsnActorId;
+                    let actor;
+                    if (resolvedActorId) {
+                        actor = game.actors.get(resolvedActorId);
+                    }
+                    if (!actor && chatMessage.speaker) {
+                        actor = ChatMessage.getSpeakerActor(chatMessage.speaker);
+                    }
+                    const ownerUser = resolveOwnerForActor(actor);
+                    if (ownerUser) {
+                        author = ownerUser;
+                        if (resolvedActorId) speaker = { actor: resolvedActorId };
+                    }
+                }
+
+                const groupRollTotal = groupRolls.reduce((sum, r) => sum + (r.total ?? 0), 0);
+                promises.push(new Promise(resolve => showRollList(rollList, author, speaker, resolve, groupRollTotal)));
+            }
+
+            if (promises.length > 0)
+                Promise.all(promises).then(() => showMessage());
+            else
+                showMessage();
         }
     }
 
@@ -779,7 +1204,9 @@ export class Dice3D {
         const applyAppearance = (roll) => {
             if (roll.rolls) { // Is PoolTerm
                 roll.rolls.forEach(applyAppearance);
-            } else if (roll.options?.appearance) { // Is Roll with appearance
+                return;
+            }
+            if (roll.options?.appearance) { // Is Roll with appearance
                 roll.dice.forEach(diceTerm => {
                     if (!diceTerm.options)
                         diceTerm.options = {};
@@ -788,18 +1215,28 @@ export class Dice3D {
                     diceTerm.options.appearance = foundry.utils.mergeObject(diceTerm.options.appearance, roll.options.appearance);
                 });
             }
+            //backfill damage type from roll options so term-level detection catches it
+            if (roll.options?.type || roll.options?.flavor) {
+                roll.dice.forEach(diceTerm => {
+                    if (!diceTerm.options) diceTerm.options = {};
+                    if (!diceTerm.options.type && roll.options.type)
+                        diceTerm.options.type = roll.options.type;
+                    if (!diceTerm.options.flavor && roll.options.flavor)
+                        diceTerm.options.flavor = roll.options.flavor;
+                });
+            }
         };
         applyAppearance(context.roll);
 
         if (speaker) {
-            let actor = game.actors.get(speaker.actor);
+            let actor = ChatMessage.getSpeakerActor(speaker);
             const isNpc = actor ? !actor.hasPlayerOwner : false;
             if (isNpc && game.settings.get("dice-so-nice", "hideNpcRolls")) {
                 return Promise.resolve(false);
             }
         }
 
-        if (Dice3D.CONFIG().onlyShowOwnDice && user !== game.user) {
+        if (Dice3D.CONFIG().visibility === "mine" && user !== game.user) {
             return Promise.resolve(false);
         }
 
@@ -817,8 +1254,11 @@ export class Dice3D {
         //We allow the hook to modify the roll to be shown without altering the original roll reference
         //This is useful for example to show a different roll than the one made by the user without relying on the manual showForRoll method
         let hookedRoll = context.dsnRoll || context.roll;
-        let notation = new DiceNotation(hookedRoll, Dice3D.ALL_CONFIG(user), user);
-        return this.show(notation, context.user, synchronize, context.users, context.blind);
+        let actor = ChatMessage.getSpeakerActor(speaker);
+        let notation = new DiceNotation(hookedRoll, Dice3D.ALL_CONFIG(user, actor), user);
+        notation.rollTotal = options.originalRollTotal ?? hookedRoll.total ?? null;
+        notation.messageId = messageID;
+        return this.show(notation, context.user, synchronize, context.users, context.blind, speaker);
     }
 
     /**
@@ -831,7 +1271,7 @@ export class Dice3D {
      * @param blind if the roll is blind for the current user
      * @returns {Promise<boolean>} when resolved true if the animation was displayed, false if not.
      */
-    show(data, user = game.user, synchronize = false, users = null, blind) {
+    show(data, user = game.user, synchronize = false, users = null, blind, speaker = null) {
         return new Promise((resolve, reject) => {
 
             if (!data.throws) throw new Error("Roll data should be not null");
@@ -839,21 +1279,27 @@ export class Dice3D {
             if (!data.throws.length || !this.isEnabled()) {
                 resolve(false);
             } else {
+                let actor = ChatMessage.getSpeakerActor(speaker);
+
                 if (synchronize) {
                     users = users && users.length > 0 ? (users[0]?.id ? users.map(user => user.id) : users) : users;
-                    game.socket.emit("module.dice-so-nice", { type: "show", data: data, user: user.id, users: users });
+                    game.socket.emit("module.dice-so-nice", { type: "show", data: data, user: user.id, users: users, speaker: speaker });
                 }
 
                 if (!blind) {
-                    if (document.hidden) {
-                        this.hiddenAnimationQueue.push({
-                            data: data,
-                            config: Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory),
-                            timestamp: (new Date()).getTime(),
-                            resolve: resolve
-                        });
+                    if (window.document.hidden) {
+                        if (Dice3D.CONFIG().skipAnimationOnInactiveTab) {
+                            resolve(false);
+                        } else {
+                            this.hiddenAnimationQueue.push({
+                                data: data,
+                                config: Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory, actor),
+                                timestamp: (new Date()).getTime(),
+                                resolve: resolve
+                            });
+                        }
                     } else {
-                        this._showAnimation(data, Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory)).then(displayed => {
+                        this._showAnimation(data, Dice3D.ALL_CUSTOMIZATION(user, this.DiceFactory, actor)).then(displayed => {
                             resolve(displayed);
                         });
                     }
@@ -898,8 +1344,13 @@ export class Dice3D {
             });
         }
         return new Promise((resolve, reject) => {
-            if (game.dice3d && Dice3D.CONFIG().enabled && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
-                buildHook(resolve);
+            if (game.dice3d && Dice3D.CONFIG().visibility !== "none" && !game.settings.get("dice-so-nice", "immediatelyDisplayChatMessages")) {
+                const message = game.messages.get(targetMessageId);
+                if (message?._dice3danimating) {
+                    buildHook(resolve);
+                } else {
+                    resolve(true);
+                }
             } else {
                 resolve(true);
             }
@@ -922,6 +1373,17 @@ export class Dice3D {
                 params: notation,
                 resolve: resolve
             });
+        });
+    }
+
+    _showPersistentThrow(throwData) {
+        const idle = this.queue.length === 0 && !this.box.running;
+        return new Promise((resolve) => {
+            this.nextAnimation.addItem({
+                type: "persistent",
+                params: throwData,
+                resolve: resolve
+            }, { immediate: idle });
         });
     }
 
@@ -970,25 +1432,62 @@ export class Dice3D {
         const timing = game.settings.get("dice-so-nice", "enabledSimultaneousRolls") ? 400 : 0;
 
         this.nextAnimation = new Accumulator(timing, async (items) => {
-            // If dice are disabled or queue is too long, resolve all items as false
             if (!this.isEnabled() || this.queue.length >= 10) {
+                items.forEach(item => item.resolve(false));
+                if (this.box.inputHandler) this.box.inputHandler.clearPendingThrowDice();
+                return;
+            }
+
+            //partition items by type
+            const ephemeralItems = items.filter(i => i.type !== "persistent");
+            const persistentItems = items.filter(i => i.type === "persistent");
+
+            const commands = ephemeralItems.length > 0 ? DiceNotation.mergeQueuedRollCommands(ephemeralItems) : [];
+
+            //merge persistent items into a single throwData for the unified batch
+            let mergedPersistentData = null;
+            if (persistentItems.length > 0) {
+                const allHeldDice = [];
+                const mergedForcedByMesh = new Map();
+                let roll = null, primaries = null, sfxList = [];
+                for (const item of persistentItems) {
+                    const p = item.params;
+                    allHeldDice.push(...p.heldDice);
+                    for (const [mesh, val] of p.forcedByMesh) {
+                        mergedForcedByMesh.set(mesh, val);
+                    }
+                    if (!roll && p.roll) { roll = p.roll; primaries = p.primaries; }
+                    if (p.sfxList) sfxList.push(...p.sfxList);
+                }
+                mergedPersistentData = {
+                    heldDice: allHeldDice,
+                    velocity: persistentItems[0].params.velocity,
+                    forcedByMesh: mergedForcedByMesh,
+                    roll,
+                    primaries,
+                    sfxList: sfxList.length > 0 ? sfxList : undefined
+                };
+            }
+
+            //each throw index (explosion level) becomes a separate sequential batch
+            const batches = commands.length > 0 ? [...commands] : [];
+            if (batches.length === 0 && mergedPersistentData) batches.push([]);
+
+            if (batches.length === 0) {
                 items.forEach(item => item.resolve(false));
                 return;
             }
 
-            // Merge multiple roll commands into a single command array
-            const commands = DiceNotation.mergeQueuedRollCommands(items);
-            let remainingAnimations = commands.length;
+            let remainingAnimations = batches.length;
 
-            // Chain the animations using promises
             this._currentAnimation = this._currentAnimation.then(async () => {
-                // Process each dice throw command
-                for (const diceThrow of commands) {
+                for (let ci = 0; ci < batches.length; ci++) {
+                    //persistent data rides with the first throw group
+                    const persistentData = ci === 0 ? mergedPersistentData : null;
                     this.queue.push(() => new Promise(async (resolve) => {
                         this._beforeShow();
-                        await this.box.start_throw(diceThrow, () => {
+                        await this.box.startUnifiedBatch(batches[ci], persistentData, () => {
                             remainingAnimations--;
-                            // When all animations are complete, resolve items and cleanup
                             if (remainingAnimations === 0) {
                                 items.forEach(item => item.resolve(true));
                                 this._afterShow();
@@ -997,6 +1496,7 @@ export class Dice3D {
                         });
                     }));
                 }
+
                 return this._processQueue();
             });
 
@@ -1012,8 +1512,11 @@ export class Dice3D {
         if (this.timeoutHandle) {
             clearTimeout(this.timeoutHandle);
         }
-        this.canvas.stop(true);
-        this.canvas.show();
+        this.box.cancelFade();
+        this._cancelCanvasFade();
+        this.canvas.style.display = "";
+        this.canvas.style.opacity = "";
+        this._raiseCanvas();
     }
 
     /**
@@ -1028,24 +1531,519 @@ export class Dice3D {
             } else {
                 this.timeoutHandle = setTimeout(() => {
                     if (!this.box.rolling) {
+                        const hasPersistentDice = this.box.persistentDiceList.length > 0;
                         if (Dice3D.CONFIG().hideFX === 'none') {
-                            this.canvas.hide();
+                            if (!hasPersistentDice) {
+                                this.canvas.style.display = "none";
+                            }
                             this.box.clearAll();
                         }
                         if (Dice3D.CONFIG().hideFX === 'fadeOut') {
-                            this.canvas.fadeOut({
-                                duration: 1000,
-                                complete: () => {
+                            if (hasPersistentDice) {
+                                this.box.fadeOutEphemeral(1000);
+                            } else {
+                                this._fadeOutCanvas(1000, () => {
                                     this.box.clearAll();
-                                },
-                                fail: () => {
-                                    this.canvas.fadeIn(0);
-                                }
-                            });
+                                });
+                            }
                         }
                     }
                 }, Dice3D.CONFIG().timeBeforeHide);
             }
         }
+    }
+
+    /**
+     * Fade the canvas out over `duration` ms, then call `complete`.
+     * @private
+     */
+    _fadeOutCanvas(duration, complete) {
+        this._cancelCanvasFade();
+        this.canvas.style.transition = `opacity ${duration}ms ease`;
+        this.canvas.style.opacity = "0";
+        this._canvasFadeTimer = setTimeout(() => {
+            this.canvas.style.display = "none";
+            this.canvas.style.transition = "";
+            this.canvas.style.opacity = "";
+            this._canvasFadeTimer = null;
+            if (complete) complete();
+        }, duration);
+    }
+
+    /**
+     * Cancel any in-progress canvas fade animation.
+     * @private
+     */
+    _cancelCanvasFade() {
+        if (this._canvasFadeTimer) {
+            clearTimeout(this._canvasFadeTimer);
+            this._canvasFadeTimer = null;
+        }
+        this.canvas.style.transition = "";
+    }
+
+    /**
+     * Spawn a persistent die on the tabletop.
+     */
+    async spawnPersistentDie(type, position = null, opts = {}, synchronize = true) {
+        const user = opts.ownerUserId ? game.users.get(opts.ownerUserId) : game.user;
+        //raw appearances for socket sync and flag persistence
+        const rawAppearances = opts._rawAppearances || Dice3D.APPEARANCE(user);
+        const appearance = opts.appearance || this.DiceFactory.getAppearanceForDice(rawAppearances, type);
+        const diceLibrary = opts.diceLibrary ?? DiceLibrary.getLibraryForUser(user);
+        if (!position) {
+            const config = Dice3D.CONFIG(user);
+            const count = this.box.persistentDiceManager?.countPersistentDiceByOwner(user.id) ?? 0;
+            position = SpawnLayout.computeSpawnPosition(count, count + 1, config.persistentDiceSpawnLocation, this._computeSpawnBounds());
+        }
+        this._beforeShow();
+        const mesh = await this.box.spawnPersistentDie(type, appearance, position, diceLibrary, opts);
+        if (mesh && synchronize) {
+            this._emitPersistentEvent("create", {
+                data: {
+                    persistentId: mesh.userData.persistentId,
+                    dieType: type,
+                    positionPct: position || this._toPositionPct(
+                        mesh.parent.position.x,
+                        mesh.parent.position.z
+                    ),
+                    linkGroupId: opts.linkGroupId || null,
+                    linkGroupSecondary: opts.linkGroupSecondary || false,
+                    digitPlace: opts.digitPlace ?? null,
+                    appearances: rawAppearances,
+                    diceLibrary: diceLibrary
+                }
+            });
+        }
+        if (mesh && mesh.userData.ownerUserId === game.user?.id) {
+            this._persistentDiceData.set(mesh.userData.persistentId, {
+                persistentId: mesh.userData.persistentId,
+                dieType: type,
+                appearances: rawAppearances,
+                diceLibrary,
+                linkGroupId: opts.linkGroupId || null,
+                linkGroupSecondary: opts.linkGroupSecondary || false,
+                digitPlace: opts.digitPlace ?? null
+            });
+            this._savePersistentDiceToFlags();
+        }
+        return mesh;
+    }
+
+    async setVisibility(mode) {
+        if (mode !== "all" && mode !== "mine" && mode !== "none") return;
+        const oldMode = Dice3D.CONFIG().visibility;
+        const settings = game.user.getFlag("dice-so-nice", "settings") || {};
+        await game.user.setFlag("dice-so-nice", "settings", { ...settings, visibility: mode });
+
+        const crossingNone = (oldMode === "none") !== (mode === "none");
+        if (crossingNone) {
+            foundry.applications.settings.SettingsConfig.reloadConfirm();
+            return;
+        }
+
+        this.box?.applyVisibility(mode);
+    }
+
+    /**
+     * Remove a persistent die from the tabletop.
+     */
+    async removePersistentDie(persistentId, synchronize = true) {
+        const wasLocal = this._persistentDiceData.has(persistentId);
+        await this.box.removePersistentDie(persistentId);
+        if (this.box.persistentDiceList.length === 0 && !this.box.rolling) {
+            this._afterShow();
+        }
+        if (synchronize) {
+            this._emitPersistentEvent("remove", {
+                data: { persistentId }
+            });
+        }
+        if (wasLocal) {
+            this._persistentDiceData.delete(persistentId);
+            this._savePersistentDiceToFlags();
+        }
+    }
+
+    /**
+     * Dismiss all ephemeral (non-persistent) dice currently on the board.
+     * If a roll is still animating, the replay is fast-forwarded to its end
+     * so the natural finalization path runs - which fires result events,
+     * runs SFX init, and reveals the chat message - before the dice are cleared.
+     * Persistent dice are left untouched.
+     * @returns {Promise<boolean>} true if something was dismissed, false otherwise.
+     */
+    async dismissEphemeralDice() {
+        const box = this.box;
+        if (!box) return false;
+
+        //a roll in flight needs to finalize naturally so the chat message reveal fires
+        if (box.rolling) {
+            const engine = box.throwEngine;
+            //push iteration past throwFinished's threshold - next animateThrow tick
+            //will run fireResultEvents => handleSpecialEffectsInit => callback => rolling=false
+            engine.iteration = Math.max(engine.iterationsNeeded || 0, engine.minIterations || 0) + 1;
+            await new Promise(resolve => {
+                const poll = () => {
+                    if (!box.rolling) resolve();
+                    else requestAnimationFrame(poll);
+                };
+                poll();
+            });
+        }
+
+        const engine = box.throwEngine;
+        const hasEphemeral = (engine?.diceList?.length > 0) || (engine?.deadDiceList?.length > 0);
+        if (!hasEphemeral) return false;
+
+        await box.clearAll();
+        if (box.persistentDiceList.length === 0 && this.canvas && this.canvas.style.display !== "none") {
+            this.canvas.style.display = "none";
+        }
+        return true;
+    }
+
+    /**
+     * Clear persistent dice. Pass { ownerUserId } to limit to one user.
+     */
+    async clearPersistentDice(opts = {}, synchronize = true) {
+        await this.box.clearPersistentDice(opts);
+        if (!this.box.rolling) {
+            this._afterShow();
+        }
+        if (synchronize) {
+            this._emitPersistentEvent("clear", {
+                data: { ownerUserId: opts.ownerUserId || null }
+            });
+        }
+        //update local tracking if we cleared our own dice
+        const clearedLocal = !opts.ownerUserId || opts.ownerUserId === game.user?.id;
+        if (clearedLocal) {
+            this._persistentDiceData.clear();
+            this._savePersistentDiceToFlags();
+        }
+    }
+
+    /**
+     * Remove selected persistent dice (respects ownership).
+     */
+    async removeSelectedPersistentDice() {
+        const removedPids = await this.box.removeSelectedPersistentDice();
+        if (!this.box.rolling && this.box.persistentDiceList.length === 0) {
+            this._afterShow();
+        }
+        let localChanged = false;
+        for (const pid of removedPids) {
+            this._emitPersistentEvent("remove", { data: { persistentId: pid } });
+            if (this._persistentDiceData.delete(pid)) localChanged = true;
+        }
+        if (localChanged) this._savePersistentDiceToFlags();
+        return removedPids.size;
+    }
+
+    //"move" uses volatile delivery, everything else reliable
+    _emitPersistentEvent(type, data) {
+        const msg = { type: `persistent-${type}`, user: game.user.id, ...data };
+        if (type === "move") {
+            game.socket.volatile.emit("module.dice-so-nice", msg);
+        } else {
+            game.socket.emit("module.dice-so-nice", msg);
+        }
+    }
+
+    _findPersistentMeshById(persistentId) {
+        return this.box.persistentDiceList.find(
+            m => m.userData.persistentId === persistentId
+        ) || null;
+    }
+
+    _toPositionPct(worldX, worldZ) {
+        return this.box.toPositionPct(worldX, worldZ);
+    }
+
+    _fromPositionPct(pct) {
+        return this.box.fromPositionPct(pct);
+    }
+
+    _computeSpawnBounds() {
+        const display = this.box.diceScene.display;
+        const cW = display.containerWidth;
+        const cH = display.containerHeight;
+        const iW = display.innerWidth;
+        const iH = display.innerHeight;
+        const barriersScale = 0.97;
+        const sidebarMargin = display.containerMargin?.right || 0;
+
+        const bLeft = -cW * barriersScale;
+        const bRight = (cW - 2 * sidebarMargin) * barriersScale;
+        const bTop = -cH * barriersScale;
+        const bBot = cH * barriersScale;
+
+        return {
+            minX: bLeft / iW + 0.5,
+            maxX: bRight / iW + 0.5,
+            minY: -(bBot / iH) + 0.5,
+            maxY: -(bTop / iH) + 0.5
+        };
+    }
+
+    async _handlePersistentMessage(request) {
+        if (!this.box.initialized) return;
+        if (!request.data) return;
+        switch (request.type) {
+            case "persistent-create": return this._onRemotePersistentCreate(request);
+            case "persistent-remove": return this._onRemotePersistentRemove(request);
+            case "persistent-clear": return this._onRemotePersistentClear(request);
+            case "persistent-pickup": return this._onRemotePersistentPickup(request);
+            case "persistent-move": return this._onRemotePersistentMove(request);
+            case "persistent-release": return this._onRemotePersistentRelease(request);
+            case "persistent-preroll": return this._onRemotePersistentPreroll(request);
+            case "persistent-throw": return this._onRemotePersistentThrow(request);
+        }
+    }
+
+    async _cleanupDisconnectedUser(userId) {
+        const lockedMeshes = [];
+        for (const mesh of this.box.persistentDiceList) {
+            if (mesh.userData?.lockedBy === userId) {
+                delete mesh.userData.lockedBy;
+                delete mesh.userData.remotePreRoll;
+                delete mesh.userData.preRollRates;
+                delete mesh.userData.remoteMoveTarget;
+                delete mesh.userData.remoteMoveSmoothed;
+                delete mesh.userData.pendingReplay;
+                lockedMeshes.push(mesh);
+            }
+        }
+        if (lockedMeshes.length > 0) {
+            await this.box.persistentDiceManager.removeRemoteConstraints(lockedMeshes);
+            this.box.updateSelectionOutlines();
+        }
+        this.box.removeRemoteOutlinePass(userId);
+    }
+
+    //save local user's persistent dice to flags
+    _savePersistentDiceToFlags() {
+        if (!game.user || this._restoringDice) return;
+        const data = Array.from(this._persistentDiceData.values());
+        game.user.setFlag("dice-so-nice", "persistentDice", data);
+    }
+
+    //restore a user's persistent dice from flags
+    async _restorePersistentDiceFromFlags(userId, synchronize = false) {
+        const user = game.users.get(userId);
+        if (!user) return;
+        const saved = user.getFlag("dice-so-nice", "persistentDice");
+        if (!Array.isArray(saved) || saved.length === 0) return;
+
+        if (userId !== game.user?.id) {
+            DiceLibrary.preloadAssets(userId);
+            this.DiceFactory.preloadPresets(false, userId);
+        }
+
+        const count = saved.length;
+        const spawnLocation = Dice3D.CONFIG(user).persistentDiceSpawnLocation;
+        const bounds = this._computeSpawnBounds();
+        for (let i = 0; i < count; i++) {
+            const entry = saved[i];
+            const { x, y } = SpawnLayout.computeSpawnPosition(i, count, spawnLocation, bounds);
+            const appearances = entry.appearances || Dice3D.APPEARANCE(user);
+            const appearance = this.DiceFactory.getAppearanceForDice(appearances, entry.dieType);
+            await this.spawnPersistentDie(entry.dieType, { x, y }, {
+                ownerUserId: userId,
+                remotePersistentId: entry.persistentId,
+                appearance,
+                _rawAppearances: appearances,
+                diceLibrary: entry.diceLibrary,
+                linkGroupId: entry.linkGroupId || null,
+                linkGroupSecondary: entry.linkGroupSecondary || false,
+                digitPlace: entry.digitPlace ?? null
+            }, synchronize);
+        }
+    }
+
+    //restore all connected users' persistent dice
+    async _restoreAllPersistentDice() {
+        //wait for DiceBox to finish initializing (materials, renderer, etc.)
+        if (this._boxReady) await this._boxReady;
+        this._restoringDice = true;
+        try {
+            for (const user of game.users) {
+                if (!user.active) continue;
+                await this._restorePersistentDiceFromFlags(user.id, user.id === game.user?.id);
+            }
+        } finally {
+            this._restoringDice = false;
+        }
+    }
+
+    async _onRemotePersistentCreate(request) {
+        const { persistentId, dieType, positionPct, linkGroupId, linkGroupSecondary, digitPlace, appearances, diceLibrary } = request.data;
+        const user = game.users.get(request.user);
+        if (!user) return;
+
+        //skip if already restored from flags
+        if (this._findPersistentMeshById(persistentId)) return;
+
+        DiceLibrary.preloadAssets(request.user);
+        this.DiceFactory.preloadPresets(false, request.user);
+
+        const resolvedAppearance = this.DiceFactory.getAppearanceForDice(
+            appearances || Dice3D.APPEARANCE(user), dieType
+        );
+
+        await this.spawnPersistentDie(dieType, positionPct, {
+            ownerUserId: request.user,
+            remotePersistentId: persistentId,
+            linkGroupId,
+            linkGroupSecondary,
+            digitPlace: digitPlace ?? null,
+            appearance: resolvedAppearance,
+            _rawAppearances: appearances,
+            diceLibrary
+        }, false);
+    }
+
+    async _onRemotePersistentRemove(request) {
+        const { persistentId } = request.data;
+        await this.removePersistentDie(persistentId, false);
+    }
+
+    async _onRemotePersistentClear(request) {
+        const { ownerUserId } = request.data;
+        await this.clearPersistentDice(ownerUserId ? { ownerUserId } : {}, false);
+    }
+
+    async _onRemotePersistentPickup(request) {
+        const { persistentIds, grabTime: remoteGrabTime } = request.data;
+        if (!Array.isArray(persistentIds)) return;
+
+        //yield locally-held dice that the remote player is picking up,
+        //but only if the remote grab wins the tiebreak (earlier timestamp,
+        //or lower user ID on exact tie). this prevents cross-deadlocks when
+        //two players grab the same die simultaneously.
+        const inputHandler = this.box.inputHandler;
+        if (inputHandler) {
+            const locallyHeldIds = [];
+            for (const pid of persistentIds) {
+                const mesh = this._findPersistentMeshById(pid);
+                if (!mesh?.userData?.constrained) continue;
+                const localTime = mesh.userData.localGrabTime || 0;
+                const remoteTime = remoteGrabTime || 0;
+                const remoteWins = remoteTime < localTime
+                    || (remoteTime === localTime && request.user < game.user.id);
+                if (remoteWins) {
+                    locallyHeldIds.push(mesh.id);
+                }
+            }
+            if (locallyHeldIds.length > 0) {
+                await inputHandler.yieldHeldDice(locallyHeldIds);
+            }
+        }
+
+        const meshes = [];
+        for (const pid of persistentIds) {
+            const mesh = this._findPersistentMeshById(pid);
+            if (!mesh) continue;
+            //skip dice the local player won the tiebreak for
+            if (mesh.userData?.constrained) continue;
+            mesh.userData.lockedBy = request.user;
+            meshes.push(mesh);
+        }
+        this.box.updateSelectionOutlines();
+        if (meshes.length > 0) {
+            await this.box.persistentDiceManager.addRemoteConstraints(meshes);
+        }
+    }
+
+    _onRemotePersistentMove(request) {
+        const { positions } = request.data;
+        if (!Array.isArray(positions)) return;
+        //store target position, render loop lerps toward it
+        for (const entry of positions) {
+            if (!entry?.persistentId) continue;
+            const mesh = this._findPersistentMeshById(entry.persistentId);
+            if (!mesh) continue;
+            //ignore late-arriving moves for already-released dice
+            if (!mesh.userData?.lockedBy) continue;
+            const world = this._fromPositionPct(entry);
+            mesh.userData.remoteMoveTarget = { x: world.x, z: world.z };
+        }
+    }
+
+    async _onRemotePersistentRelease(request) {
+        const { persistentIds } = request.data;
+        if (!Array.isArray(persistentIds)) return;
+        const meshes = [];
+        for (const pid of persistentIds) {
+            const mesh = this._findPersistentMeshById(pid);
+            if (!mesh) continue;
+            delete mesh.userData.lockedBy;
+            delete mesh.userData.remotePreRoll;
+            delete mesh.userData.preRollRates;
+            delete mesh.userData.remoteMoveTarget;
+            meshes.push(mesh);
+        }
+        await this.box.persistentDiceManager.removeRemoteConstraints(meshes);
+        this.box.updateSelectionOutlines();
+    }
+
+    _onRemotePersistentPreroll(request) {
+        const { persistentIds } = request.data;
+        if (!Array.isArray(persistentIds)) return;
+        const rate = () => (Math.random() < 0.5 ? -1 : 1) * (6.3 + Math.random() * 1.8);
+        for (const pid of persistentIds) {
+            const mesh = this._findPersistentMeshById(pid);
+            if (!mesh) continue;
+            mesh.userData.remotePreRoll = true;
+            //random rotation rates for pre-roll animation
+            mesh.userData.preRollRates = {
+                x: rate(),
+                y: rate(),
+                zAmp: 0.35,
+                zFreq: 1.2 + Math.random() * 0.4,
+                t: 0
+            };
+        }
+    }
+
+    async _onRemotePersistentThrow(request) {
+        const { velocityPct, results } = request.data;
+        if (!Array.isArray(results) || !velocityPct) return;
+
+        //look up local meshes and map forced results
+        const heldDice = [];
+        const forcedByMesh = new Map();
+        for (const entry of results) {
+            const mesh = this._findPersistentMeshById(entry.persistentId);
+            if (!mesh) continue;
+            heldDice.push(mesh);
+            forcedByMesh.set(mesh, entry.forcedResult);
+            //unlock and clear pre-roll state
+            delete mesh.userData.lockedBy;
+            delete mesh.userData.remotePreRoll;
+            delete mesh.userData.preRollRates;
+            delete mesh.userData.remoteMoveTarget;
+            //block interaction until the queued replay actually starts
+            mesh.userData.pendingReplay = true;
+        }
+        if (heldDice.length === 0) return;
+
+        await this.box.persistentDiceManager.removeRemoteConstraints(heldDice);
+        this.box.updateSelectionOutlines();
+
+        //convert velocity from pct to world units
+        const velocity = {
+            x: velocityPct.x * this.box.display.innerWidth,
+            y: velocityPct.y * this.box.display.innerHeight,
+            z: velocityPct.z || 0
+        };
+
+        //thrower's SFX config for remote playback
+        const throwerUser = game.users.get(request.user);
+        const sfxList = throwerUser ? Dice3D.ALL_CUSTOMIZATION(throwerUser).specialEffects || [] : [];
+
+        //route through queue for serialized execution
+        await this.box.replayRemoteThrow(heldDice, velocity, forcedByMesh, sfxList);
     }
 }

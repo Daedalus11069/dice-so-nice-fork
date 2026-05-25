@@ -1,4 +1,4 @@
-import { DiceSFX } from '../DiceSFX.js';
+import { DiceSFX } from './DiceSFX.js';
 
 export class PlayConfettiStrength2 extends DiceSFX {
     static id = "PlayConfettiStrength2";
@@ -6,9 +6,9 @@ export class PlayConfettiStrength2 extends DiceSFX {
 
     /**@override play */
     async play(){
-        const strength = window.confetti.confettiStrength.med;
-        const shootConfettiProps = window.confetti.getShootConfettiProps(strength);
-
-        window.confetti.handleShootConfetti(shootConfettiProps);
+        const api = game.modules.get('celebrate').api;
+        const strength = api.confettiStrength.med;
+        const shootConfettiProps = api.getShootConfettiProps(strength);
+        api.handleShootConfetti(shootConfettiProps);
     }
 }

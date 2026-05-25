@@ -10,9 +10,9 @@ This fork was secondarily created so I could use my module which hooks into it: 
 
 To install, follow these steps:
 
-1.  Inside Foundry, select the Game Modules tab in the Configuration and Setup menu.
-2.  Click the Install Module button and enter the following URL: https://github.com/Daedalus11069/dice-so-nice-fork/releases/latest/download/module.json
-3.  Click Install and wait for installation to complete.
+1. Inside Foundry, select the Game Modules tab in the Configuration and Setup menu.
+2. Click the Install Module button and enter the following URL: https://github.com/Daedalus11069/dice-so-nice-fork/releases/latest/download/module.json
+3. Click Install and wait for installation to complete.
 
 Dice So Nice! is also available on [The Forge](https://forge-vtt.com/bazaar#package=dice-so-nice). (Non-forked version)
 
@@ -100,51 +100,58 @@ A few considerations:
 A complete API and documentation for developers and artists alike is available in the [Wiki](https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/wikis/home)
 
 # Development and Contributing
-Dice So Nice! is a free and open source project. You can contribute to the project by making a merge request or by creating a [Gitlab issue](https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues).  
-Translations are done on the Foundry Hub Weblate directly. Check the [Weblate](https://weblate.foundryvtt-hub.com/engage/dice-so-nice/) page for contributing.  
+
+Dice So Nice! is a free and open source project. You can contribute by submitting a [merge request](https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/merge_requests) or by opening a [GitLab issue](https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues).
+
+Translations are managed on the Foundry Hub Weblate. Check the [Weblate page](https://weblate.foundryvtt-hub.com/engage/dice-so-nice/) to contribute.
 
 [![Translation status](https://weblate.foundryvtt-hub.com/widgets/dice-so-nice/-/multi-auto.svg)](https://weblate.foundryvtt-hub.com/engage/dice-so-nice/)
 
 ## Build instructions
-    npm install
-    npx rollup -c -w
 
-# Compatibility
+```
+npm install
+npx rollup -c -w
+```
 
-Compatible with Foundry VTT v10 and later.
-Tested with Foundry VTT v10.
-If you need to use an older Foundry version, please [download a compatible older version](https://foundryvtt.com/packages/dice-so-nice/)
+# Contributors
+
+A huge thank you to everyone who has contributed code, models, translations, and feedback over the years.
+
+- **[JDW](https://gitlab.com/JiDW)** — Main developer and maintainer since v2.
+- **[Simone](https://gitlab.com/riccisi)** — Creator of the project. Entire v1, co-developed v2 and many features.
+- **[Aioros](https://gitlab.com/Aioros)** — AppV2 migration, manual throws, d4 custom label support, and many bug fixes.
+- **[Steve Barnett](https://gitlab.com/mooped)** — d14, d16, d24, and d30 geometries. Developer on the [DCC system](https://www.foundryvtt-hub.com/package/dcc/).
+
+[View all contributors](https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/graphs/master)
 
 # Acknowledgment
 
-Based on the "Online 3D dice roller" from [http://a.teall.info/dice](http://www.teall.info/2014/01/online-3d-dice-roller.html). 
-Credits go to Anton Natarov, who published it under public domain.
+Based on the "Online 3D dice roller" by Anton Natarov, published under public domain.
 
 > "You can assume that it has the MIT license (or that else) if you wish so. I do not love any licenses at all and prefer to simply say that it is completely free =)" - Anton Natarov
 
-v2 of "Dice So Nice" based on Teal's fork from the awesome MajorVictory, with his direct consent. You can find his online roller here: http://dnd.majorsplace.com/dice/
+v2 of "Dice So Nice" was based on Anton's fork from MajorVictory, with his direct consent.
 
-d10 Geometry created by Greewi who did all the maths for our custom "Pentagonal Trapezohedron". You can find his homebrewed (french) TTRPG Feerie/Solaires here: https://feerie.net
+d10 geometry created by Greewi who did all the maths for our custom "Pentagonal Trapezohedron". You can find his homebrewed (French) TTRPG Feerie/Solaires here: https://feerie.net
 
-d14, d16, d24 and d30 created and integrated by [Steve Barnett](https://gitlab.com/mooped). Huge thanks to him. He's a developer on the [DCC system](https://www.foundryvtt-hub.com/package/dcc/)
+Built on [Three.js](https://threejs.org/), [cannon-es](https://pmndrs.github.io/cannon-es/), and [Proton](https://github.com/drawcall/three.proton).
 
-Built on [ThreeJS](https://threejs.org/), [CannonJS](https://schteppe.github.io/cannon.js/) and [Proton](https://github.com/drawcall/three.proton)
+## Theme and model credits
 
-## Theme and model credits:
 - **Spencer Thayer:** `Thylean Bronze` theme
 - **Foundry VTT:** For the FVTT Logo in the `Foundry VTT` preset.
-- **LyncsCwtsh:** For the `Spectrum` system (Discord: LyncsCwtsh#7116).
-- **MajorVictory:** For all the other theme in this module!
-- **[Christian Bloch](http://www.hdrlabs.com/sibl/archive.html):** For the "Footprint Court" HDRI map, released under the [CC-BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) license.
+- **LyncsCwtsh:** For the `Spectrum` system.
+- **MajorVictory:** For all the other themes in this module!
 - Additional sound effects from https://www.zapsplat.com
 
-Many thanks to the people who continue to support us on Discord, to the amazing system and module developers who integrate our module and to the artists who have let us integrate their textures in Dice So Nice!
+Many thanks to the people who continue to support us on Discord, to the amazing system and module developers who integrate our module, and to the artists who have let us integrate their textures in Dice So Nice!
 
 # Feedback
 
-Every suggestions/feedback are appreciated, if so, please contact JDW (JDW#6422) or Simone (Simone#6710) on discord.  
+Every suggestion and feedback is appreciated. Please contact JDW (`@jidw`) on Discord.
 
-To report a bug, please open a new issue [in our tracker](https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues) or use the [Bug Reporter module](https://www.foundryvtt-hub.com/package/bug-reporter/)
+To report a bug, please open a new issue [in our tracker](https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues).
 
 # License
 

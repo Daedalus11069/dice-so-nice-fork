@@ -272,12 +272,15 @@
     "DICESONICE.ghostDiceDisabled": "Desabilitar Dados Fantasmas",
     "DICESONICE.ghostDiceForAll": "Para Todos Jogadores",
     "DICESONICE.hide3dDiceOnSecretRolls": "Ocultar Dados em Rolagens de Mestre/Cega",
-    "DICESONICE.hide3dDiceOnSecretRollsHint": "Não exibe os dados 3D para outros jogadores em jogadas de Mestre/Cega.",
+    "DICESONICE.hide3dDiceOnSecretRollsHint": "Não exibe os dados 3D para outros jogadores em jogadas de Mestre/Cega, a menos que seja um dado fantasma",
     "DICESONICE.openDiceEditorButton": "Editor de Dados",
     "DICESONICE.ghostDiceForRollAuthor": "Apenas para Autor da Rolagem",
     "DICESONICE.resetWelcomeMessage": "Redefinir Mensagem de Boas-Vindas",
     "DICESONICE.resetWelcomeMessageHint": "Isso redefinirá a mensagem de boas-vindas para todos os jogadores. Eles verão a mensagem de boas-vindas novamente na próxima vez que entrarem neste mundo.",
     "DICESONICE.openDiceEditorLabel": "Abra o Editor de Dados",
     "DICESONICE.ChatCommandDescription": "Role dados 3D sem criar uma mensagem de chat",
-    "DICESONICE.ChatCommandCompletionDescription": "Insira uma fórmula de rolagem."
+    "DICESONICE.ChatCommandCompletionDescription": "Insira uma fórmula de rolagem.",
+    "DICESONICE.TextureLizard": "Lagarto",
+    "DICESONICE.TextureBird": "Pássaro",
+    "DICESONICE.TextureDragon": "Dragão"
 }

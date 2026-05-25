@@ -2,7 +2,49 @@ import { DiceTour } from "./DiceTour.js";
 
 export class DiceTourMain extends DiceTour {
     constructor() {
-        const steps = [
+        const hasSidebar = !game.settings.get("dice-so-nice", "hideSidebarTab");
+
+        let steps;
+        if (hasSidebar) {
+            steps = DiceTourMain._sidebarSteps();
+        } else {
+            steps = DiceTourMain._settingsSteps();
+        }
+
+        steps.push(...DiceTourMain._configSteps());
+
+        for(let step of steps) {
+            step.selector = DiceTourMain.getSelectorForStep(step);
+        }
+
+        super({
+            title: "How to use Dice So Nice!",
+            description: "Learn how to customize your 3D dice in this short tour of the module",
+            canBeResumed: false,
+            display: true,
+            steps: steps
+        });
+    }
+
+    static _sidebarSteps() {
+        return [
+            {
+                id: "goto-dsn-sidebar",
+                title: game.i18n.localize("DICESONICE.TourMainTitleGotoDsnSidebar"),
+                content: game.i18n.localize("DICESONICE.TourMainContentGotoDsnSidebar"),
+                action: "click"
+            },
+            {
+                id: "open-config-from-sidebar",
+                title: game.i18n.localize("DICESONICE.TourMainTitleGotoDiceSoNiceSettings"),
+                content: game.i18n.localize("DICESONICE.TourMainContentGotoDiceSoNiceSettings"),
+                action: "click"
+            }
+        ];
+    }
+
+    static _settingsSteps() {
+        return [
             {
                 id: "goto-settings",
                 title: game.i18n.localize("DICESONICE.TourMainTitleGotoSettings"),
@@ -31,7 +73,12 @@ export class DiceTourMain extends DiceTour {
                 title: game.i18n.localize("DICESONICE.TourMainTitleGotoDiceSoNiceSettings"),
                 content: game.i18n.localize("DICESONICE.TourMainContentGotoDiceSoNiceSettings"),
                 action: "click"
-            },
+            }
+        ];
+    }
+
+    static _configSteps() {
+        return [
             {
                 id: "show-3d-dice",
                 title: game.i18n.localize("DICESONICE.TourMainTitleShow3DDice"),
@@ -41,6 +88,7 @@ export class DiceTourMain extends DiceTour {
                 id: "show-appearance",
                 title: game.i18n.localize("DICESONICE.TourMainTitleShowAppearance"),
                 content: game.i18n.localize("DICESONICE.TourMainContentShowAppearance"),
+                tooltipDirection: "UP",
                 action: "click",
                 target: ".dice-so-nice a[data-tab=\"preferences\"]"
             },
@@ -63,10 +111,10 @@ export class DiceTourMain extends DiceTour {
                 title: game.i18n.localize("DICESONICE.TourMainTitleShowPerformance"),
                 content: game.i18n.localize("DICESONICE.TourMainContentShowPerformance"),
                 action: "click",
-                target: ".dice-so-nice a[data-tab=\"backup\"]"
+                target: ".dice-so-nice a[data-tab=\"data\"]"
             },
             {
-                id: "show-backup",
+                id: "show-data",
                 title: game.i18n.localize("DICESONICE.TourMainTitleShowBackup"),
                 content: game.i18n.localize("DICESONICE.TourMainContentShowBackup")
             },
@@ -76,31 +124,18 @@ export class DiceTourMain extends DiceTour {
                 content: game.i18n.localize("DICESONICE.TourMainContentEndTour")
             }
         ];
-
-        for(let step of steps) {
-            step.selector = DiceTourMain.getSelectorForStep(step);
-        }
-
-        super({
-            title: "How to use Dice So Nice!",
-            description: "Learn how to customize your 3D dice in this short tour of the module",
-            canBeResumed: false,
-            display: true,
-            steps: steps
-        });
     }
-    /**
-     * Override the DiceTour _preStep method to wait for the element to exists in the DOM
-     */
+
     async _preStep() {
         switch (this.currentStep.id) {
-            case "goto-settings":
-                //start on the chat tab
-                document.querySelector('a[data-tab="chat"],button[data-tab="chat"]').click();
+            case "goto-dsn-sidebar":
+                ui.sidebar.changeTab("chat", "primary");
                 break;
-            case "goto-dicesonice":
-                //There is no native selector available for this step so we add something to identify the element with jQuery
-                $("[data-tab=\"modules\"] h2:contains('Dice So Nice!')").addClass("dice-tour");
+            case "goto-settings":
+                ui.sidebar.changeTab("chat", "primary");
+                break;
+            case "goto-modulessettings":
+                await new Promise(resolve => setTimeout(resolve, 200));
                 break;
         }
 
@@ -112,8 +147,7 @@ export class DiceTourMain extends DiceTour {
             return;
         switch (this.currentStep.id) {
             case "end-tour":
-                //end the tour with a bang
-                document.querySelector('.dice-so-nice button[data-test]').click();
+                document.querySelector('.dice-so-nice button[data-action="test"]')?.click();
             break;
         }
         await super._postStep();
@@ -121,19 +155,23 @@ export class DiceTourMain extends DiceTour {
 
     static getSelectorForStep(step) {
         switch (step.id) {
+            // Sidebar path
+            case "goto-dsn-sidebar":
+                return "button[data-tab=\"dice-so-nice\"]";
+            case "open-config-from-sidebar":
+                return "#dice-so-nice [data-action=\"openConfig\"]";
+            // Settings path
             case "goto-settings":
                 return "[data-tab=\"settings\"]";
             case "goto-configure":
-                return "[data-action=\"configure\"]";
+                return "[data-app=\"configure\"]";
             case "goto-modulessettings":
-                if(foundry.utils.isNewerVersion(game.version, "12.0"))
-                    return ".category-tab[data-tab=\"dice-so-nice\"]";
-                else
-                    return ".category-filter [data-category=\"dice-so-nice\"]";
+                return "#settings-config [data-action=\"tab\"][data-tab=\"dice-so-nice\"]";
             case "goto-dicesonice":
-                return "#client-settings form.categories div.scrollable";
+                return "#settings-config .tab[data-tab=\"dice-so-nice\"]";
             case "goto-dicesonice-settings":
-                return "#client-settings [data-key=\"dice-so-nice.dice-so-nice\"]";
+                return "#settings-config [data-key=\"dice-so-nice.dice-so-nice\"]";
+            // Shared config steps
             case "show-3d-dice":
                 return "#dice-configuration-canvas";
             case "show-appearance":
@@ -144,10 +182,10 @@ export class DiceTourMain extends DiceTour {
                 return ".dice-so-nice div.tab.active[data-tab=\"sfx\"]";
             case "show-performance":
                 return ".dice-so-nice div.tab.active[data-tab=\"performance\"]";
-            case "show-backup":
-                return ".dice-so-nice div.tab.active[data-tab=\"backup\"]";
+            case "show-data":
+                return ".dice-so-nice div.tab.active[data-tab=\"data\"]";
             case "end-tour":
-                return ".dice-so-nice div.tab.active[data-tab=\"backup\"]";
+                return ".dice-so-nice div.tab.active[data-tab=\"data\"]";
         }
         return null;
     }

@@ -1,7 +1,8 @@
 import { AddEquation, CustomBlending, OneFactor, Sprite, SpriteMaterial, SrcAlphaFactor } from 'three';
-import { DiceSFX } from '../DiceSFX.js';
+import { DiceSFX } from './DiceSFX.js';
 import { Proton } from '../libs/three.proton.js';
-import { DiceSFXManager } from './../DiceSFXManager';
+import { DiceSFXManager } from './DiceSFXManager.js';
+import { LEGACY_TO_METERS } from '../engine/SceneConstants.js';
 
 export class PlayAnimationParticleSpiral extends DiceSFX {
     static id = "PlayAnimationParticleSpiral";
@@ -59,7 +60,7 @@ export class PlayAnimationParticleSpiral extends DiceSFX {
         }
         emitter.addInitialize(new Proton.Body(PlayAnimationParticleSpiral.sprite));
         emitter.addInitialize(new Proton.Radius(30 * this.scale));
-        emitter.addInitialize(new Proton.V(200, new Proton.Vector3D(0, 0, -1), 0));
+        emitter.addInitialize(new Proton.V(200 * LEGACY_TO_METERS, new Proton.Vector3D(0, -1, 0), 0));
 
 
         emitter.addBehaviour(new Proton.Alpha(1, 0));
@@ -67,10 +68,10 @@ export class PlayAnimationParticleSpiral extends DiceSFX {
         emitter.addBehaviour(new Proton.Scale(1.5, 0.1));
         //emitter.addBehaviour(new Proton.CrossZone(new Proton.ScreenZone(this.box.camera, this.box.renderer), 'dead'));
 
-        emitter.addBehaviour(new Proton.Force(0, 0, 17));
+        emitter.addBehaviour(new Proton.Force(0, 17 * LEGACY_TO_METERS, 0));
         emitter.p.x = this.dicemesh.parent.position.x + x;
-        emitter.p.y = this.dicemesh.parent.position.y + y;
-        emitter.p.z = 50;
+        emitter.p.y = 50 * LEGACY_TO_METERS;
+        emitter.p.z = this.dicemesh.parent.position.z + y;
         emitter.emit(0.7,true);
         return emitter;
     }
@@ -78,10 +79,10 @@ export class PlayAnimationParticleSpiral extends DiceSFX {
     animateEmitter() {
         this.tha += .2;
         this.emitter1.p.x = this.dicemesh.parent.position.x + this.R * Math.cos(this.tha);
-        this.emitter1.p.y = this.dicemesh.parent.position.y + this.R * Math.sin(this.tha);
+        this.emitter1.p.z = this.dicemesh.parent.position.z + this.R * Math.sin(this.tha);
 
         this.emitter2.p.x = this.dicemesh.parent.position.x - this.R * Math.cos(this.tha);
-        this.emitter2.p.y = this.dicemesh.parent.position.y - this.R * Math.sin(this.tha);
+        this.emitter2.p.z = this.dicemesh.parent.position.z - this.R * Math.sin(this.tha);
     }
 
     render() {

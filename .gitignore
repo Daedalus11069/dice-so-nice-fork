@@ -3,7 +3,6 @@
 *.iml
 dist
 node_modules
-
-# Dev Tools
-*repomix*
-CODING_ASSISTANT.md
+.github
+docs/public/
+docs/node_modules/

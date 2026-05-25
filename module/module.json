@@ -2,10 +2,10 @@
     "id": "dice-so-nice",
     "title": "Dice So Nice!",
     "description": "Adds customizable 3D dice to Foundry VTT with lots of options to fit your playstyle.",
-    "version": "5.2.4",
+    "version": "6.2.3",
     "compatibility": {
-        "minimum": 13,
-        "verified": "13.350"
+        "minimum": 14,
+        "verified": "14.362"
     },
     "authors": [
         {
@@ -22,13 +22,11 @@
     "esmodules": [
         "./main.js"
     ],
-    "scripts": [
-        "./libs/select2.min.js"
-    ],
+    "scripts": [],
     "socket": true,
     "styles": [
         "./css/style.css",
-        "./css/select2.css"
+        "./css/slimselect.css"
     ],
     "languages": [
         {
@@ -153,21 +151,13 @@
         {
             "type": "screenshot",
             "url": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/raw/master/screenshot2.jpg"
-        },
-        {
-            "type": "screenshot",
-            "url": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/raw/master/screenshot3.jpg"
-        },
-        {
-            "type": "screenshot",
-            "url": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/raw/master/screenshot4.jpg"
         }
     ],
     "url": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice",
     "manifest": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/raw/master/module/module.json",
-    "download": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/jobs/artifacts/5.2.4/raw/dist/dice-so-nice.zip?job=build",
-    "bugs": "https://github.com/Daedalus11069/dice-so-nice-fork/issues",
-    "readme": "https://github.com/Daedalus11069/dice-so-nice-fork/blob/v12-rendering-fixes/README.md",
+    "download": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/jobs/artifacts/6.2.3/raw/dist/dice-so-nice.zip?job=build",
+    "bugs": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/issues",
+    "readme": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/blob/master/README.md",
     "flags": {
         "allowBugReporter": true
     }
