@@ -1,6 +1,21 @@
+# ⚠️ This fork is no longer needed and is no longer maintained
+
+**Please use the official [Dice So Nice](https://foundryvtt.com/packages/dice-so-nice) module instead.**
+
+This fork existed so that [Dangerously Threatening Dice](https://github.com/Daedalus11069/foundry-dangerously-threatening-dice-module) could work. That module now works with the official Dice So Nice (6.4.5 or newer, Foundry VTT v14), so the fork is no longer necessary. It will receive no further updates, fixes, or support.
+
+To switch:
+1. Uninstall this fork.
+2. Install Dice So Nice 6.4.5 or newer from the Foundry package list.
+3. Update Dangerously Threatening Dice to its latest version.
+
+The rest of this README is kept for reference only.
+
+---
+
 This module for Foundry VTT adds the ability to show a 3D dice simulation when a roll is made.
 
-# Disclaimer
+# Disclaimer (historical)
 
 This fork is to fix a bug present in the 4.6.10 version of the module; namely, when hooking into events supplied by this module for rolling dice, if one rolls multiple dice and multiple dice have effects added to them, it crashes dice-so-nice.  I have not submitted a pull request because the fix, in my opinion, is a bit hacky.  Its hacky because I do not know why the underlying issue occurs, and at best it is a bandaid instead of a solution that targets the root cause of the bug.
 
@@ -8,7 +23,7 @@ This fork was secondarily created so I could use my module which hooks into it: 
 
 # Installation
 
-To install, follow these steps:
+**Not recommended: this fork is no longer maintained. Use the official module.** To install the fork anyway, follow these steps:
 
 1. Inside Foundry, select the Game Modules tab in the Configuration and Setup menu.
 2. Click the Install Module button and enter the following URL: https://github.com/Daedalus11069/dice-so-nice-fork/releases/latest/download/module.json
